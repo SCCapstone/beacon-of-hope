@@ -23,7 +23,7 @@ $ pipx install poetry
 ## Running
 
 # Authors
-Vansh Nagpal  
-Nitin Gupta  
-Andrew Davison  
-Zach Abdulrahaman
+Vansh Nagpal 2002vansh@gmail.com  
+Nitin Gupta niting1209@gmail.com  
+Andrew Davison ajd8@email.sc.edu  
+Zach Abdulrahaman zja@email.sc.edu
