@@ -39,10 +39,11 @@ BEACON - Meal Recommendation System
    ```
 
 
-## Meet the team!
+## Meet the team!!
 - [Vansh](https://vnagpal25.github.io)
 - [Nitin](https://g-nitin.github.io/portfolio/)
 - [Zach](https://zachabdulrahman.me)
 - [Andy](https://andrewdavison.dev)
+
 
 
