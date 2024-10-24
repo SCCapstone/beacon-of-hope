@@ -9,21 +9,35 @@ BEACON - Meal Recommendation System
 - Python and Django installed
 
 ### Installation
-
 1. Clone the repository:
    ```bash
-   git clone <repo-url>
-   cd <project-directory>
-
-2. Install Npm dependencies
+   git clone https://github.com/SCCapstone/beacon-of-hope.git
+   cd beacon-of-hope
+   ```
+2. Install frontend dependencies
+   ```bash
+   cd front-end
    npm install
+   ```
 
-3. Install Python dependencies
-   pip install -r requirements.txt
+3. Install backend dependencies
+   ```bash
+   cd back-end
+   poetry install
+   ```
 
-4. Start Frontend
-npm run dev
 
-5. Start backend
-python manage.py runserver
+### Run Application Locally
+4. Start backend
+   ```bash
+   python manage.py runserver
+   ```
+
+5. Start frontend
+   ```bash
+   npm run dev
+   ```
+
+   
+
 
