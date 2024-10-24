@@ -3,17 +3,15 @@
 ## Requirements
 In order to build this project you first have to install:
 - [Pipx](https://pipx.pypa.io/)
-  - Mac Install:
-    ```
-    brew install pipx
-    pipx ensurepath
-    ```
+  ```bash
+  # Mac Install
+  brew install pipx
+  pipx ensurepath
 
-  - Windows Install:
-    ```
-    py -m pip install --user pipx
-    .\pipx.exe ensurepath
-    ```
+  # Windows Install
+  py -m pip install --user pipx
+  .\pipx.exe ensurepath
+  ```
 
 - [Poetry](https://python-poetry.org/)
     ```bash
