@@ -16,14 +16,18 @@ BEACON - Meal Recommendation System
    cd <project-directory>
 
 2. Install Npm dependencies
+   ```bash
    npm install
 
 3. Install Python dependencies
+  ```bash
    pip install -r requirements.txt
 
 4. Start Frontend
+```bash
 npm run dev
 
 5. Start backend
+```bash
 python manage.py runserver
 
