@@ -1,6 +1,4 @@
-BEACON - Meal Recommendation System
-
-
+# BEACON - Meal Recommendation System
 
 ## Getting Started
 
