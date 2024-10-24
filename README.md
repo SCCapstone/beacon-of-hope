@@ -47,3 +47,5 @@ BEACON - Meal Recommendation System
 
 
 
+## App Functionality 
+- Our Meal Recommendation App is designed to help users create personalized meal plans based on their food preferences, dietary restrictions, and health goals. It intelligently suggests recipes by analyzing ingredients, user profiles, and nutritional needs, offering meal plans that are both nutritious and tailored to individual preferences.
