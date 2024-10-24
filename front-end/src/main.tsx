@@ -1,10 +1,12 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+// App.tsx
+import React from 'react';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const App: React.FC = () => {
+  return (
+    <div className="App">
+      <h1>Beacon of Hope</h1>
+    </div>
+  );
+};
+
+export default App;
