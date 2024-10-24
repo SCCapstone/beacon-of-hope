@@ -1,6 +1,20 @@
+
+# Virtual environment
+.venv/
 venv/
+
+# Python cache
+**/__pycache__/
 *.pyc
-__pycache__/
+
+# Poetry lock file
+poetry.lock
+
+# SQLite Database
 db.sqlite3
+
+# Log files
 *.log
+
+# Environment variables
 .env
