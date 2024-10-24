@@ -38,6 +38,11 @@ BEACON - Meal Recommendation System
    npm run dev
    ```
 
-   
+
+## Meet the team!
+- [Vansh](https://vnagpal25.github.io)
+- [Nitin](https://g-nitin.github.io/portfolio/)
+- [Zach](https://zachabdulrahman.me)
+- [Andy](https://andrewdavison.dev)
 
 
