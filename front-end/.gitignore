@@ -7,7 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.lcov
+
+# Production
 dist
 dist-ssr
 *.local
@@ -15,10 +24,38 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# PWA files
+dev-dist
+*.local
+
+# Optional eslint cache
+.eslintcache
+
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
