@@ -1,6 +1,6 @@
 # BEACON of Hope 🌟
 
-A context-aware meal recommendation system designed to help users make informed and healthy decisions about their meals, with a special focus on individuals with diabetes and those of African-American descent. The system provides personalized meal plans by analyzing user preferences, dietary restrictions, and health goals through the use of ontologies.
+A context-aware meal recommendation system designed to help users make informed and healthy decisions about their meals, with a special focus on individuals with diabetes and those of African-American descent. The system provides personalized meal plans by analyzing user preferences, dietary restrictions, and health goals through the use of ontologies with a database.
 
 ## 🎯 Key Features
 
