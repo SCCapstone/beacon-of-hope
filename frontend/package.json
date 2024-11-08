@@ -10,9 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mui/icons-material": "^6.1.6",
+    "@mui/material": "^6.1.6",
     "front-end": "file:",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-pro-sidebar": "^1.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
