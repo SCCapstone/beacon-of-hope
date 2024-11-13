@@ -1,8 +1,8 @@
-import { DailySummaries } from "./DailySummariesPage";
-import { KeyMetrics } from "./KeyMetricsPage";
-import { NutritionalHarmonyWheel } from "./NutrientalHarmonyPage";
-import { MealTimelineExplore } from "./MealTimelinePage";
-import { FlavorNetwork } from "./FlavorNetworkPage";
+import DailySummaries from "./DailySummariesPage";
+import KeyMetrics from "./KeyMetricsPage";
+import NutritionalHarmonyWheel from "./NutrientalHarmonyPage";
+import MealTimelineExplore from "./MealTimelinePage";
+import FlavorNetwork from "./FlavorNetworkPage";
 
 export const DashboardPage = () => {
   return (
