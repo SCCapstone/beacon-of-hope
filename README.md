@@ -67,7 +67,7 @@ Before you begin, ensure you have the following installed:
 - Backend tests can be run using:
   ```bash
   cd back-end
-  poetry run python manage.py test
+  poetry run python manage.py test tests
   ```
 
 ## 📁 Project Structure
