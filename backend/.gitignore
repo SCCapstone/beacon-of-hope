@@ -98,4 +98,4 @@ schema.yml
 .DS_Store
 Thumbs.db
 
-beacon-of-hope-database-firebase-adminsdk-1bckd-ee9b66ba5e.json
+firebase_key.json
