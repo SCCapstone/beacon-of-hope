@@ -97,3 +97,5 @@ schema.yml
 # System Files
 .DS_Store
 Thumbs.db
+
+firebase_key.json

@@ -8,6 +8,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 django = "^5.1.2"
+firebase-admin = "^6.6.0"
+black = "^24.10.0"
+pre-commit = "^4.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
