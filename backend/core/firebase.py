@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # Path to your service account key JSON file
-SERVICE_ACCOUNT_FILE = "beacon-of-hope-database-firebase-adminsdk-1bckd-ee9b66ba5e.json"
+SERVICE_ACCOUNT_FILE = "firebase_key.json"
 
 # Initialize Firebase
 cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
