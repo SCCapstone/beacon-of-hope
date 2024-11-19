@@ -1,15 +1,19 @@
 // App.tsx
-import Navbar from "./components/Navbar"
-import UseRoutes from "./components/UseRoutes"
+import { useLocation } from "react-router-dom";
+
+import UseRoutes from "./components/UseRoutes";
+import Navbar from "./components/Navbar";
 
 const  App: React.FC = () => {
 
+  const location = useLocation();
+
   return (
     <div>
+      {location.pathname !== '/welcome' && location.pathname !== '/login' && <Navbar />}
       <UseRoutes />
-      <Navbar />
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
