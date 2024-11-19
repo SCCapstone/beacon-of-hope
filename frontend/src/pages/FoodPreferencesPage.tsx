@@ -1,9 +1,15 @@
 // FoodPreferences.tsx
+import UserInfoCard from '../components/FoodPreferencesCards/UserInfoCard';
+import DietaryPrefCard from '../components/FoodPreferencesCards/DietaryPrefCard';
+import MealPlanConfigCard from '../components/FoodPreferencesCards/MealPlanConfigCard';
 
 const FoodPreferencesPage: React.FC = () => {
+
     return (
-        <div>
-            <h1>Food Preferences Page</h1>
+        <div className='' id='food-pref--page'>
+            <UserInfoCard />
+            <DietaryPrefCard />
+            <MealPlanConfigCard />
         </div>
     );
 };

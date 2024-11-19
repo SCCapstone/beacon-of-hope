@@ -1,7 +1,9 @@
 // UseRoutes.tsx
 import { Routes, Route } from 'react-router-dom'
 
+import WelcomePage from '../pages/WelcomePage';
 import LoginPage from '../pages/LoginPage';
+import HomePage from '../pages/HomePage';
 import MealPlanPage from '../pages/MealPlanPage';
 import FoodPreferencesPage from '../pages/FoodPreferencesPage';
 
@@ -21,9 +23,12 @@ import MealTimelinePage from '../pages/VizPages/MealTimelinePage';
 import NutrientHarmonyPage from '../pages/VizPages/NutrientalHarmonyPage';
 
 const UseRoutes: React.FC = () => {
+
     return (
         <Routes>
+            <Route path='/welcome' element={<WelcomePage />}></Route>
             <Route path='/login' element={<LoginPage />}></Route>
+            <Route path='/' element={<HomePage />}></Route>
             <Route path='/food-preferences' element={<FoodPreferencesPage />}></Route>
             <Route path='/meal-plan' element={<MealPlanPage />}></Route>
 
