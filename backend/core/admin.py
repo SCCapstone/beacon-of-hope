@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import UserPreference, MenuItem
 
-# Register your models here.
+admin.site.register(UserPreference)
+admin.site.register(MenuItem)

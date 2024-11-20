@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("add-user/", views.add_user_view, name="add_user"),
-    path("get-user/<str:user_id>/", views.get_user_view, name="get_user"),
+    path('recommendation/random/<int:num_days>/', views.random_recommendation, name='random_recommendation'),
+    path('recommendation/sequential/<int:num_days>/', views.sequential_recommendation, name='sequential_recommendation'),
+    path('recommendation/bandit/<int:num_days>/', views.bandit_recommendation, name='bandit_recommendation'),
 ]
