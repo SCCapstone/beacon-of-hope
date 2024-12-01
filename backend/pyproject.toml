@@ -11,6 +11,7 @@ django = "^5.1.2"
 firebase-admin = "^6.6.0"
 black = "^24.10.0"
 pre-commit = "^4.0.1"
+srlearn = "*"
 
 
 [tool.poetry.group.dev.dependencies]
