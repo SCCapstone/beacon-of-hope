@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import UserPreference, MenuItem
-from .utils.recommendation import RecommendationEngine
+from .recommendation import RecommendationEngine
 import random
 from srlearn import BoostedRDNClassifier 
 import json  
