@@ -1,5 +1,5 @@
 import random
-
+from firebase import load_r3, load_beverages
 
 class RecommendationEngine:
     def __init__(self):
