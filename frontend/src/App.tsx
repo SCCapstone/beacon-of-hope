@@ -9,7 +9,7 @@ const  App: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div>
+    <div className="container">
       {location.pathname !== '/welcome' && location.pathname !== '/login' && <Navbar />}
       <UseRoutes />
     </div>

@@ -1,9 +1,9 @@
 // PersonalInfoPage.tsx
-import { ReactHTMLElement, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-interface UserInfo {
-    name: string,
+interface PersonalInfo {
+    legalName: string,
     email: string,
     password: string
 }
@@ -11,70 +11,112 @@ interface UserInfo {
 const PersonalInfoPage: React.FC = () => {
 
     const navigate = useNavigate();
-    // Initialize user info
-    const [userInfo, setUserInfo] = useState<UserInfo>({
-        name: '',
-        email: '',
-        password: ''
-    });
-    // TODO fetch api data to fill
 
-    const [editingField, setEditingField] = useState<keyof UserInfo | null>(null);
-    const [newValue, setNewValue] = useState<string>('');
-    const [newPassword, setNewPassword] = useState<string>('');
-
-    const fetchUserData = async () => {
-        const user = {
-            name: 'John Smith',
-            email: 'jsmith@email.com',
-            password: 'password'
-        }
-        setUserInfo(user);
-    };
-
-    useEffect(() => {
-        fetchUserData();
-    }, []);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setNewValue(e.target.value);
-    };
-
-    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setNewPassword(e.target.value);
-    };
-
-    const handleSaveField = async (field: keyof UserInfo) => {
-        if(field === 'password') {
-            console.log('Saving new password: ', newPassword);
-            setNewPassword('');
-        } else {
-            const updatedUserInfo = { ...userInfo, [field]: newValue};
-            setUserInfo(updatedUserInfo);
-            console.log(`${field} saved`, newValue);
-        }
-
-
-    };
+    const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
+        legalName: 'John Doe',
+        email: 'johndoe@example.com',
+        password: '',
+      });
+    
+      // State for tracking edit mode
+      const [editMode, setEditMode] = useState<{ [key in keyof PersonalInfo]: boolean }>({
+        legalName: false,
+        email: false,
+        password: false,
+      });
+    
+      // State for managing the edited values
+      const [editedValues, setEditedValues] = useState<PersonalInfo>({
+        legalName: personalInfo.legalName,
+        email: personalInfo.email,
+        password: personalInfo.password,
+      });
+    
+      // Handle change in input fields
+      const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof PersonalInfo) => {
+        const value = e.target.value;
+        setEditedValues({
+          ...editedValues,
+          [field]: value,
+        });
+      };
+    
+      // Toggle edit mode
+      const toggleEditMode = (field: keyof PersonalInfo) => {
+        setEditMode({
+          ...editMode,
+          [field]: !editMode[field],
+        });
+      };
+    
+      // Save updated value for the field
+      const handleSave = (field: keyof PersonalInfo) => {
+        setPersonalInfo({
+          ...personalInfo,
+          [field]: editedValues[field],
+        });
+        toggleEditMode(field); // Exit edit mode after saving
+      };
 
     return (
-        <div>
-            <h1>Personal Info Page</h1>
+        <div className="page--content" id="personal-info--page">
+            <div className="setting-item">
+        <label>Legal Name:</label>
+        {editMode.legalName ? (
+          <div>
+            <input
+              type="text"
+              value={editedValues.legalName}
+              onChange={(e) => handleInputChange(e, 'legalName')}
+            />
+            <button onClick={() => handleSave('legalName')}>Save</button>
+          </div>
+        ) : (
+          <div>
+            <span>{personalInfo.legalName}</span>
+            <button onClick={() => toggleEditMode('legalName')}>Edit</button>
+          </div>
+        )}
+      </div>
+
+      <div className="setting-item">
+        <label>Email:</label>
+        {editMode.email ? (
+          <div>
+            <input
+              type="email"
+              value={editedValues.email}
+              onChange={(e) => handleInputChange(e, 'email')}
+            />
+            <button onClick={() => handleSave('email')}>Save</button>
+          </div>
+        ) : (
+          <div>
+            <span>{personalInfo.email}</span>
+            <button onClick={() => toggleEditMode('email')}>Edit</button>
+          </div>
+        )}
+      </div>
+
+      <div className="setting-item">
+        <label>Password:</label>
+        {editMode.password ? (
+          <div>
+            <input
+              type="password"
+              value={editedValues.password}
+              onChange={(e) => handleInputChange(e, 'password')}
+            />
+            <button onClick={() => handleSave('password')}>Save</button>
+          </div>
+        ) : (
+          <div>
+            <span>******</span>
+            <button onClick={() => toggleEditMode('password')}>Edit</button>
+          </div>
+        )}
+      </div>
             <button onClick={() => navigate(-1)}>{"< Go Back"}</button>
-            <form>
-                <div>
-                    <label></label>
-                    <input />
-                </div>
-                <div>
-                    <label></label>
-                    <input />
-                </div>
-                <div>
-                    <label></label>
-                    <input />
-                </div>
-            </form>
         </div>
     );
 };
