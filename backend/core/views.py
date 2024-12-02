@@ -1,10 +1,19 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import UserPreference, MenuItem
-from .recommendation import RecommendationEngine
+from .recommendation import (get_highest_prob_bevs,get_highest_prob_foods)
 import random
 from srlearn import BoostedRDNClassifier 
 import json  
+from utils.bandit_helpers import (
+    exhaustive_partition, 
+    gen_facts, 
+    gen_pairs, 
+    split_train_test, 
+    save_facts_pairs, 
+    save_users
+)
+
 
 
 def random_recommendation(request, num_days, rec_constraints):
