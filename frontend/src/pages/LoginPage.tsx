@@ -7,7 +7,7 @@ const LoginPage: React.FC = () => {
     const [rememberMe, setRememberMe] = useState(false);
 
     return (
-        <div className="page" id="login--page">
+        <div className="page--content" id="login--page">
             <div>
                 <h1>Login to your Account</h1>
                 <p>See what's going on with your business</p>
