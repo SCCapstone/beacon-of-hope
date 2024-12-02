@@ -1,11 +1,12 @@
 // UseRoutes.tsx
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom';
 
 import WelcomePage from '../pages/WelcomePage';
 import LoginPage from '../pages/LoginPage';
 import HomePage from '../pages/HomePage';
 import MealPlanPage from '../pages/MealPlanPage';
 import FoodPreferencesPage from '../pages/FoodPreferencesPage';
+import ProfilePage from '../pages/ProfilePage';
 
 // Setting Pages
 import SettingsPage from '../pages/SettingsPages/SettingsPage';
@@ -23,7 +24,6 @@ import MealTimelinePage from '../pages/VizPages/MealTimelinePage';
 import NutrientHarmonyPage from '../pages/VizPages/NutrientalHarmonyPage';
 
 const UseRoutes: React.FC = () => {
-
     return (
         <Routes>
             <Route path='/welcome' element={<WelcomePage />}></Route>
@@ -31,6 +31,7 @@ const UseRoutes: React.FC = () => {
             <Route path='/' element={<HomePage />}></Route>
             <Route path='/food-preferences' element={<FoodPreferencesPage />}></Route>
             <Route path='/meal-plan' element={<MealPlanPage />}></Route>
+            <Route path='/profile' element={<ProfilePage />}></Route>
 
             {/* Settings Routes */}
             <Route path='/settings' element={<SettingsPage />}></Route>
@@ -39,7 +40,7 @@ const UseRoutes: React.FC = () => {
             <Route path='/notifications' element={<NotificationsPage />}></Route>
             <Route path='/privacy-and-sharing' element={<PrivacySharingPage />}></Route>
 
-            {/* Visualization routes */}
+            {/* Visualization Routes */}
             <Route path="/insights" element={<DashboardPage />} />
             <Route path="/insights/metrics" element={<KeyMetricsPage />} />
             <Route path="/insights/daily" element={<DailySummariesPage />} />
