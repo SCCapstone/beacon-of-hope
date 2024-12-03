@@ -5,7 +5,7 @@ from .recommendation import (get_highest_prob_bevs,get_highest_prob_foods)
 import random
 from srlearn import BoostedRDNClassifier 
 import json  
-from utils.bandit_helpers import (
+from .bandit_helpers import (
     exhaustive_partition, 
     gen_facts, 
     gen_pairs, 
