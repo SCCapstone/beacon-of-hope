@@ -12,6 +12,7 @@ firebase-admin = "^6.6.0"
 black = "^24.10.0"
 pre-commit = "^4.0.1"
 srlearn = "^0.5.5"
+pymongo = "^4.10.1"
 
 
 [tool.poetry.group.dev.dependencies]
