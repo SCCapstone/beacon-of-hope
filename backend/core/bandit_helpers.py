@@ -4,6 +4,7 @@ import os
 import re
 from firebase import load_r3
 
+
 def exhaustive_partition():
     """
     Generate all combinations of user preferences for dairy, meat, and nuts.
@@ -32,7 +33,11 @@ def gen_facts(dairy_opinions, meat_opinions, nut_opinions):
     food_facts = []
 
     # Generate user preference facts
-    for feature_name, opinions in [('dairy', dairy_opinions), ('meat', meat_opinions), ('nuts', nut_opinions)]:
+    for feature_name, opinions in [
+        ("dairy", dairy_opinions),
+        ("meat", meat_opinions),
+        ("nuts", nut_opinions),
+    ]:
         positive = [i + 1 for i, op in enumerate(opinions) if op == 1]
         negative = [i + 1 for i, op in enumerate(opinions) if op == -1]
         for user in positive:
@@ -44,13 +49,13 @@ def gen_facts(dairy_opinions, meat_opinions, nut_opinions):
     beverages, mcdonalds, taco_bell, treat_data = load_r3()
     all_data = [beverages, mcdonalds, taco_bell, treat_data]
 
-    for data, prefix in zip(all_data, ['bev', 'food', 'food', 'food']):
+    for data, prefix in zip(all_data, ["bev", "food", "food", "food"]):
         for key, item_info in data.items():
-            if item_info.get('hasNuts'):
+            if item_info.get("hasNuts"):
                 food_facts.append(f"item({prefix}_{key}, has_nuts).")
-            if item_info.get('hasMeat'):
+            if item_info.get("hasMeat"):
                 food_facts.append(f"item({prefix}_{key}, has_meat).")
-            if item_info.get('hasDairy'):
+            if item_info.get("hasDairy"):
                 food_facts.append(f"item({prefix}_{key}, has_dairy).")
 
     return user_facts, food_facts
@@ -75,9 +80,11 @@ def gen_pairs(users, dairy_opinions, meat_opinions, nut_opinions):
 
     for user in users:
         for food_key, food_item in all_foods.items():
-            if ((food_item.get('hasNuts') and nut_opinions[user - 1] == -1) or
-                (food_item.get('hasMeat') and meat_opinions[user - 1] == -1) or
-                (food_item.get('hasDairy') and dairy_opinions[user - 1] == -1)):
+            if (
+                (food_item.get("hasNuts") and nut_opinions[user - 1] == -1)
+                or (food_item.get("hasMeat") and meat_opinions[user - 1] == -1)
+                or (food_item.get("hasDairy") and dairy_opinions[user - 1] == -1)
+            ):
                 neg_pairs.append(f"recommendation(user_{user}, food_{food_key}).")
             else:
                 pos_pairs.append(f"recommendation(user_{user}, food_{food_key}).")
@@ -112,14 +119,14 @@ def save_facts_pairs(train_facts, train_neg, train_pos, test_facts, test_neg, te
     Returns:
         Tuple: (bandit_trial_path, trial_number)
     """
-    trials = os.listdir('boosted_bandit')
-    pattern = r'trial(\d+)'
+    trials = os.listdir("boosted_bandit")
+    pattern = r"trial(\d+)"
     numbers = [int(re.search(pattern, trial).group(1)) for trial in trials]
 
     file_num = max(numbers) + 1 if numbers else 0
 
-    src_dir = 'boosted_bandit/trial0'
-    dest_dir = f'boosted_bandit/trial{file_num}'
+    src_dir = "boosted_bandit/trial0"
+    dest_dir = f"boosted_bandit/trial{file_num}"
 
     if os.path.exists(dest_dir):
         shutil.rmtree(dest_dir)
@@ -127,16 +134,20 @@ def save_facts_pairs(train_facts, train_neg, train_pos, test_facts, test_neg, te
     # Recursively copy the source directory to the destination directory
     shutil.copytree(src_dir, dest_dir)
 
-    for contents, file_name in [(train_facts, 'train_facts.txt'),
-                                (train_neg, 'train_neg.txt'),
-                                (train_pos, 'train_pos.txt')]:
-        with open(f'{dest_dir}/train/{file_name}', 'w') as file:
+    for contents, file_name in [
+        (train_facts, "train_facts.txt"),
+        (train_neg, "train_neg.txt"),
+        (train_pos, "train_pos.txt"),
+    ]:
+        with open(f"{dest_dir}/train/{file_name}", "w") as file:
             file.writelines(f"{line}\n" for line in contents)
 
-    for contents, file_name in [(test_facts, 'test_facts.txt'),
-                                (test_neg, 'test_neg.txt'),
-                                (test_pos, 'test_pos.txt')]:
-        with open(f'{dest_dir}/test/{file_name}', 'w') as file:
+    for contents, file_name in [
+        (test_facts, "test_facts.txt"),
+        (test_neg, "test_neg.txt"),
+        (test_pos, "test_pos.txt"),
+    ]:
+        with open(f"{dest_dir}/test/{file_name}", "w") as file:
             file.writelines(f"{line}\n" for line in contents)
 
     return dest_dir, file_num
@@ -157,8 +168,8 @@ def save_users(users, dairy_opinions, meat_opinions, nut_opinions, trial_num, nu
     pos_meat, neg_meat, _ = meat_opinions
     pos_nuts, neg_nuts, _ = nut_opinions
 
-    src_dir = 'user_input_data/trial0'
-    dest_dir = f'user_input_data/trial{trial_num}'
+    src_dir = "user_input_data/trial0"
+    dest_dir = f"user_input_data/trial{trial_num}"
 
     if os.path.exists(dest_dir):
         shutil.rmtree(dest_dir)
@@ -167,25 +178,25 @@ def save_users(users, dairy_opinions, meat_opinions, nut_opinions, trial_num, nu
     shutil.copytree(src_dir, dest_dir)
 
     for user in users:
-        with open(f'{src_dir}/user_0.json', 'r') as read_file:
+        with open(f"{src_dir}/user_0.json", "r") as read_file:
             sample_user = json.load(read_file)
 
             if user in pos_dairy:
-                sample_user["user_compatibilities"]['dairyPreference'] = 1
+                sample_user["user_compatibilities"]["dairyPreference"] = 1
             elif user in neg_dairy:
-                sample_user["user_compatibilities"]['dairyPreference'] = -1
+                sample_user["user_compatibilities"]["dairyPreference"] = -1
 
             if user in pos_meat:
-                sample_user["user_compatibilities"]['meatPreference'] = 1
+                sample_user["user_compatibilities"]["meatPreference"] = 1
             elif user in neg_meat:
-                sample_user["user_compatibilities"]['meatPreference'] = -1
+                sample_user["user_compatibilities"]["meatPreference"] = -1
 
             if user in pos_nuts:
-                sample_user["user_compatibilities"]['nutsPreference'] = 1
+                sample_user["user_compatibilities"]["nutsPreference"] = 1
             elif user in neg_nuts:
-                sample_user["user_compatibilities"]['nutsPreference'] = -1
+                sample_user["user_compatibilities"]["nutsPreference"] = -1
 
-            sample_user['time_period'] = num_days
+            sample_user["time_period"] = num_days
 
-        with open(f'{dest_dir}/user_{user}.json', 'w') as write_file:
+        with open(f"{dest_dir}/user_{user}.json", "w") as write_file:
             json.dump(sample_user, write_file, indent=2)

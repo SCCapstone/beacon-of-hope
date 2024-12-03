@@ -1,6 +1,7 @@
 import random
 from firebase import load_r3, load_beverages
 
+
 class RecommendationEngine:
     def __init__(self):
         self.beverages, self.mcdonalds, self.taco_bell, self.treat_data = load_r3()
@@ -20,25 +21,29 @@ class RecommendationEngine:
         food_r3 = self.mcdonalds | self.taco_bell | self.treat_data
 
         # Initialize user items dictionary with empty lists for each category
-        user_items = {i: {'Main Course': [], 'Side': [], 'Dessert': []}
-                      for i in range(1, num_users + 1)}
+        user_items = {
+            i: {"Main Course": [], "Side": [], "Dessert": []}
+            for i in range(1, num_users + 1)
+        }
 
         # Assign food items to users based on roles and probabilities
         for user, item, prob in items_probs:
             user = int(user)
             prob = float(prob)
             # Get item roles from food_r3
-            item_roles = food_r3[item]['food_role']
+            item_roles = food_r3[item]["food_role"]
             for role in item_roles:
                 # Skip if the role is Beverage
-                if role == 'Beverage':
+                if role == "Beverage":
                     continue
                 # Append the item and its probability to the corresponding category
                 user_items[user][role].append((item, prob))
 
         # Initialize recommendation dictionary
-        rec_user_items = {i: {'Main Course': [], 'Side': [], 'Dessert': []}
-                          for i in range(1, num_users + 1)}
+        rec_user_items = {
+            i: {"Main Course": [], "Side": [], "Dessert": []}
+            for i in range(1, num_users + 1)
+        }
 
         # Process each user's items to extract highest probability foods
         for user, role_dict in user_items.items():
@@ -46,7 +51,9 @@ class RecommendationEngine:
                 # Find the highest probability
                 highest_prob = max((prob for item, prob in role_items), default=0)
                 # Get all items with the highest probability
-                highest_items = [item for item, prob in role_items if prob == highest_prob]
+                highest_items = [
+                    item for item, prob in role_items if prob == highest_prob
+                ]
                 rec_user_items[user][role] = highest_items
 
         # Handle cases where some categories are empty
@@ -63,7 +70,10 @@ class RecommendationEngine:
             # Assign a random item from non-empty roles to empty roles
             for empty_role in empty:
                 role_dict[empty_role] = random.choice(
-                    [rec_user_items[user][non_empty_role] for non_empty_role in non_empty]
+                    [
+                        rec_user_items[user][non_empty_role]
+                        for non_empty_role in non_empty
+                    ]
                 )
 
         return rec_user_items
