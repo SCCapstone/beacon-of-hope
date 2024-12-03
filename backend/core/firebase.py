@@ -58,7 +58,7 @@ def load_r3():
         recipe_ref = db.collection("food-recipes")
         recipes = recipe_ref.stream()  # list of firestore document objects
         recipes = [recipe.to_dict() for recipe in recipes]
-        return {recipe['recipe-id']: recipe for recipe in recipes}
+        return {recipe["recipe-id"]: recipe for recipe in recipes}
     except Exception as e:
         return f"Error retrieving collection: {e}"
 
@@ -73,6 +73,6 @@ def load_beverages():
         bev_ref = db.collection("beverages")
         bevs = bev_ref.stream()  # list of firestore document objects
         bevs = [bev.to_dict() for bev in bevs]
-        return {bev['bev-id']: bev for bev in bevs}
+        return {bev["bev-id"]: bev for bev in bevs}
     except Exception as e:
         return f"Error retrieving collection: {e}"

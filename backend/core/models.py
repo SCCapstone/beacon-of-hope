@@ -1,9 +1,11 @@
 from django.db import models
 
+
 class UserPreference(models.Model):
     dairy_preference = models.IntegerField(default=0)  # -1, 0, 1
-    meat_preference = models.IntegerField(default=0)   # -1, 0, 1
-    nuts_preference = models.IntegerField(default=0)   # -1, 0, 1
+    meat_preference = models.IntegerField(default=0)  # -1, 0, 1
+    nuts_preference = models.IntegerField(default=0)  # -1, 0, 1
+
 
 class MenuItem(models.Model):
     name = models.CharField(max_length=200)
