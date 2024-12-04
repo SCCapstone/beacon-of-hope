@@ -49,6 +49,10 @@ theme: {
         '3': 'hsl(var(--chart-3))',
         '4': 'hsl(var(--chart-4))',
         '5': 'hsl(var(--chart-5))'
+      },
+      purple: {
+        600: '#C9E2FF',
+        700: '#7C3AED',
       }
     }
   }
