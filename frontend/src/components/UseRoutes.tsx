@@ -1,5 +1,5 @@
 // UseRoutes.tsx
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import WelcomePage from '../pages/WelcomePage';
 import LoginPage from '../pages/LoginPage';
@@ -16,12 +16,12 @@ import NotificationsPage from '../pages/SettingsPages/NotificationsPage';
 import PrivacySharingPage from '../pages/SettingsPages/PrivacySharingPage';
 
 // Visualization Pages
-import DashboardPage from '../pages/VizPages/DashboardPage';
-import DailySummariesPage from '../pages/VizPages/DailySummariesPage';
-import FlavorNetworkPage from '../pages/VizPages/FlavorNetworkPage';
-import KeyMetricsPage from '../pages/VizPages/KeyMetricsPage';
+// import DashboardPage from '../pages/VizPages/DashboardPage';
 import MealTimelinePage from '../pages/VizPages/MealTimelinePage';
-import NutrientHarmonyPage from '../pages/VizPages/NutrientalHarmonyPage';
+// import DailySummariesPage from '../pages/VizPages/DailySummariesPage';
+// import FlavorNetworkPage from '../pages/VizPages/FlavorNetworkPage';
+// import KeyMetricsPage from '../pages/VizPages/KeyMetricsPage';
+// import NutrientHarmonyPage from '../pages/VizPages/NutrientalHarmonyPage';
 
 const UseRoutes: React.FC = () => {
     return (
@@ -41,12 +41,12 @@ const UseRoutes: React.FC = () => {
             <Route path='/privacy-and-sharing' element={<PrivacySharingPage />}></Route>
 
             {/* Visualization Routes */}
-            <Route path="/insights" element={<DashboardPage />} />
-            <Route path="/insights/metrics" element={<KeyMetricsPage />} />
-            <Route path="/insights/daily" element={<DailySummariesPage />} />
-            <Route path="/insights/nutrients" element={<NutrientHarmonyPage />} />
+            <Route path="/insights" element={<Navigate to="/insights/timeline" />} />
             <Route path="/insights/timeline" element={<MealTimelinePage />} />
-            <Route path="/insights/network" element={<FlavorNetworkPage />} />
+            {/* <Route path="/insights/metrics" element={<KeyMetricsPage />} /> */}
+            {/* <Route path="/insights/daily" element={<DailySummariesPage />} /> */}
+            {/* <Route path="/insights/nutrients" element={<NutrientHarmonyPage />} /> */}
+            {/* <Route path="/insights/network" element={<FlavorNetworkPage />} /> */}
         </Routes>
     );
 };
