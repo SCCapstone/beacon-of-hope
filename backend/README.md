@@ -89,3 +89,17 @@ poetry run coverage report
 - [Django Documentation](https://docs.djangoproject.com/)
 - [Django REST Framework Documentation](https://www.django-rest-framework.org/)
 - [Poetry Documentation](https://python-poetry.org/docs/)
+
+
+## API Documentation
+TODO (Zach and Vansh put API endpoints for generating recommendations)
+
+- #### `<backend_ip>/beacon/get-food-info/<int:food_id>`
+  - Parameters (no request body)
+    - food_id (integer string representative of food item)
+  - Returns a JSON string which is the [R3 representation](https://github.com/vnagpal25/BEACON/blob/main/example_r3.json) of food item consisting of ingredients, instructions, macronutrients, meal roles, etc.
+- #### `<backend_ip>/beacon/get-bev-info/<int:bev_id>`
+  - Parameters (no request body)
+    - bev_id (integer string representative of food item)
+  - Returns:
+    - a JSON string consisting of the requested beverage (for now just the name)
