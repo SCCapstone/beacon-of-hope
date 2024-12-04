@@ -13,6 +13,44 @@ from .bandit_helpers import (
     save_facts_pairs,
     save_users,
 )
+from .firebase import load_beverages, load_r3
+
+
+def run_random(num_days, rec_constraints):
+    beverages, mcdonalds, taco_bell, treat_data = load_r3()
+    food_items = mcdonalds | taco_bell | treat_data
+    bevs = list(beverages.keys())
+    foods = list(food_items.keys())
+
+    meal_list = []
+    for constraint in rec_constraints:
+        meal = {}
+        constraint = constraint["meal_type"]
+        for item in constraint["meal_config"]:
+            meal[item] = ""
+        meal["meal_name"] = constraint["meal_name"]
+        meal_list.append(meal)
+    rec = [{f"day {day_num}": meal_list} for day_num in range(1, num_days + 1)]
+    for j, day in enumerate(rec, 1):
+        day_rec = day[f"day {j}"]
+        for meal in day_rec:
+            if "Beverage" in meal:
+                bev_num = random.choice(bevs)
+                meal["Beverage"] = beverages[bev_num]["name"]
+
+            if "Main Course" in meal:
+                food_num = random.choice(foods)
+                meal["Main Course"] = food_items[food_num]["recipe_name"]
+
+            if "Side" in meal:
+                food_num = random.choice(foods)
+                meal["Side"] = food_items[food_num]["recipe_name"]
+
+            if "Dessert" in meal:
+                food_num = random.choice(foods)
+                meal["Dessert"] = food_items[food_num]["recipe_name"]
+
+    return rec
 
 
 def random_recommendation(request, num_days, rec_constraints):
@@ -25,14 +63,29 @@ def random_recommendation(request, num_days, rec_constraints):
             {"error": "Recommendation constraints are required"}, status=400
         )
 
-    menu_items = list(MenuItem.objects.all())
-    beverages = [item for item in menu_items if item.item_type == "beverage"]
-    foods = [item for item in menu_items if item.item_type != "beverage"]
+    food_items = load_r3()
+    beverage_items = load_beverages()
 
-    if not beverages or not foods:
-        return JsonResponse(
-            {"error": "No menu items available for recommendation"}, status=400
-        )
+    bev_keys = list(beverage_items.keys())
+    food_keys = list(food_items.keys())
+
+    meal_list = []
+    for constraint in rec_constraints:
+        meal = {}
+        constraint = constraint["meal_type"]
+        for item in constraint["meal_config"]:
+            meal[item] = ""
+        meal["meal_name"] = constraint["meal_name"]
+        meal_list.append(meal)
+
+    rec = []
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            data["user_info"] = json.loads(data["user_info"])
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     meal_list = generate_meal_list(rec_constraints)
     rec = [{f"day {day_num}": meal_list} for day_num in range(1, num_days + 1)]
@@ -48,53 +101,6 @@ def random_recommendation(request, num_days, rec_constraints):
                 meal["Side"] = random.choice(foods).name
             if "Dessert" in meal:
                 meal["Dessert"] = random.choice(foods).name
-
-    return JsonResponse(rec)
-
-
-def sequential_recommendation(request, num_days, rec_constraints):
-    """
-    Generate sequential meal recommendations for the specified number of days based on constraints.
-    """
-    # Fetch the list of available beverages and foods
-    beverages = list(MenuItem.objects.filter(item_type="beverage"))
-    foods = list(MenuItem.objects.exclude(item_type="beverage"))
-
-    # Initialize indices for sequential selection
-    beverage_index = 0
-    food_index = 0
-
-    meal_list = []
-    for constraint in rec_constraints:
-        meal = {}
-        constraint_type = constraint["meal_type"]
-        for item in constraint["meal_config"]:
-            meal[item] = ""
-        meal["meal_name"] = constraint["meal_name"]
-        meal_list.append(meal)
-
-    # Generate recommendations for each day
-    rec = [{f"day {day_num}": meal_list} for day_num in range(1, num_days + 1)]
-
-    # Populate recommendations sequentially
-    for j, day in enumerate(rec, 1):
-        day_rec = day[f"day {j}"]
-        for meal in day_rec:
-            if "Beverage" in meal:
-                meal["Beverage"] = beverages[beverage_index].name
-                beverage_index = (beverage_index + 1) % len(beverages)
-
-            if "Main Course" in meal:
-                meal["Main Course"] = foods[food_index].name
-                food_index = (food_index + 1) % len(foods)
-
-            if "Side" in meal:
-                meal["Side"] = foods[food_index].name
-                food_index = (food_index + 1) % len(foods)
-
-            if "Dessert" in meal:
-                meal["Dessert"] = foods[food_index].name
-                food_index = (food_index + 1) % len(foods)
 
     return JsonResponse(rec)
 
