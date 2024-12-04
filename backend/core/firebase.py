@@ -1,9 +1,10 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+# import os
 # Path to your service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
-
+# print(os.listdir())
 # Initialize Firebase
 cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
 firebase_admin.initialize_app(cred)

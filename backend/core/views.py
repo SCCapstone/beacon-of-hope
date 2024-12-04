@@ -1,9 +1,11 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import UserPreference, MenuItem
-from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
+
+# from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
 import random
-from srlearn import BoostedRDNClassifier
+
+# from srlearn import BoostedRDNClassifier
 import json
 from .bandit_helpers import (
     exhaustive_partition,

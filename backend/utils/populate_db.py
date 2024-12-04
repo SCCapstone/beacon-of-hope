@@ -147,12 +147,11 @@ def populate_mealplans(db):
                     "day": 0,  # Sunday
                     "meals": [
                         {
-                            "meal_name": "Pancakes and Coffee",
                             "meal_time": "8:00 AM",
-                            "beverage": "bev123",
-                            "main_course": "food123",
-                            "side_dish": "food124",
-                            "dessert": "food125",
+                            "beverage": "1",
+                            "main_course": "2",
+                            "side_dish": "3",
+                            "dessert": "4",
                         }
                     ],
                 },

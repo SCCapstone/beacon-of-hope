@@ -2,7 +2,7 @@ import random
 import json
 import os
 import re
-from firebase import load_r3
+from .firebase import load_r3
 
 
 def exhaustive_partition():
