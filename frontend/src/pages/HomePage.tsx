@@ -2,7 +2,7 @@
 
 const HomePage: React.FC = () => {
     return (
-        <div>
+        <div className="page--content">
             <h1>Home Page</h1>
         </div>
     );

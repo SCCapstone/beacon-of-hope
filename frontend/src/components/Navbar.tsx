@@ -14,7 +14,7 @@ const Navbar: React.FC = () => {
     };
 
     return (
-        <Sidebar collapsed={collapsed}>
+        <Sidebar collapsed={collapsed} >
             <Menu>
                 <MenuItem icon={<MenuOutlined />} onClick={toggleSidebar}></MenuItem>
                 <MenuItem icon={<Home />} onClick={() => {navigate('/')}}>Home</MenuItem>

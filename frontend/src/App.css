@@ -1,42 +1,179 @@
+body {
+  margin: 0%;
+  font-family: "Nunito Sans";
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  height: 100vh;
+  font-family: "Nunito Sans", sans-serif;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/****LOGIN PAGE****/
+#login--page {
+  height: 100vh;
+  display: flex;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+#login--left {
+  flex: 1.45;
+  background-color: #fff;
+  background-image: url("../../public/login-img.png");
+  background-size: cover;
+  background-position: center;
+  padding: 0px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+#login--img {
+  background-size: cover;
 }
 
-.card {
-  padding: 2em;
+#login--right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0px;
+  gap: 36px;
+  height: 100%;
 }
 
-.read-the-docs {
-  color: #888;
+#login--header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 3px;
 }
+
+#sign--in {
+  margin-left: 83px;
+}
+
+#login--header button {
+  background-color: #fff;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  gap: 13px;
+  width: 420px;
+  height: 45px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+}
+
+.login--input {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 420px;
+  height: 68px;
+  padding: 0px;
+  gap: 4px;
+}
+
+.login--input input {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 13px 10px;
+  gap: 13px;
+  width: 420px;
+  height: 45px;
+  border: 1px solid #DEd2d9;
+  border-radius: 5px;
+}
+
+.login--input input::placeholder {
+  font-family: "Nunito Sans";
+  font-weight: 400;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+#login--remember {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 222px;
+  width: 420px;
+  height: 16px;
+}
+
+input[type="checkbox"] {
+  background-color: #fff;
+  border-radius: 5%;
+  border: 0px;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #7f265b;
+}
+
+#login--submit {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 13px 10px 12px;
+  gap: 13px;
+  margin-top: 32px;
+  width: 420px;
+  height: 54px;
+  background: #7f265b;
+  border: 0px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-family: "Nunito Sans";
+  font-size: 18px;
+  color: #fff;
+}
+
+#login--submit:hover {
+  cursor: pointer;
+}
+
+#create--account {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 65px;
+  padding: 0px;
+  gap: 10px;
+}
+
+#guest--account {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 110px;
+  padding: 0px;
+  gap: 10px;
+}
+
+/****WELCOME PAGE****/
+
+
+/****FOOD PREFERENCES PAGE****/
+
+
+/****SETTINGS PAGE****/
+
+
+/****PERSONAL INFO PAGE*****/
+
+
+/****PRIVACY & SHARING PAGE****/
+
+
+/****LOGIN & SECURITY PAGE****/
+
+
+/****NOTIFICATIONS PAGE****/
