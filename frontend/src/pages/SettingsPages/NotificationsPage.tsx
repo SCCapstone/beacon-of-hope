@@ -18,7 +18,7 @@ const NotificationsPage: React.FC = () => {
     };
 
     return (
-        <div className="page" id="notifications--page">
+        <div className="page--content" id="notifications--page">
             <h1 className="page--header">Notification Preferences</h1>
             <p>Manage how you receive notifications from us.</p>
 

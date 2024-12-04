@@ -7,7 +7,7 @@ const PrivacySharingPage: React.FC = () => {
     const navigate = useNavigate()
 
     return (
-        <div>
+        <div className="page--content">
             <h1>Privacy & Sharing Page</h1>
             <button onClick={() => navigate(-1)}>{"< Go Back"}</button>
         </div>

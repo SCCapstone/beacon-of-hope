@@ -4,7 +4,7 @@ import SettingsCard from "../../components/SettingsCard";
 
 const SettingsPage: React.FC = () => {
     return (
-        <div className="page" id="settings--page">
+        <div className="page--content" id="settings--page">
             <h1 className="page--header">Account Settings</h1>
             <div>
                 <SettingsCard name={"Personal Info"} desc={"Provide personal details and how we can reach you"} img={""} to={"personal-info"}/>
