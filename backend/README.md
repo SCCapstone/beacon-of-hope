@@ -94,6 +94,75 @@ poetry run coverage report
 ## API Documentation
 TODO (Zach and Vansh put API endpoints for generating recommendations)
 
+- #### `<backend_ip/beacon/recommendation/random/>`
+   - HTTP Method: `POST`
+   - Description: Generates a random meal plan based on the provided meal configuration for a specified number of days.
+   - Request body:
+      - Content-type: application/json
+
+   - JSON Schema:
+   ```json
+   {
+      "meal_plan_config": {
+        "num_days": 3,
+        "num_meals": 3,
+        "meal_configs": [
+            {
+                "meal_name": "breakfast",
+                "meal_time": "8:00am",
+                "beverage": true,
+                "main_course": true,
+                "side": false,
+                "dessert": false
+            },
+            {
+                "meal_name": "lunch",
+                "meal_time": "12:00pm",
+                "beverage": true,
+                "main_course": true,
+                "side": true,
+                "dessert": false
+            }
+        ]
+    },
+    "user_id": "674f7d4c5b4425639bef8cd6"
+}
+
+   - Response:
+      - (200) returns a generated meal plan in JSON
+   ```json
+   {
+    "_id": "507f191e810c19729de860ea",
+    "user_id": "674f7d4c5b4425639bef8cd6",
+    "name": "Generated Meal Plan",
+    "start_date": "2024-12-04T08:00:00Z",
+    "end_date": "2024-12-07T08:00:00Z",
+    "days": [
+        {
+            "day": 0,
+            "meals": [
+                {
+                    "_id": "5a934e000102030405000000",
+                    "meal_time": "8:00am",
+                    "beverage": "bev123",
+                    "main_course": "food456",
+                    "side_dish": null,
+                    "dessert": null
+                }
+            ]
+        }
+    ],
+    "status": "active",
+    "tags": ["random", "generated"],
+    "created_at": "2024-12-04T12:00:00Z",
+    "updated_at": "2024-12-04T12:00:00Z"
+}
+
+      - (400) Missing or invalid input
+      - (500) Internal Server error
+```
+
+
 - #### `<backend_ip>/beacon/get-food-info/<int:food_id>`
   - HTTP Method: `GET`
   - Parameters (no request body)
