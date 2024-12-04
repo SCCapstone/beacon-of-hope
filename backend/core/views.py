@@ -18,43 +18,6 @@ from .bandit_helpers import (
 from .firebase import load_beverages, load_r3
 
 
-def run_random(num_days, rec_constraints):
-    beverages, mcdonalds, taco_bell, treat_data = load_r3()
-    food_items = mcdonalds | taco_bell | treat_data
-    bevs = list(beverages.keys())
-    foods = list(food_items.keys())
-
-    meal_list = []
-    for constraint in rec_constraints:
-        meal = {}
-        constraint = constraint["meal_type"]
-        for item in constraint["meal_config"]:
-            meal[item] = ""
-        meal["meal_name"] = constraint["meal_name"]
-        meal_list.append(meal)
-    rec = [{f"day {day_num}": meal_list} for day_num in range(1, num_days + 1)]
-    for j, day in enumerate(rec, 1):
-        day_rec = day[f"day {j}"]
-        for meal in day_rec:
-            if "Beverage" in meal:
-                bev_num = random.choice(bevs)
-                meal["Beverage"] = beverages[bev_num]["name"]
-
-            if "Main Course" in meal:
-                food_num = random.choice(foods)
-                meal["Main Course"] = food_items[food_num]["recipe_name"]
-
-            if "Side" in meal:
-                food_num = random.choice(foods)
-                meal["Side"] = food_items[food_num]["recipe_name"]
-
-            if "Dessert" in meal:
-                food_num = random.choice(foods)
-                meal["Dessert"] = food_items[food_num]["recipe_name"]
-
-    return rec
-
-
 def random_recommendation(request, num_days, rec_constraints):
     if num_days <= 0:
         return JsonResponse(

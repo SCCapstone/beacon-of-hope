@@ -12,4 +12,7 @@ urlpatterns = [
         views.bandit_recommendation,
         name="bandit_recommendation",
     ),
+    path(
+        "get-recipe-info/<int:item_id>", views.get_recipe_info, name="get_recipe_info"
+    ),
 ]
