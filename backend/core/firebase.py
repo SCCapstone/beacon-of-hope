@@ -76,3 +76,28 @@ def load_beverages():
         return {bev["bev-id"]: bev for bev in bevs}
     except Exception as e:
         return f"Error retrieving collection: {e}"
+
+
+# Retrieves all meal plans for a specific user.
+
+
+def get_user_mealplans(user_id):
+    """
+    Retrieves all meal plans for a specific user.
+
+    :param db: Firestore database instance
+    :param user_id: The ID of the user whose meal plans to retrieve
+    :return: A list of meal plans or an error message
+    """
+    try:
+        user = get_document("users", user_id)  # pulls user object based on unique ID
+        plan_ids = user["plan_ids"]
+        # TODO Change based off of specific date later
+        plan_id = str(plan_ids[-1])  # conv to str just in case
+        meal_plan = get_document("mealplans", plan_id)
+        return meal_plan
+
+        # mealplans = db.collection("mealplans").where("user_id", "==", user_id).stream()
+    #     return [mealplan.to_dict() for mealplan in mealplans]
+    except Exception as e:
+        return f"Error retrieving meal plans for user {user_id}: {e}"

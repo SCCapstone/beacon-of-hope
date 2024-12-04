@@ -142,7 +142,6 @@ def populate_mealplans(db):
             "name": "Weekly Meal Plan",
             "start_date": datetime.now(),
             "end_date": datetime.now() + timedelta(days=7),
-            "plan_ids": [0],  # Placeholder plan IDs
             "days": [
                 {
                     "day": 0,  # Sunday
