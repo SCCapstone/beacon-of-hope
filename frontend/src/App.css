@@ -3,6 +3,11 @@ body {
   font-family: "Nunito Sans";
 }
 
+h1, h2, p {
+  font-family: "Nunito Sans";
+  margin: 0px;
+}
+
 #root {
   height: 100vh;
   font-family: "Nunito Sans", sans-serif;
@@ -12,19 +17,17 @@ body {
 #login--page {
   height: 100vh;
   display: flex;
+  flex-direction: row;
 }
 
 #login--left {
   flex: 1.45;
-  background-color: #fff;
-  background-image: url("../../public/login-img.png");
-  background-size: cover;
-  background-position: center;
-  padding: 0px;
+  max-height: 100%;
 }
 
-#login--img {
-  background-size: cover;
+#login--left img {
+  max-height: 100%;
+  max-width: fit-content;
 }
 
 #login--right {
@@ -34,14 +37,16 @@ body {
   justify-content: center;
   align-items: center;
   padding: 0px;
-  gap: 36px;
-  height: 100%;
+  gap: 3%;
+  max-height: 100vh;
 }
 
 #login--header {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  max-width: 463;
+  max-height: 50%;
   padding: 0px;
   gap: 3px;
 }
@@ -59,8 +64,8 @@ body {
   align-items: center;
   padding: 10px;
   gap: 13px;
-  width: 420px;
-  height: 45px;
+  height: 20%;
+  width: 100%;
   border: 1px solid #e8e8e8;
   border-radius: 5px;
 }
@@ -69,8 +74,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  width: 420px;
-  height: 68px;
+  height: 6%;
   padding: 0px;
   gap: 4px;
 }
@@ -83,7 +87,7 @@ body {
   padding: 13px 10px;
   gap: 13px;
   width: 420px;
-  height: 45px;
+  height: 4%;
   border: 1px solid #DEd2d9;
   border-radius: 5px;
 }
@@ -143,7 +147,7 @@ input[type="checkbox"]:checked {
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  margin-top: 65px;
+  margin-top: 6%;
   padding: 0px;
   gap: 10px;
 }
@@ -153,15 +157,135 @@ input[type="checkbox"]:checked {
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  margin-top: 110px;
+  margin-top: 5%;
   padding: 0px;
   gap: 10px;
 }
 
 /****WELCOME PAGE****/
 
+#welcome--page {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+}
+
+#welcome--left {
+  flex: 1.45;
+  max-height: 100%;
+}
+
+#welcome--left img {
+  max-height: 100%;
+}
+
+#welcome--right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+#welcome--header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 3px;
+}
+
+.welcome--button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-shadow: 10px 2px 32px rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  border: 0px;
+  width: 500px;
+  height: 17%;
+}
+
+.welcome--button:hover {
+  cursor: pointer;
+}
+
+#button--one {
+  background-color: #FFE6C9;
+}
+#button--two {
+  background-color: #e8e8e8;
+}
+#button--three {
+  background-color: #9a4678;
+}
 
 /****FOOD PREFERENCES PAGE****/
+
+#food-pref--page {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 150px;
+}
+
+#food-pref--page h2,h3 {
+  font-family: "Arima";
+}
+
+.food-pref--card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#submit--button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #E5AC62;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  color: black;
+  padding: 16px 32px;
+  left: 90%;
+  top: 90%;
+  font-family: "Arima";
+}
+
+/**USER INFO**/
+
+#user-info--form {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  background: #fff;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 14.7391px;
+  max-width: 450px;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.dropdown-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 8px;
+}
+
+/**DIET PREF**/
+
+/**MEAL PLAN CONFIG**/
 
 
 /****SETTINGS PAGE****/
@@ -177,3 +301,47 @@ input[type="checkbox"]:checked {
 
 
 /****NOTIFICATIONS PAGE****/
+
+
+/****NAVBAR****/
+
+#navbar {
+  position: fixed;
+  height: 100vh;
+  background-color: #EFEFEF;
+  z-index: 1;
+}
+
+#sidebar--header {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: 20px;
+}
+
+#sidebar--items {
+  margin-top: 25%;
+}
+
+#sidebar--button {
+  background-color: #E5AC62;
+  border: none;
+  border-radius: 100%;
+  height: 35px;
+  width: 35px;
+  font-weight: 400;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+.sidebar--item {
+  border-radius: 20%;
+}
+
+.page--content {
+  margin-left: 90px;
+}

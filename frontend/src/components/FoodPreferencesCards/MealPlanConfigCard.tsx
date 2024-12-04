@@ -32,7 +32,7 @@ const MealPlanConfigCard: React.FC = () => {
     };
 
     return (
-        <div className="meal-plan-form">
+        <div className="food-pref--card">
           <h2>Meal Plan Configuration</h2>
           <form>
             <div className="form-group">

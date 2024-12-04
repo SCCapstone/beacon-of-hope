@@ -7,7 +7,7 @@ import MealPlanStats from "../components/FoodPreferencesCards/MealPlanStats";
 
 const ProfilePage: React.FC = () => {
   return (
-    <div className="profile-page">
+    <div className="page--content">
       <UserProfileCard />
       <div className="preferences-and-plans">
         <FoodPreferencesCard />
