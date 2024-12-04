@@ -1,0 +1,95 @@
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: modal-slide-up 0.3s ease-out;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: white;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #6B7280;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+    background-color: #F3F4F6;
+    color: #111827;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+@keyframes modal-slide-up {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Scrollbar styling */
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #F3F4F6;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #9CA3AF;
+}
