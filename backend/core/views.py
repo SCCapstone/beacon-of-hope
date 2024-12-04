@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpRequest
 from .models import UserPreference, MenuItem
 
 # from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
@@ -15,10 +15,12 @@ from .bandit_helpers import (
     save_facts_pairs,
     save_users,
 )
-from .firebase import load_beverages, load_r3
+from .firebase import get_beverages, get_r3, get_single_r3, get_single_beverage
+
+# TODO, add error checking for all recieved responses and send corresponding status code for errors faced
 
 
-def random_recommendation(request, num_days, rec_constraints):
+def random_recommendation(request: HttpRequest, num_days, rec_constraints):
     if num_days <= 0:
         return JsonResponse(
             {"error": "Number of days must be greater than zero"}, status=400
@@ -28,8 +30,8 @@ def random_recommendation(request, num_days, rec_constraints):
             {"error": "Recommendation constraints are required"}, status=400
         )
 
-    food_items = load_r3()
-    beverage_items = load_beverages()
+    food_items = get_r3()
+    beverage_items = get_beverages()
 
     bev_keys = list(beverage_items.keys())
     food_keys = list(food_items.keys())
@@ -70,7 +72,7 @@ def random_recommendation(request, num_days, rec_constraints):
     return JsonResponse(rec)
 
 
-def bandit_recommendation(request, num_days, opinions, rec_constraints):
+def bandit_recommendation(request: HttpRequest, num_days, opinions, rec_constraints):
     """
     Generate bandit-based meal recommendations for the specified number of days based on user opinions and constraints.
     """
@@ -180,3 +182,21 @@ def bandit_recommendation(request, num_days, opinions, rec_constraints):
                 )
 
     return JsonResponse(rec)
+
+
+def get_recipe_info(request: HttpRequest, recipe_id):
+    if request.method == "GET":
+        # get r3 representation of specified recipe
+        r3 = get_single_r3(recipe_id)
+        if type(r3) == Exception:
+            return JsonResponse({"Error": "Error retrieving recipe"}, status=400)
+        return JsonResponse(r3, status=200)
+
+
+def get_beverage_info(request: HttpRequest, beverage_id):
+    if request.method == "GET":
+        bev = get_single_beverage(beverage_id)
+        if type(bev) == Exception:
+            return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
+        return JsonResponse(bev, status=200)
+    ...
