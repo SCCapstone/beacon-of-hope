@@ -13,6 +13,11 @@ urlpatterns = [
         name="bandit_recommendation",
     ),
     path(
+        "recommendation/retrieve-latest/<str:user_id>",
+        views.retrieve_meal_plan,
+        name="retrieve_meal_plan",
+    ),
+    path(
         "get-recipe-info/<str:recipe_id>", views.get_recipe_info, name="get_recipe_info"
     ),
     path(

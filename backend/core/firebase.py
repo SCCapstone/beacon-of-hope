@@ -199,7 +199,7 @@ def get_single_beverage(beverage_id):
 """Meal plan retriveal functions"""
 
 
-def get_user_mealplans(user_id, date=None):
+def get_user_mealplan(user_id, latest=True, date=None):
     """
     Retrieves all meal plans for a specific user.
 
@@ -212,12 +212,11 @@ def get_user_mealplans(user_id, date=None):
         user = get_document("users", user_id)
         plan_ids = user["plan_ids"]
         # TODO Change based off of specific date later
-        plan_id = str(plan_ids[-1])  # conv to str just in case
+        if latest:
+            plan_id = str(plan_ids[-1])  # conv to str just in case
         meal_plan = get_document("mealplans", plan_id)
         return meal_plan
 
-        # mealplans = db.collection("mealplans").where("user_id", "==", user_id).stream()
-    #     return [mealplan.to_dict() for mealplan in mealplans]
     except Exception as e:
         return Exception(f"Error retrieving meal plans for user {user_id}: {e}")
 
