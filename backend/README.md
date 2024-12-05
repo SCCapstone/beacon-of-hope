@@ -195,7 +195,7 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
           "_id": pyMongo ObjectId type,
           "username": str,
           "email": str,
-          "plan_ids": [str],
+          "plan_ids": [pyMongo ObjectId type],
           "dietary_preferences": {
               "preferences": [str],
               "numerical_preferences": {
@@ -292,3 +292,11 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
         }
 
       ```
+
+- #### `<backend_ip>/beacon/user/<str:user_id>`
+  - HTTP Method: `DELETE`
+  - Delete user profile from database
+  - Parameters
+    - user_id: PyMongo ObjectId type
+  - Returns
+    - Status code 204 if successful
