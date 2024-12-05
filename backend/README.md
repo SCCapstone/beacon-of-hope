@@ -161,6 +161,41 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
       - (400) Missing or invalid input
       - (500) Internal Server error
 
+
+- #### `<backend_ip>/beacon/recommendation/retrieve-latest/<str:user_id>`
+   - HTTP Method: `GET`
+   - Description: Retrieve atest meal plan recommendation for a particular user
+   - Parameters:
+    - `user_id`: str
+   - Returns:
+    ```json
+   {
+    "_id": PyMongo ObjectId,
+    "name": "Generated Meal Plan",
+    "start_date": DateTime,
+    "end_date": DateTime,
+    "days": [
+        {
+            "day": int,
+            "meals": [
+                {
+                    "_id": PyMongo ObjectId,
+                    "meal_time": str,
+                    "beverage": str,
+                    "main_course": str,
+                    "side_dish": str,
+                    "dessert": str
+                }
+            ]
+        }
+    ],
+    "status": str,
+    "tags": [str],
+    "created_at": DateTime,
+    "updated_at": DateTime
+    }
+    ```
+
 - #### `<backend_ip>/beacon/get-recipe-info/<str:food_id>`
   - HTTP Method: `GET`
   - Parameters (no request body)
@@ -191,18 +226,57 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
     ```
   - Returns
     - ```json
-        {
-          'uuid': str
+      {
+          "_id": pyMongo ObjectId type,
+          "username": str,
+          "email": str,
+          "plan_ids": [pyMongo ObjectId type],
+          "dietary_preferences": {
+              "preferences": [str],
+              "numerical_preferences": {
+                  "dairy": -1,
+                  "nuts": 0,
+                  "meat": 1,
+              },
+          },
+          "health_info": {
+              "allergies": [str],
+              "conditions": [str],
+          },
+          "demographicsInfo": {
+              "ethnicity": str,
+              "height": str,
+              "weight": str,
+              "age": int,
+              "gender": str,
+          },
+          "meal_plan_config": {
+              "num_days": int,
+              "num_meals": int,
+              "meal_configs": [
+                  {
+                      "meal_name": str,
+                      "meal_time": str,
+                      "beverage": bool,
+                      "main_course": bool,
+                      "side": bool,
+                      "dessert": bool,
+                  }
+              ],
+          },
+          "created_at": python DateTime,
+          "updated_at": python DateTime,
         }
+
       ```
+
 
 - #### `<backend_ip>/beacon/user/login`
   - HTTP Method: `POST`
   - Login user profile
   - Parameters
     - Content-type: application/json
-    - JSON schema:
-    ```json
+    - ```json
       {
         'email': str,
         'password': str
@@ -210,7 +284,54 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
     ```
   - Returns
     - ```json
-        {
-          'uuid': str
+      {
+          "_id": pyMongo ObjectId type,
+          "username": str,
+          "email": str,
+          "plan_ids": [str],
+          "dietary_preferences": {
+              "preferences": [str],
+              "numerical_preferences": {
+                  "dairy": -1,
+                  "nuts": 0,
+                  "meat": 1,
+              },
+          },
+          "health_info": {
+              "allergies": [str],
+              "conditions": [str],
+          },
+          "demographicsInfo": {
+              "ethnicity": str,
+              "height": str,
+              "weight": str,
+              "age": int,
+              "gender": str,
+          },
+          "meal_plan_config": {
+              "num_days": int,
+              "num_meals": int,
+              "meal_configs": [
+                  {
+                      "meal_name": str,
+                      "meal_time": str,
+                      "beverage": bool,
+                      "main_course": bool,
+                      "side": bool,
+                      "dessert": bool,
+                  }
+              ],
+          },
+          "created_at": python DateTime,
+          "updated_at": python DateTime,
         }
+
       ```
+
+- #### `<backend_ip>/beacon/user/<str:user_id>`
+  - HTTP Method: `DELETE`
+  - Delete user profile from database
+  - Parameters
+    - user_id: PyMongo ObjectId type
+  - Returns
+    - Status code 204 if successful

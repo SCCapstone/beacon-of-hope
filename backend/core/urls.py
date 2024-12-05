@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     path(
-        "recommendation/random/",
+        "recommendation/random",
         views.random_recommendation,
         name="random_recommendation",
     ),
@@ -11,6 +11,11 @@ urlpatterns = [
         "recommendation/bandit/<int:num_days>/",
         views.bandit_recommendation,
         name="bandit_recommendation",
+    ),
+    path(
+        "recommendation/retrieve-latest/<str:user_id>",
+        views.retrieve_meal_plan,
+        name="retrieve_meal_plan",
     ),
     path(
         "get-recipe-info/<str:recipe_id>", views.get_recipe_info, name="get_recipe_info"
@@ -22,4 +27,5 @@ urlpatterns = [
     ),
     path("user/signup", views.create_user, name="create_user"),
     path("user/login", views.login_user, name="login_user"),
+    path("user/delete/<str:user_id>", views.delete_account, name="delete_account"),
 ]

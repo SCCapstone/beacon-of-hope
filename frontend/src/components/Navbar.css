@@ -1,0 +1,64 @@
+/****NAVBAR****/
+#navbar {
+  position: fixed;
+  height: 100vh;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column; /* Ensure vertical layout */
+  justify-content: space-between; /* Space out items */
+  z-index: 1;
+  width: 250px; /* Adjust as needed */
+}
+
+/* Header Section */
+#sidebar--header {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  background-color: #fff;
+  align-items: center;
+  margin-top: 20px;
+}
+
+/* Items Section */
+#sidebar--items {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-color: #fff;
+  gap: 8px;
+  margin-top: 20px;
+  margin-left: 5px;
+  flex: 1; /* Take up remaining space */
+}
+
+/* Button Styles */
+.sidebar--button {
+  display: flex;
+  flex-direction: row;
+  align-items: center; /* Center icon and text vertically */
+  gap: 8px;
+  background-color: #fff;
+  border: none;
+  border-radius: 50px;
+  width: 100%;
+  padding: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar--button:hover {
+  background-color: #efefef;
+  cursor: pointer;
+}
+
+.sidebar--button:focus {
+  border: none;
+  background-color: #EFEFEF;
+  outline: none;
+}
+
+/* Logout Section */
+#sidebar--logout {
+  margin-bottom: 20px; /* Add spacing at the bottom */
+  padding-left: 5px;
+}

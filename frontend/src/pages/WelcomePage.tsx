@@ -5,7 +5,7 @@ const WelcomePage: React.FC = () => {
     return (
         <div id='welcome--page'>
             <div id='welcome--left'>
-                <img src='../../public/login-img.png'></img>
+                <img src='../../login-img.png'></img>
             </div>
             <div id='welcome--right'>
                 <div id='welcome--header'>

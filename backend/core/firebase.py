@@ -1,3 +1,4 @@
+# TODO add robust error handling res, status = funciton()...
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -12,7 +13,7 @@ firebase_admin.initialize_app(cred)
 # Initialize Firestore database
 db = firestore.client()
 
-"""General functions for adding and retrieving a function based on collection name and doc id"""
+"""General functions for adding, retrieving, and deleting a function based on collection name and doc id"""
 
 
 def add_document(collection_name, document_id, data):
@@ -51,10 +52,26 @@ def get_document(collection_name, document_id):
         return f"Error getting document: {e}"
 
 
-"""Update and Delete functions"""
+def get_documents_by_attr(collection_name, key, value):
+    """
+    Returns all documents that have {key: value} in their schema
+    """
+    try:
+        collection_ref = db.collection(collection_name)
+
+        # retrieves all documents with particular key, value pair
+        docs = collection_ref.where(key, "==", value).stream()
+
+        # Assuming email is unique, retrieve the first matching document
+        docs = [doc.to_dict() for doc in docs]
+        if docs:
+            return docs
+        else:
+            return f"No document found for {{{key}: {value}}}"
+    except Exception as e:
+        return f"Error retrieving documents: {e}"
 
 
-# Update Function
 def update_document(collection_name, document_id, data):
     """
     Updates a document in a specified Firestore collection.
@@ -72,7 +89,42 @@ def update_document(collection_name, document_id, data):
         return f"Error updating document: {e}"
 
 
-# Delete Function
+def update_document_attr(collection_name, document_id, key, value):
+    """
+    Updates a specific field of a Firestore document.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to update
+    :param field_name: The name of the field to update
+    :param new_value: The new value for the field
+    :return: A success message or an error message
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.update({key: value})
+        return f"Document {document_id} updated successfully."
+    except Exception as e:
+        return f"Error updating document: {e}"
+
+
+def update_document_list_attr(collection_name, document_id, key, list_val):
+    """
+    Appends an element to a list in a Firestore document.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to update
+    :param list_field: The name of the field that contains the list
+    :param element: The element to append to the list
+    :return: A success message or an error message
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.update({key: firestore.ArrayUnion([list_val])})
+        return f"Successfully appended {list_val} to {key} in document {document_id}."
+    except Exception as e:
+        return f"Error updating document: {e}"
+
+
 def delete_document(collection_name, document_id):
     """
     Deletes a document from a specified Firestore collection.
@@ -87,6 +139,34 @@ def delete_document(collection_name, document_id):
         return f"Document {document_id} deleted successfully."
     except Exception as e:
         return f"Error deleting document: {e}"
+
+
+"""User Retrieval functions"""
+
+
+def get_user_by_email(user_email: str, password: str):
+    """
+    Fetches a document from a Firestore collection based on the 'email' field.
+
+    :param email: The email to search for
+    :return: The document data or an error message
+    """
+    try:
+        users = get_documents_by_attr(
+            collection_name="users", key="email", value=user_email
+        )
+
+        # TODO add error checking for having multiple users with the same id
+        if type(users) == list:
+            user = users[0]
+            if user["password"] == password:
+                return user
+            return Exception(f"Incorrect password")
+        return Exception(f"Error retrieving documents: {users}")
+    except:
+        return Exception(
+            f"There was an error retrieving the user with email: {user_email}"
+        )
 
 
 """Food and Beverage item retrieval functions"""
@@ -155,7 +235,7 @@ def get_single_beverage(beverage_id):
 """Meal plan retriveal functions"""
 
 
-def get_user_mealplans(user_id, date=None):
+def get_user_mealplan(user_id, latest=True, date=None):
     """
     Retrieves all meal plans for a specific user.
 
@@ -168,12 +248,11 @@ def get_user_mealplans(user_id, date=None):
         user = get_document("users", user_id)
         plan_ids = user["plan_ids"]
         # TODO Change based off of specific date later
-        plan_id = str(plan_ids[-1])  # conv to str just in case
+        if latest:
+            plan_id = str(plan_ids[-1])  # conv to str just in case
         meal_plan = get_document("mealplans", plan_id)
         return meal_plan
 
-        # mealplans = db.collection("mealplans").where("user_id", "==", user_id).stream()
-    #     return [mealplan.to_dict() for mealplan in mealplans]
     except Exception as e:
         return Exception(f"Error retrieving meal plans for user {user_id}: {e}")
 
@@ -186,4 +265,33 @@ def get_latest_user_mealplan(user_id):
 
 
 def add_user(user_id, user):
+    # TODO add error checking if user already exists
     add_document("users", user_id, user)
+
+
+def add_mealplan(user_id, meal_plan):
+    """
+    Save meal plan to firebase
+    """
+    try:
+        # Add meal plan id to the user's profile 'plan_ids' tag
+        meal_plan_id = meal_plan["_id"]
+        # TODO error checking
+        status = update_document_list_attr("users", user_id, "plan_ids", meal_plan_id)
+
+        # Save the meal plan object to firebase
+        status = add_document("mealplans", meal_plan_id, meal_plan)
+    except Exception as e:
+        # TODO split error cases
+        return Exception(f"There was an issue saving the meal plan: {e}")
+
+
+"""Object deletion functions"""
+
+
+def delete_user(user_id):
+    try:
+        delete_document("users", user_id)
+    except:
+        # TODO split error cases
+        return Exception("User either doesn't exist or couldn't delete user")

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import WelcomePage from "../pages/WelcomePage";
 import LoginPage from "../pages/LoginPage";
+import SignUpPage from "../pages/SignUpPage";
 import HomePage from "../pages/HomePage";
 import MealPlanPage from "../pages/MealPlanPage";
 import FoodPreferencesPage from "../pages/FoodPreferencesPage";
@@ -11,9 +12,10 @@ import MealTimelinePage from "../pages/VizPages/MealTimelinePage";
 const UseRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />}></Route>
-      <Route path="/welcome" element={<WelcomePage />}></Route>
+      <Route path="/home" element={<HomePage />}></Route>
       <Route path="/login" element={<LoginPage />}></Route>
+      <Route path="/signup" element={<SignUpPage />}></Route>
+      <Route path="/" element={<WelcomePage />}></Route>
       <Route path="/food-preferences" element={<FoodPreferencesPage />}></Route>
       <Route path="/meal-plan" element={<MealPlanPage />}></Route>
       <Route path="/settings" element={<SettingsPage />}></Route>

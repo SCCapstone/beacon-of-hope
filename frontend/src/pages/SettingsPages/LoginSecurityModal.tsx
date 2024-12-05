@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-// import "./Modal.css";
-import "./SettingsModals.css";
+import "./css/SettingsModals.css";
 
 const LoginSecurityModal: React.FC = () => {
   const [password, setPassword] = useState({
@@ -61,7 +60,9 @@ const LoginSecurityModal: React.FC = () => {
   return (
     <div className="modal-content">
       <div className="security-section">
-        <h2><b>Change Password</b></h2>
+        <h2>
+          <b>Change Password</b>
+        </h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Current Password</label>

@@ -1,6 +1,5 @@
 import React from "react";
-// import "./Modal.css";
-import "./SettingsModals.css";
+import "./css/SettingsModals.css";
 
 const NotificationsModal: React.FC = () => {
   return (

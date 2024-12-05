@@ -35,7 +35,7 @@
   font-size: 1.5rem;
   color: #C9E2FF;
   padding: 0.5rem;
-  background: rgba(139, 92, 246, 0.1);
+  /* background: rgba(255, 255, 255, 0.1); */
   border-radius: 8px;
   margin-bottom: 1rem;
 }
@@ -45,6 +45,7 @@
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 1rem;
+  margin-top: 1rem;
 }
 
 .settings-card__description {
