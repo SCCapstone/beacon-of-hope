@@ -1,6 +1,6 @@
-import { KeyMetricCircle } from "../../components/viz/KeyMetrics/KeyMetricCircle";
-import { HealthScore } from "../../components/viz/KeyMetrics/HealthScore";
-import { ImprovementAreas } from "../../components/viz/KeyMetrics/ImprovementAreas";
+import { KeyMetricCircle } from "../../components/Visualizations/KeyMetrics/KeyMetricCircle";
+import { HealthScore } from "../../components/Visualizations/KeyMetrics/HealthScore";
+import { ImprovementAreas } from "../../components/Visualizations/KeyMetrics/ImprovementAreas";
 
 const KeyMetricsPage: React.FC = () => {
   return (

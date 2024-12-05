@@ -1,4 +1,4 @@
-import { FlavorNetwork } from "../../components/viz/PatternExplorer/FlavorNetwork";
+import { FlavorNetwork } from "../../components/Visualizations/PatternExplorer/FlavorNetwork";
 
 // Wireframing for the Flavor Network page
 

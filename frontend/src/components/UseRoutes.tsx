@@ -5,7 +5,6 @@ import LoginPage from "../pages/LoginPage";
 import HomePage from "../pages/HomePage";
 import MealPlanPage from "../pages/MealPlanPage";
 import FoodPreferencesPage from "../pages/FoodPreferencesPage";
-import ProfilePage from "../pages/ProfilePage";
 import SettingsPage from "../pages/SettingsPages/SettingsPage";
 import MealTimelinePage from "../pages/VizPages/MealTimelinePage";
 
@@ -17,7 +16,6 @@ const UseRoutes: React.FC = () => {
       <Route path="/login" element={<LoginPage />}></Route>
       <Route path="/food-preferences" element={<FoodPreferencesPage />}></Route>
       <Route path="/meal-plan" element={<MealPlanPage />}></Route>
-      <Route path="/profile" element={<ProfilePage />}></Route>
       <Route path="/settings" element={<SettingsPage />}></Route>
 
       {/* Visualization Routes */}

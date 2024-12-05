@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import MealCalendarViz from "../../components/viz/PatternExplorer/MealTimeline/MealCalendarViz";
-import { DayMeals } from "../../components/viz/PatternExplorer/MealTimeline/types";
+import MealCalendarViz from "../../components/Visualizations/PatternExplorer/MealTimeline/MealCalendarViz";
+import { DayMeals } from "../../components/Visualizations/PatternExplorer/MealTimeline/types";
 
 export const MealTimelinePage: React.FC = () => {
   const [weekData, setWeekData] = useState<DayMeals[]>([]);
