@@ -162,6 +162,15 @@ input[type="checkbox"]:checked {
   gap: 10px;
 }
 
+.error-message {
+  color: #ff0000;
+  background-color: #ffe6e6;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
 /****WELCOME PAGE****/
 
 #welcome--page {
@@ -297,7 +306,10 @@ input[type="checkbox"]:checked {
 /****PRIVACY & SHARING PAGE****/
 
 
-/****LOGIN & SECURITY PAGE****/
+/**** SIGNUP, LOGIN, & SECURITY PAGE****/
+.google-login-button:hover + .tooltip {
+  display: block;
+}
 
 
 /****NOTIFICATIONS PAGE****/
