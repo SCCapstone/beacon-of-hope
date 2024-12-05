@@ -52,7 +52,7 @@ def random_recommendation(request: HttpRequest):
         meal_configs = meal_plan_config.get("meal_configs")
 
         # sanity check
-        assert num_days == len(meal_config)
+        assert num_days == len(meal_configs)
 
         if (
             not isinstance(num_days, int)
