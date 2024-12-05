@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse, HttpRequest
+from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import UserPreference, MenuItem
 
 # from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
@@ -27,6 +27,7 @@ from .firebase import (
     get_single_beverage,
     get_user_by_email,
     add_user,
+    delete_user,
 )
 
 # TODO, add error checking for all recieved responses and send corresponding status code for errors faced
@@ -128,7 +129,6 @@ def random_recommendation(request: HttpRequest):
 
         logger.info(f"Generated meal plan: {mealplan}")
         return JsonResponse(mealplan)
-
     except Exception as e:
         logger.exception("An error occurred while generating the meal plan.")
         return JsonResponse({"error": str(e)}, status=500)
@@ -269,68 +269,88 @@ def create_user(request: HttpRequest):
     """
     Creating a user
     """
-    try:
-        data = json.loads(request.body)
-        user_id = str(ObjectId())
-        user = {
-            "_id": user_id,
-            "first_name": data["first_name"],
-            "last_name": data["last_name"],
-            "username": "",
-            "email": data["email"],
-            "password": data["password"],
-            "plan_ids": [],
-            "dietary_preferences": {
-                "preferences": [""],
-                "numerical_preferences": {
-                    "dairy": 0,
-                    "nuts": 0,
-                    "meat": 0,
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_id = str(ObjectId())
+            user = {
+                "_id": user_id,
+                "first_name": data["first_name"],
+                "last_name": data["last_name"],
+                "username": "",
+                "email": data["email"],
+                "password": data["password"],
+                "plan_ids": [],
+                "dietary_preferences": {
+                    "preferences": [""],
+                    "numerical_preferences": {
+                        "dairy": 0,
+                        "nuts": 0,
+                        "meat": 0,
+                    },
                 },
-            },
-            "health_info": {
-                "allergies": [""],
-                "conditions": [""],
-            },
-            "demographicsInfo": {
-                "ethnicity": "",
-                "height": "",
-                "weight": "",
-                "age": 0,
-                "gender": "",
-            },
-            "meal_plan_config": {
-                "num_days": 1,
-                "num_meals": 1,
-                "meal_configs": [
-                    {
-                        "meal_name": "breakfast",
-                        "meal_time": "8:00am",
-                        "beverage": True,
-                        "main_course": True,
-                        "side": True,
-                        "dessert": True,
-                    }
-                ],
-            },
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
-        }
-        add_user(user_id, user)
-        return JsonResponse(user, status=200)
-    except:
-        return JsonResponse(
-            {"error": "There was an error in creating user profile"}, status=400
-        )
+                "health_info": {
+                    "allergies": [""],
+                    "conditions": [""],
+                },
+                "demographicsInfo": {
+                    "ethnicity": "",
+                    "height": "",
+                    "weight": "",
+                    "age": 0,
+                    "gender": "",
+                },
+                "meal_plan_config": {
+                    "num_days": 1,
+                    "num_meals": 1,
+                    "meal_configs": [
+                        {
+                            "meal_name": "breakfast",
+                            "meal_time": "8:00am",
+                            "beverage": True,
+                            "main_course": True,
+                            "side": True,
+                            "dessert": True,
+                        }
+                    ],
+                },
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+            }
+            add_user(user_id, user)
+            return JsonResponse(user, status=200)
+        except:
+            return JsonResponse(
+                {"error": "There was an error in creating user profile"}, status=400
+            )
+    return JsonResponse({"Error": "Invalid Request Method"}, status=400)
 
 
 def login_user(request: HttpRequest):
     """Login user"""
-    try:
-        data = json.loads(request.body)
-        user = get_user_by_email(user_email=data["email"], password=data["password"])
-        if isinstance(user, Exception):
-            return JsonResponse({"Error": str(user)}, status=500)
-        return JsonResponse(user, status=200)
-    except Exception as e:
-        return JsonResponse({"Error": e}, status=400)
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user = get_user_by_email(
+                user_email=data["email"], password=data["password"]
+            )
+            if isinstance(user, Exception):
+                return JsonResponse({"Error": str(user)}, status=500)
+            return JsonResponse(user, status=200)
+        except Exception as e:
+            return JsonResponse({"Error": e}, status=400)
+    return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+
+@csrf_exempt
+def delete_account(request: HttpRequest, user_id: str):
+    if request.method == "DELETE":
+        try:
+            print(user_id)
+            delete_user(user_id)
+            return HttpResponse(status=204)  # 204 No Content for successful deletion
+        except:
+            return JsonResponse(
+                {"Error": f"Couldn't delete user: {user_id}"}, status=500
+            )
+    return JsonResponse({"Error": "Invalid Request Method"}, status=400)

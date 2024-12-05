@@ -13,7 +13,7 @@ firebase_admin.initialize_app(cred)
 # Initialize Firestore database
 db = firestore.client()
 
-"""General functions for adding and retrieving a function based on collection name and doc id"""
+"""General functions for adding, retrieving, and deleting a function based on collection name and doc id"""
 
 
 def add_document(collection_name, document_id, data):
@@ -72,10 +72,6 @@ def get_documents_by_attr(collection_name, key, value):
         return f"Error retrieving documents: {e}"
 
 
-"""Update and Delete functions"""
-
-
-# Update Function
 def update_document(collection_name, document_id, data):
     """
     Updates a document in a specified Firestore collection.
@@ -93,7 +89,6 @@ def update_document(collection_name, document_id, data):
         return f"Error updating document: {e}"
 
 
-# Delete Function
 def delete_document(collection_name, document_id):
     """
     Deletes a document from a specified Firestore collection.
@@ -237,3 +232,14 @@ def get_latest_user_mealplan(user_id):
 def add_user(user_id, user):
     # TODO add error checking if user already exists
     add_document("users", user_id, user)
+
+
+"""Object deletion functions"""
+
+
+def delete_user(user_id):
+    try:
+        delete_document("users", user_id)
+    except:
+        # TODO split error cases
+        return Exception("User either doesn't exist or couldn't delete user")
