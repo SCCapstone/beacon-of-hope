@@ -25,6 +25,7 @@ from .firebase import (
     get_r3,
     get_single_r3,
     get_single_beverage,
+    get_user_by_email,
     add_user,
 )
 
@@ -324,7 +325,10 @@ def login_user(request: HttpRequest):
     """Login user"""
     try:
         data = json.loads(request.body)
-
-        ...
-    except:
-        ...
+        user = get_user_by_email(user_email=data["email"], password=data["password"])
+        if type(user) == Exception:
+            return JsonResponse(f"Error: {user}", status=200)
+        else:
+            return JsonResponse(user, status=500)
+    except Exception as e:
+        return JsonResponse(f"Error: {e}", status=400)
