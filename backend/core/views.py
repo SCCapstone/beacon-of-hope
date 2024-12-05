@@ -30,6 +30,7 @@ from .firebase import (
     add_user,
     delete_user,
     get_user_mealplan,
+    add_mealplan,
 )
 
 # TODO, add error checking for all recieved responses and send corresponding status code for errors faced
@@ -56,7 +57,7 @@ def random_recommendation(request: HttpRequest):
             meal_configs = meal_plan_config.get("meal_configs")
 
             # sanity check
-            assert num_days == len(meal_configs)
+            assert num_meals == len(meal_configs)
 
             if (
                 not isinstance(num_days, int)
@@ -96,27 +97,32 @@ def random_recommendation(request: HttpRequest):
             for day_index in range(num_days):
                 day = {"day": day_index, "meals": []}
                 for meal_config in meal_configs:
+                    meal_types = {}
+
+                    # Add beverage if required
+                    if meal_config["meal_types"]["beverage"]:
+                        meal_types["beverage"] = random.choice(list(beverages.keys()))
+
+                    # Add main course if required
+                    if meal_config["meal_types"]["main_course"]:
+                        meal_types["main_course"] = random.choice(
+                            list(food_items.keys())
+                        )
+
+                    # Add side dish if required
+                    if meal_config["meal_types"]["side"]:
+                        meal_types["side_dish"] = random.choice(list(food_items.keys()))
+
+                    # Add dessert if required
+
+                    if meal_config["meal_types"]["dessert"]:
+                        meal_types["dessert"] = random.choice(list(food_items.keys()))
                     meal = {
                         "_id": str(ObjectId()),  # Unique ID for the meal
                         "meal_time": meal_config.get("meal_time", ""),
+                        "meal_name": meal_config.get("meal_name", ""),
+                        "meal_types": meal_types,
                     }
-
-                    # Add beverage if required
-                    if meal_config.get("beverage"):
-                        meal["beverage"] = random.choice(list(beverages.keys()))
-
-                    # Add main course if required
-                    if meal_config.get("main_course"):
-                        meal["main_course"] = random.choice(list(food_items.keys()))
-
-                    # Add side dish if required
-                    if meal_config.get("side"):
-                        meal["side_dish"] = random.choice(list(food_items.keys()))
-
-                    # Add dessert if required
-                    if meal_config.get("dessert"):
-                        meal["dessert"] = random.choice(list(food_items.keys()))
-
                     day["meals"].append(meal)
                 days.append(day)
 
@@ -124,7 +130,7 @@ def random_recommendation(request: HttpRequest):
             mealplan = {
                 "_id": str(ObjectId()),  # Unique ID for the meal plan
                 "user_id": user_id,  # Link to the specific user
-                "name": "Generated Meal Plan",
+                "name": "Gen Meal Plan",
                 "start_date": datetime.now(),
                 "end_date": datetime.now() + timedelta(days=num_days),
                 "days": days,
@@ -134,12 +140,20 @@ def random_recommendation(request: HttpRequest):
                 "updated_at": datetime.now(),
             }
 
-            logger.info(f"Generated meal plan: {mealplan}")
+            # save meal plan to firebase
+            try:
+                add_mealplan(user_id, mealplan)
+                return JsonResponse(mealplan, status=200)
+            except Exception as e:
+                print(f"Error while saving meal plan: {e}")
+                return JsonResponse(mealplan, status=201)
+
+            # logger.info(f"Generated meal plan: {mealplan}")
             return JsonResponse(mealplan)
 
         except Exception as e:
             logger.exception("An error occurred while generating the meal plan.")
-            return JsonResponse({"error": str(e)}, status=500)
+            return JsonResponse({"error": f"{e}"}, status=500)
     else:
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -358,7 +372,6 @@ def login_user(request: HttpRequest):
 def delete_account(request: HttpRequest, user_id: str):
     if request.method == "DELETE":
         try:
-            print(user_id)
             delete_user(user_id)
             # 204 No Content for successful deletion
             return HttpResponse(status=204)

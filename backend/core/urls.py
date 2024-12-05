@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     path(
-        "recommendation/random/",
+        "recommendation/random",
         views.random_recommendation,
         name="random_recommendation",
     ),

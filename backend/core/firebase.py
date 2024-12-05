@@ -89,6 +89,42 @@ def update_document(collection_name, document_id, data):
         return f"Error updating document: {e}"
 
 
+def update_document_attr(collection_name, document_id, key, value):
+    """
+    Updates a specific field of a Firestore document.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to update
+    :param field_name: The name of the field to update
+    :param new_value: The new value for the field
+    :return: A success message or an error message
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.update({key: value})
+        return f"Document {document_id} updated successfully."
+    except Exception as e:
+        return f"Error updating document: {e}"
+
+
+def update_document_list_attr(collection_name, document_id, key, list_val):
+    """
+    Appends an element to a list in a Firestore document.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to update
+    :param list_field: The name of the field that contains the list
+    :param element: The element to append to the list
+    :return: A success message or an error message
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.update({key: firestore.ArrayUnion([list_val])})
+        return f"Successfully appended {list_val} to {key} in document {document_id}."
+    except Exception as e:
+        return f"Error updating document: {e}"
+
+
 def delete_document(collection_name, document_id):
     """
     Deletes a document from a specified Firestore collection.
@@ -231,6 +267,23 @@ def get_latest_user_mealplan(user_id):
 def add_user(user_id, user):
     # TODO add error checking if user already exists
     add_document("users", user_id, user)
+
+
+def add_mealplan(user_id, meal_plan):
+    """
+    Save meal plan to firebase
+    """
+    try:
+        # Add meal plan id to the user's profile 'plan_ids' tag
+        meal_plan_id = meal_plan["_id"]
+        # TODO error checking
+        status = update_document_list_attr("users", user_id, "plan_ids", meal_plan_id)
+
+        # Save the meal plan object to firebase
+        status = add_document("mealplans", meal_plan_id, meal_plan)
+    except Exception as e:
+        # TODO split error cases
+        return Exception(f"There was an issue saving the meal plan: {e}")
 
 
 """Object deletion functions"""
