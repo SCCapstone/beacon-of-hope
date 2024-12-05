@@ -1,3 +1,4 @@
+# TODO add robust error handling res, status = funciton()...
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -12,7 +13,7 @@ firebase_admin.initialize_app(cred)
 # Initialize Firestore database
 db = firestore.client()
 
-"""General functions for adding and retrieving a function based on collection name and doc id"""
+"""General functions for adding, retrieving, and deleting a function based on collection name and doc id"""
 
 
 def add_document(collection_name, document_id, data):
@@ -51,10 +52,26 @@ def get_document(collection_name, document_id):
         return f"Error getting document: {e}"
 
 
-"""Update and Delete functions"""
+def get_documents_by_attr(collection_name, key, value):
+    """
+    Returns all documents that have {key: value} in their schema
+    """
+    try:
+        collection_ref = db.collection(collection_name)
+
+        # retrieves all documents with particular key, value pair
+        docs = collection_ref.where(key, "==", value).stream()
+
+        # Assuming email is unique, retrieve the first matching document
+        docs = [doc.to_dict() for doc in docs]
+        if docs:
+            return docs
+        else:
+            return f"No document found for {{{key}: {value}}}"
+    except Exception as e:
+        return f"Error retrieving documents: {e}"
 
 
-# Update Function
 def update_document(collection_name, document_id, data):
     """
     Updates a document in a specified Firestore collection.
@@ -72,7 +89,6 @@ def update_document(collection_name, document_id, data):
         return f"Error updating document: {e}"
 
 
-# Delete Function
 def delete_document(collection_name, document_id):
     """
     Deletes a document from a specified Firestore collection.
@@ -87,6 +103,34 @@ def delete_document(collection_name, document_id):
         return f"Document {document_id} deleted successfully."
     except Exception as e:
         return f"Error deleting document: {e}"
+
+
+"""User Retrieval functions"""
+
+
+def get_user_by_email(user_email: str, password: str):
+    """
+    Fetches a document from a Firestore collection based on the 'email' field.
+
+    :param email: The email to search for
+    :return: The document data or an error message
+    """
+    try:
+        users = get_documents_by_attr(
+            collection_name="users", key="email", value=user_email
+        )
+
+        # TODO add error checking for having multiple users with the same id
+        if type(users) == list:
+            user = users[0]
+            if user["password"] == password:
+                return user
+            return Exception(f"Incorrect password")
+        return Exception(f"Error retrieving documents: {users}")
+    except:
+        return Exception(
+            f"There was an error retrieving the user with email: {user_email}"
+        )
 
 
 """Food and Beverage item retrieval functions"""
@@ -186,4 +230,16 @@ def get_latest_user_mealplan(user_id):
 
 
 def add_user(user_id, user):
+    # TODO add error checking if user already exists
     add_document("users", user_id, user)
+
+
+"""Object deletion functions"""
+
+
+def delete_user(user_id):
+    try:
+        delete_document("users", user_id)
+    except:
+        # TODO split error cases
+        return Exception("User either doesn't exist or couldn't delete user")
