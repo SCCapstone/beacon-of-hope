@@ -17,7 +17,7 @@ const Navbar: React.FC = () => {
         <Sidebar collapsed={collapsed} id='navbar' style={{position: "fixed", height: "100vh", width: collapsed ? "80px" : "250px"}}>
             <Menu>
                 <div id='sidebar--header'>
-                    <img src='../../public/sidebar-img.png' style={{height: "80px", width: "80px"}}></img>
+                    <img src='../../sidebar-img.png' style={{height: "80px", width: "80px"}}></img>
                     <img src='../../public/beacon-logo.png' style={{height: "80px", width: "105px"}}></img>
                 </div>
                 <button id="sidebar--button" style={collapsed ? {marginLeft: "42px"} : {marginLeft: "212px"}} onClick={toggleSidebar}>{collapsed ? ">" : "<"}</button>
