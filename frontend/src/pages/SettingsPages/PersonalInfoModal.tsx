@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-// import './Modal.css';
-import "./SettingsModals.css";
+import "./css/SettingsModals.css";
 
 interface PersonalInfo {
   name: string;
