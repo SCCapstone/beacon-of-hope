@@ -36,102 +36,109 @@ logger = logging.getLogger(__name__)  # neccesary to generate meal plan
 
 @csrf_exempt
 def random_recommendation(request: HttpRequest):
-    try:
-        data = json.loads(request.body)
-        meal_plan_config = data.get("meal_plan_config")
-        user_id = data.get("user_id")
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            meal_plan_config = data.get("meal_plan_config")
+            user_id = data.get("user_id")
 
-        if not meal_plan_config:
-            return JsonResponse(
-                {"error": "Meal plan configuration is required."}, status=400
-            )
+            if not meal_plan_config:
+                return JsonResponse(
+                    {"error": "Meal plan configuration is required."}, status=400
+                )
 
-        # Validate required fields
-        num_days = meal_plan_config.get("num_days")
-        num_meals = meal_plan_config.get("num_meals")
-        meal_configs = meal_plan_config.get("meal_configs")
+            # Validate required fields
+            num_days = meal_plan_config.get("num_days")
+            num_meals = meal_plan_config.get("num_meals")
+            meal_configs = meal_plan_config.get("meal_configs")
 
-        # sanity check
-        assert num_days == len(meal_configs)
+            # sanity check
+            assert num_days == len(meal_configs)
 
-        if (
-            not isinstance(num_days, int)
-            or not isinstance(num_meals, int)
-            or not isinstance(meal_configs, list)
-        ):
-            return JsonResponse(
-                {"error": "Invalid meal plan configuration."}, status=400
-            )
+            if (
+                not isinstance(num_days, int)
+                or not isinstance(num_meals, int)
+                or not isinstance(meal_configs, list)
+            ):
+                return JsonResponse(
+                    {"error": "Invalid meal plan configuration."}, status=400
+                )
 
-        # Retrieve food and beverage data
-        food_items = get_r3()
-        beverages = get_beverages()
+            # Retrieve food and beverage data
+            food_items = get_r3()
+            beverages = get_beverages()
 
-        if isinstance(food_items, Exception):
-            logger.error(f"Error retrieving food items: {food_items}")
-            return JsonResponse({"error": "Error retrieving food items."}, status=500)
+            if isinstance(food_items, Exception):
+                logger.error(f"Error retrieving food items: {food_items}")
+                return JsonResponse(
+                    {"error": "Error retrieving food items."}, status=500
+                )
 
-        if isinstance(beverages, Exception):
-            logger.error(f"Error retrieving beverages: {beverages}")
-            return JsonResponse({"error": "Error retrieving beverages."}, status=500)
+            if isinstance(beverages, Exception):
+                logger.error(f"Error retrieving beverages: {beverages}")
+                return JsonResponse(
+                    {"error": "Error retrieving beverages."}, status=500
+                )
 
-        # TODO need to fix
-        # # Get user ID
-        # user_id = request.GET.get("user_id") or request.POST.get("user_id")
-        # if not user_id:
-        #     logger.error("User ID is missing.")
-        #     return JsonResponse({"error": "User ID is required."}, status=400)
+            # TODO need to fix
+            # # Get user ID
+            # user_id = request.GET.get("user_id") or request.POST.get("user_id")
+            # if not user_id:
+            #     logger.error("User ID is missing.")
+            #     return JsonResponse({"error": "User ID is required."}, status=400)
 
-        # Generate meal plan
-        logger.info("Generating meal plan...")
-        days = []
-        for day_index in range(num_days):
-            day = {"day": day_index, "meals": []}
-            for meal_config in meal_configs:
-                meal = {
-                    "_id": str(ObjectId()),  # Unique ID for the meal
-                    "meal_time": meal_config.get("meal_time", ""),
-                }
+            # Generate meal plan
+            logger.info("Generating meal plan...")
+            days = []
+            for day_index in range(num_days):
+                day = {"day": day_index, "meals": []}
+                for meal_config in meal_configs:
+                    meal = {
+                        "_id": str(ObjectId()),  # Unique ID for the meal
+                        "meal_time": meal_config.get("meal_time", ""),
+                    }
 
-                # Add beverage if required
-                if meal_config.get("beverage"):
-                    meal["beverage"] = random.choice(list(beverages.keys()))
+                    # Add beverage if required
+                    if meal_config.get("beverage"):
+                        meal["beverage"] = random.choice(list(beverages.keys()))
 
-                # Add main course if required
-                if meal_config.get("main_course"):
-                    meal["main_course"] = random.choice(list(food_items.keys()))
+                    # Add main course if required
+                    if meal_config.get("main_course"):
+                        meal["main_course"] = random.choice(list(food_items.keys()))
 
-                # Add side dish if required
-                if meal_config.get("side"):
-                    meal["side_dish"] = random.choice(list(food_items.keys()))
+                    # Add side dish if required
+                    if meal_config.get("side"):
+                        meal["side_dish"] = random.choice(list(food_items.keys()))
 
-                # Add dessert if required
-                if meal_config.get("dessert"):
-                    meal["dessert"] = random.choice(list(food_items.keys()))
+                    # Add dessert if required
+                    if meal_config.get("dessert"):
+                        meal["dessert"] = random.choice(list(food_items.keys()))
 
-                day["meals"].append(meal)
-            days.append(day)
+                    day["meals"].append(meal)
+                days.append(day)
 
-        # Construct meal plan object
-        mealplan = {
-            "_id": str(ObjectId()),  # Unique ID for the meal plan
-            "user_id": user_id,  # Link to the specific user
-            "name": "Generated Meal Plan",
-            "start_date": datetime.now(),
-            "end_date": datetime.now() + timedelta(days=num_days),
-            "days": days,
-            "status": "active",
-            "tags": ["user", "generated"],  # can change tags
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
-        }
+            # Construct meal plan object
+            mealplan = {
+                "_id": str(ObjectId()),  # Unique ID for the meal plan
+                "user_id": user_id,  # Link to the specific user
+                "name": "Generated Meal Plan",
+                "start_date": datetime.now(),
+                "end_date": datetime.now() + timedelta(days=num_days),
+                "days": days,
+                "status": "active",
+                "tags": ["user", "generated"],  # can change tags
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+            }
 
-        logger.info(f"Generated meal plan: {mealplan}")
-        return JsonResponse(mealplan)
+            logger.info(f"Generated meal plan: {mealplan}")
+            return JsonResponse(mealplan)
 
-    except Exception as e:
-        logger.exception("An error occurred while generating the meal plan.")
-        return JsonResponse({"error": str(e)}, status=500)
+        except Exception as e:
+            logger.exception("An error occurred while generating the meal plan.")
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
 def bandit_recommendation(request: HttpRequest, num_days, opinions, rec_constraints):
@@ -265,6 +272,7 @@ def get_beverage_info(request: HttpRequest, beverage_id):
         return JsonResponse(bev, status=200)
 
 
+@csrf_exempt
 def create_user(request: HttpRequest):
     """
     Creating a user
@@ -324,6 +332,7 @@ def create_user(request: HttpRequest):
         )
 
 
+@csrf_exempt
 def login_user(request: HttpRequest):
     """Login user"""
     try:

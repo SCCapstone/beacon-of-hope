@@ -1,13 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AuthService from "../services/auth.service";
 import "../App.css";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-
+  const [error, setError] = useState<string>("");
   const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      const response = await AuthService.login({
+        email,
+        password,
+      });
+
+      // Store user data in localStorage if remember me is checked
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+      }
+
+      navigate("/"); // Navigate to home page after successful login
+    } catch (err: any) {
+      setError(err.response?.data?.message || "An error occurred during login");
+    }
+  };
 
   return (
     <div id="login--page">
@@ -96,7 +118,9 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
         <div id="login--content">
-          <form>
+
+          <form onSubmit={handleSubmit}>
+            {error && <div className="error-message">{error}</div>}
             <div className="login--input">
               <label
                 htmlFor="email"
@@ -192,6 +216,7 @@ const LoginPage: React.FC = () => {
               Login
             </button>
           </form>
+
           <p
             id="create--account"
             style={{ fontWeight: "400", fontSize: "18px", color: "#828282" }}

@@ -1,16 +1,48 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsv3";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import AuthService from "../services/auth.service";
 import "../App.css";
 
 const SignUpPage: React.FC = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string>("");
 
   const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    // Split full name into first and last name
+    const [firstName, lastName] = fullName.trim().split(" ");
+
+    try {
+      const response = await AuthService.signup({
+        first_name: firstName,
+        last_name: lastName || "", // In case last name wasn't provided
+        email,
+        password,
+      });
+
+      navigate("/"); // Navigate to home page after successful signup
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "An error occurred during signup"
+      );
+    }
+  };
 
   return (
     <div id="login--page">
@@ -99,7 +131,8 @@ const SignUpPage: React.FC = () => {
         </div>
 
         <div id="login--content">
-          <form>
+          <form onSubmit={handleSubmit}>
+            {error && <div className="error-message">{error}</div>}{" "}
             <div className="login--input">
               <label
                 style={{
@@ -113,11 +146,10 @@ const SignUpPage: React.FC = () => {
               <input
                 type="text"
                 placeholder="John Doe"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
               />
             </div>
-
             <div className="login--input" style={{ marginTop: "24px" }}>
               <label
                 style={{
@@ -146,11 +178,28 @@ const SignUpPage: React.FC = () => {
               >
                 Date of Birth
               </label>
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-              />
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  value={dateOfBirth ? new Date(dateOfBirth) : null}
+                  onChange={(newValue) => {
+                    setDateOfBirth(
+                      newValue ? newValue.toISOString().split("T")[0] : ""
+                    );
+                  }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: "small",
+                      placeholder: "Select date",
+                      sx: {
+                        width: "420px", // Match the width of other inputs
+                        "& .MuiInputBase-root": {
+                        }
+                      }
+                    },
+                  }}
+                />
+              </LocalizationProvider>
             </div>
 
             <div className="login--input" style={{ marginTop: "24px" }}>
@@ -170,7 +219,6 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-
             <div className="login--input" style={{ marginTop: "24px" }}>
               <label
                 style={{
@@ -188,7 +236,6 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
-
             <button
               type="submit"
               id="login--submit"
