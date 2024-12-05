@@ -327,8 +327,7 @@ def login_user(request: HttpRequest):
         data = json.loads(request.body)
         user = get_user_by_email(user_email=data["email"], password=data["password"])
         if isinstance(user, Exception):
-            return JsonResponse(user, status=500)
-        else:
-            return JsonResponse(f"Error: {user}", status=200)
+            return JsonResponse({"Error": str(user)}, status=500)
+        return JsonResponse(user, status=200)
     except Exception as e:
-        return JsonResponse(f"Error: {e}", status=400)
+        return JsonResponse({"Error": e}, status=400)
