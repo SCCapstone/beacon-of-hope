@@ -79,19 +79,19 @@ const FoodPreferencesPage: React.FC = () => {
 
         const requestOptions = {
             method: 'POST',
-            headers: { 'ContentType': 'application/json'},
+            headers: { 'Content-Type': 'application/json'},
             body: JSON.stringify({
                 "meal_plan_config": {
-                    "num_days": 3,
-                    "num_meals": 3,
+                    "num_days": mealPlanLength,
+                    "num_meals": mealsPerDay,
                     "meal_configs": [
                         {
-                            "meal_name": "breakfast",
-                            "meal_time": "8",
-                            "beverage": true,
-                            "main_course": true,
-                            "side": false,
-                            "desert": false
+                            "meal_name": mealName,
+                            "meal_time": mealTime,
+                            "beverage": mealTypes.beverage,
+                            "main_course": mealTypes.mainCourse,
+                            "side": mealTypes.side,
+                            "dessert": mealTypes.dessert
                         }
                     ]
                 },
@@ -99,9 +99,10 @@ const FoodPreferencesPage: React.FC = () => {
         };
 
         try {
-            const response = await fetch('', requestOptions);
+            const response = await fetch('http://localhost:8000/beacon/recommendation/random/', requestOptions);
             const result = await response.json();
-            console.log(result);
+            localStorage.setItem('mealPlan', JSON.stringify(result));
+            navigate('/meal-plan');
         } catch(err) {
             console.log(err);
         }
@@ -343,7 +344,8 @@ const FoodPreferencesPage: React.FC = () => {
               </form>
             </div>
 
-            <button onClick={() => {handleSubmit}} type='submit' id='submit--button'>GENERATE MEAL</button>
+            <button onClick={handleSubmit
+            } type='submit' id='submit--button'>GENERATE MEAL</button>
             <button onClick={() => {navigate('/meal-plan')}}></button>
         </div>
     );

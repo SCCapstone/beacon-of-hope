@@ -287,6 +287,34 @@ input[type="checkbox"]:checked {
 
 /**MEAL PLAN CONFIG**/
 
+#meal-plan--page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+#meal-plan--content {
+  display: flex;
+  flex-direction: row;
+  justify-self: center;
+  align-items: flex-start;
+}
+
+#meal-plan--cards {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+#meal--plan {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
 
 /****SETTINGS PAGE****/
 
