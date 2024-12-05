@@ -1,3 +1,4 @@
+# TODO Fix to not use csrf_exempt for safety purposes
 from django.shortcuts import render
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import UserPreference, MenuItem
@@ -28,6 +29,7 @@ from .firebase import (
     get_user_by_email,
     add_user,
     delete_user,
+    get_user_mealplan,
 )
 
 # TODO, add error checking for all recieved responses and send corresponding status code for errors faced
@@ -358,9 +360,19 @@ def delete_account(request: HttpRequest, user_id: str):
         try:
             print(user_id)
             delete_user(user_id)
-            return HttpResponse(status=204)  # 204 No Content for successful deletion
+            # 204 No Content for successful deletion
+            return HttpResponse(status=204)
         except:
             return JsonResponse(
                 {"Error": f"Couldn't delete user: {user_id}"}, status=500
             )
+    return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+
+def retrieve_meal_plan(request: HttpRequest, user_id: str):
+    if request.method == "GET":
+        meal_plan = get_user_mealplan(user_id=user_id)
+        if isinstance(meal_plan, Exception):
+            return JsonResponse({"Error": str(meal_plan)}, status=500)
+        return JsonResponse(meal_plan, status=200)
     return JsonResponse({"Error": "Invalid Request Method"}, status=400)
