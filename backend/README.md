@@ -201,8 +201,7 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
   - Login user profile
   - Parameters
     - Content-type: application/json
-    - JSON schema:
-    ```json
+    - ```json
       {
         'email': str,
         'password': str
