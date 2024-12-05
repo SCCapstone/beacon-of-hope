@@ -51,6 +51,9 @@ def random_recommendation(request: HttpRequest):
         num_meals = meal_plan_config.get("num_meals")
         meal_configs = meal_plan_config.get("meal_configs")
 
+        # sanity check
+        assert num_days == len(meal_config)
+
         if (
             not isinstance(num_days, int)
             or not isinstance(num_meals, int)
