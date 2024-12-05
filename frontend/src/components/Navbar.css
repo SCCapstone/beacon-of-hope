@@ -1,0 +1,47 @@
+/****NAVBAR****/
+
+#navbar {
+    position: fixed;
+    height: 100vh;
+    background-color: #fff;
+    display: flex;
+    justify-content: center;
+    z-index: 1;
+  }
+  
+  #sidebar--header {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    background-color: #fff;
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  #sidebar--items {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    background-color: #fff;
+    gap: 8px;
+    margin-top: 20px;
+    margin-left: 5px;
+  }
+  
+  .sidebar--button {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    background-color: #fff;
+    border: none;
+    border-radius: 50px;
+    width: 100%;
+  }
+
+  .sidebar--button:focus {
+    border: none;
+    background-color: #EFEFEF;
+    outline: none;
+  }
