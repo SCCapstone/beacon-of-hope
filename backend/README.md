@@ -126,8 +126,8 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
         ]
     },
     "user_id": "674f7d4c5b4425639bef8cd6"
-}
-
+  }
+  ```
    - Response:
       - (200) returns a generated meal plan in JSON
    ```json
@@ -156,21 +156,61 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
     "tags": ["random", "generated"],
     "created_at": "2024-12-04T12:00:00Z",
     "updated_at": "2024-12-04T12:00:00Z"
-}
-
+    }
+    ```
       - (400) Missing or invalid input
       - (500) Internal Server error
-```
 
-
-- #### `<backend_ip>/beacon/get-recipe-info/<int:food_id>`
+- #### `<backend_ip>/beacon/get-recipe-info/<str:food_id>`
   - HTTP Method: `GET`
   - Parameters (no request body)
     - food_id (integer string representative of food item)
   - Returns a JSON string which is the [R3 representation](https://github.com/vnagpal25/BEACON/blob/main/example_r3.json) of food item consisting of ingredients, instructions, macronutrients, meal roles, etc.
-- #### `<backend_ip>/beacon/get-beverage-info/<int:bev_id>`
+
+- #### `<backend_ip>/beacon/get-beverage-info/<str:bev_id>`
+
   - HTTP Method: `GET`
   - Parameters (no request body)
     - bev_id (integer string representative of food item)
   - Returns:
     - a JSON string consisting of the requested beverage (for now just the name)
+
+- #### `<backend_ip>/beacon/user/signup`
+  - HTTP Method: `POST`
+  - Create a user profile (create and save new user information)
+  - Parameters
+    - Content-type: application/json
+    - JSON schema:
+    ```json
+      {
+        'first_name': str,
+        'last_name': str,
+        'email': str,
+        'password': str
+      }
+    ```
+  - Returns
+    - ```json
+        {
+          'uuid': str
+        }
+      ```
+
+- #### `<backend_ip>/beacon/user/login`
+  - HTTP Method: `POST`
+  - Login user profile
+  - Parameters
+    - Content-type: application/json
+    - JSON schema:
+    ```json
+      {
+        'email': str,
+        'password': str
+      }
+    ```
+  - Returns
+    - ```json
+        {
+          'uuid': str
+        }
+      ```
