@@ -50,6 +50,7 @@ theme: {
         '4': 'hsl(var(--chart-4))',
         '5': 'hsl(var(--chart-5))'
       },
+      'main-primary': '#FFE6C9',
       purple: {
         600: '#C9E2FF',
         700: '#7C3AED',
