@@ -290,23 +290,23 @@ def create_user(request: HttpRequest):
                 "conditions": [""],
             },
             "demographicsInfo": {
-                "ethnicity": "Caucasian",
-                "height": None,
-                "weight": None,
-                "age": 29,
-                "gender": "male",
+                "ethnicity": "",
+                "height": "",
+                "weight": "",
+                "age": 0,
+                "gender": "",
             },
             "meal_plan_config": {
-                "num_days": 2,
-                "num_meals": 3,
+                "num_days": 1,
+                "num_meals": 1,
                 "meal_configs": [
                     {
                         "meal_name": "breakfast",
                         "meal_time": "8:00am",
                         "beverage": True,
                         "main_course": True,
-                        "side": False,
-                        "dessert": False,
+                        "side": True,
+                        "dessert": True,
                     }
                 ],
             },
@@ -314,7 +314,7 @@ def create_user(request: HttpRequest):
             "updated_at": datetime.now(),
         }
         add_user(user_id, user)
-        return JsonResponse({"uuid": user_id}, status=200)
+        return JsonResponse(user, status=200)
     except:
         return JsonResponse(
             {"error": "There was an error in creating user profile"}, status=400
