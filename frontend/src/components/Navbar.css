@@ -1,16 +1,14 @@
-/****NAVBAR****/
+/**** NAVBAR ****/
 #navbar {
   position: fixed;
-  height: 100vh;
+  height: 100vh; /* Full viewport height */
   background-color: #fff;
-  display: flex;
-  flex-direction: column; /* Ensure vertical layout */
-  justify-content: space-between; /* Space out items */
+  display: flex; /* Enables flexbox */
+  flex-direction: column; /* Stacks children vertically */
+  justify-content: flex-start; /* Aligns items to the top initially */
   z-index: 1;
-  width: 250px; /* Adjust as needed */
 }
 
-/* Header Section */
 #sidebar--header {
   display: flex;
   flex-direction: row;
@@ -20,45 +18,41 @@
   margin-top: 20px;
 }
 
-/* Items Section */
 #sidebar--items {
+  flex-grow: 1; /* Fills available space */
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  background-color: #fff;
+  justify-content: flex-start; /* Align items to the top */
   gap: 8px;
-  margin-top: 20px;
   margin-left: 5px;
-  flex: 1; /* Take up remaining space */
 }
 
-/* Button Styles */
 .sidebar--button {
   display: flex;
   flex-direction: row;
-  align-items: center; /* Center icon and text vertically */
+  align-items: center;
   gap: 8px;
   background-color: #fff;
   border: none;
   border-radius: 50px;
   width: 100%;
-  padding: 8px;
-  transition: background-color 0.2s ease;
-}
-
-.sidebar--button:hover {
-  background-color: #efefef;
-  cursor: pointer;
+  text-align: left;
+  padding: 8px 12px;
 }
 
 .sidebar--button:focus {
   border: none;
-  background-color: #EFEFEF;
+  background-color: #ffe6c9;
   outline: none;
 }
 
-/* Logout Section */
+/* LOGOUT SECTION */
 #sidebar--logout {
-  margin-bottom: 20px; /* Add spacing at the bottom */
-  padding-left: 5px;
+  display: flex; /* Ensures proper alignment */
+  justify-content: center; /* Center the logout button horizontally */
+  padding: 20px 10px;
+  width: 100%;
+  margin-top: auto; /* Pushes this section to the bottom */
+  text-align: center;
+  background-color: #fff;
 }
