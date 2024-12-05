@@ -239,11 +239,13 @@ def bandit_recommendation(request: HttpRequest, num_days, opinions, rec_constrai
 
 def get_recipe_info(request: HttpRequest, recipe_id):
     if request.method == "GET":
-        # get r3 representation of specified recipe
+        # Get R3 representation of the specified recipe
         r3 = get_single_r3(recipe_id)
-        if type(r3) == Exception:
+
+        if isinstance(r3, Exception):
             return JsonResponse({"Error": "Error retrieving recipe"}, status=400)
-        return JsonResponse(r3, status=200)
+
+        return JsonResponse(r3, status=200, safe=isinstance(r3, dict))
 
 
 def get_beverage_info(request: HttpRequest, beverage_id):
