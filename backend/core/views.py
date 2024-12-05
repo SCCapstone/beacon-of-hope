@@ -257,7 +257,7 @@ def get_recipe_info(request: HttpRequest, recipe_id):
 def get_beverage_info(request: HttpRequest, beverage_id):
     if request.method == "GET":
         bev = get_single_beverage(beverage_id)
-        if type(bev) == Exception:
+        if isinstance(bev, Exception):
             return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
         return JsonResponse(bev, status=200)
 
@@ -326,7 +326,7 @@ def login_user(request: HttpRequest):
     try:
         data = json.loads(request.body)
         user = get_user_by_email(user_email=data["email"], password=data["password"])
-        if type(user) == Exception:
+        if isinstance(user, Exception):
             return JsonResponse(user, status=500)
         else:
             return JsonResponse(f"Error: {user}", status=200)
