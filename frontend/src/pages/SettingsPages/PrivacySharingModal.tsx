@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-// import "./Modal.css";
-import "./SettingsModals.css";
+import "./css/SettingsModals.css";
 
 const PrivacySharingModal: React.FC = () => {
   const [consent, setConsent] = useState({

@@ -1,5 +1,5 @@
-import { CalorieChart } from "../../components/viz/DailySummaries/CalorieChart";
-import { HydrationChart } from "../../components/viz/DailySummaries/HydrationChart";
+import { CalorieChart } from "../../components/Visualizations/DailySummaries/CalorieChart";
+import { HydrationChart } from "../../components/Visualizations/DailySummaries/HydrationChart";
 
 // Wireframing for the Daily Summaries page
 
