@@ -12,10 +12,10 @@ import MealTimelinePage from "../pages/VizPages/MealTimelinePage";
 const UseRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />}></Route>
+      <Route path="/home" element={<HomePage />}></Route>
       <Route path="/login" element={<LoginPage />}></Route>
       <Route path="/signup" element={<SignUpPage />}></Route>
-      <Route path="/welcome" element={<WelcomePage />}></Route>
+      <Route path="/" element={<WelcomePage />}></Route>
       <Route path="/food-preferences" element={<FoodPreferencesPage />}></Route>
       <Route path="/meal-plan" element={<MealPlanPage />}></Route>
       <Route path="/settings" element={<SettingsPage />}></Route>

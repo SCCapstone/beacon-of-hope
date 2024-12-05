@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
         localStorage.setItem("rememberMe", "true");
       }
 
-      navigate("/"); // Navigate to home page after successful login
+      navigate("/home"); // Navigate to home page after successful login
     } catch (err: any) {
       setError(err.response?.data?.message || "An error occurred during login");
     }
