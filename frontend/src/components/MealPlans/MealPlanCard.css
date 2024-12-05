@@ -1,0 +1,96 @@
+/* MealPlanCard Styles */
+.meal-plan-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+}
+
+.meal-plan-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.meal-time {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.meal-items-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+/* MealItem (Card) Styles */
+.card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 20px;
+    width: 300px;
+    height: 400px;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #ffe6c9;
+}
+
+.card-header h3 {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.action-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0px 3px 26px -5px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+}
+
+.card-image {
+    flex: 1;
+    background-size: cover;
+    background-position: center;
+}
+
+.card-footer {
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.card-footer h4 {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 0 0 10px;
+}
+
+.card-footer p {
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.7);
+}
