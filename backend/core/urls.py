@@ -20,4 +20,6 @@ urlpatterns = [
         views.get_beverage_info,
         name="get_beverage_info",
     ),
+    path("user/signup", views.create_user, name="create_user"),
+    path("user/login", views.login_user, name="login_user"),
 ]

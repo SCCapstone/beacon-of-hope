@@ -142,3 +142,10 @@ def get_user_mealplans(user_id, date=None):
 
 def get_latest_user_mealplan(user_id):
     ...
+
+
+"""Object creation functions"""
+
+
+def add_user(user_id, user):
+    add_document("users", user_id, user)

@@ -20,7 +20,13 @@ import json
 #     save_facts_pairs,
 # #     save_users,
 # )
-from .firebase import get_beverages, get_r3, get_single_r3, get_single_beverage
+from .firebase import (
+    get_beverages,
+    get_r3,
+    get_single_r3,
+    get_single_beverage,
+    add_user,
+)
 
 # TODO, add error checking for all recieved responses and send corresponding status code for errors faced
 
@@ -73,7 +79,6 @@ def random_recommendation(request: HttpRequest):
         #     return JsonResponse({"error": "User ID is required."}, status=400)
 
         # Generate meal plan
-
         logger.info("Generating meal plan...")
         days = []
         for day_index in range(num_days):
@@ -252,4 +257,72 @@ def get_beverage_info(request: HttpRequest, beverage_id):
         if type(bev) == Exception:
             return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
         return JsonResponse(bev, status=200)
-    ...
+
+
+def create_user(request: HttpRequest):
+    """
+    Creating a user
+    """
+    try:
+        data = json.loads(request.body)
+        user_id = str(ObjectId())
+        user = {
+            "_id": user_id,
+            "first_name": data["first_name"],
+            "last_name": data["last_name"],
+            "username": "",
+            "email": data["email"],
+            "password": data["password"],
+            "plan_ids": [],
+            "dietary_preferences": {
+                "preferences": [""],
+                "numerical_preferences": {
+                    "dairy": 0,
+                    "nuts": 0,
+                    "meat": 0,
+                },
+            },
+            "health_info": {
+                "allergies": [""],
+                "conditions": [""],
+            },
+            "demographicsInfo": {
+                "ethnicity": "Caucasian",
+                "height": None,
+                "weight": None,
+                "age": 29,
+                "gender": "male",
+            },
+            "meal_plan_config": {
+                "num_days": 2,
+                "num_meals": 3,
+                "meal_configs": [
+                    {
+                        "meal_name": "breakfast",
+                        "meal_time": "8:00am",
+                        "beverage": True,
+                        "main_course": True,
+                        "side": False,
+                        "dessert": False,
+                    }
+                ],
+            },
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+        }
+        add_user(user_id, user)
+        return JsonResponse({"uuid": user_id}, status=200)
+    except:
+        return JsonResponse(
+            {"error": "There was an error in creating user profile"}, status=400
+        )
+
+
+def login_user(request: HttpRequest):
+    """Login user"""
+    try:
+        data = json.loads(request.body)
+
+        ...
+    except:
+        ...
