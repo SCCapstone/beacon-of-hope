@@ -168,6 +168,7 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
   - Returns a JSON string which is the [R3 representation](https://github.com/vnagpal25/BEACON/blob/main/example_r3.json) of food item consisting of ingredients, instructions, macronutrients, meal roles, etc.
 
 - #### `<backend_ip>/beacon/get-beverage-info/<str:bev_id>`
+
   - HTTP Method: `GET`
   - Parameters (no request body)
     - bev_id (integer string representative of food item)

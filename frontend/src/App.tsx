@@ -1,4 +1,3 @@
-// App.tsx
 import { useLocation } from "react-router-dom";
 import './App.css';
 

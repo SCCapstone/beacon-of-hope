@@ -1,0 +1,144 @@
+.modal-content {
+    color: #374151;
+}
+
+.info-description {
+    margin-bottom: 2rem;
+    color: #6B7280;
+    font-size: 0.95rem;
+}
+
+.info-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.info-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.field-label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.95rem;
+}
+
+.field-content {
+    background-color: #F9FAFB;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.display-mode {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.field-value {
+    font-size: 0.95rem;
+}
+
+.edit-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.edit-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #C9E2FF;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.btn-edit,
+.btn-save,
+.btn-cancel {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-edit {
+    background-color: transparent;
+    color: #C9E2FF;
+    border: 1px solid #C9E2FF;
+}
+
+.btn-edit:hover {
+    background-color: rgba(139, 92, 246, 0.1);
+}
+
+.btn-save {
+    background-color: #C9E2FF;
+    color: white;
+    border: none;
+}
+
+.btn-save:hover {
+    background-color: #7C3AED;
+}
+
+.btn-cancel {
+    background-color: transparent;
+    color: #6B7280;
+    border: 1px solid #D1D5DB;
+}
+
+.btn-cancel:hover {
+    background-color: #F3F4F6;
+}
+
+.info-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #E5E7EB;
+}
+
+.info-note {
+    color: #6B7280;
+    font-size: 0.875rem;
+}
+
+/* Under Construction Content */
+.under-construction {
+    text-align: center;
+    padding: 2rem;
+}
+
+.construction-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.construction-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.construction-message {
+    color: #6B7280;
+    font-size: 0.95rem;
+}

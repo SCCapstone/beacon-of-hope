@@ -10,6 +10,23 @@
 #         print(f"Failed to add document {document_id} to {collection_name}: {e}")
 
 
+def add_document(collection_name, document_id, data):
+    """
+    Adds a document (recipe, user,etc.) to a specified Firestore collection.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to create
+    :param data: A dictionary representing the data to store
+    :return: The result of the document creation
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.set(data)
+        return f"Document {document_id} added successfully."
+    except Exception as e:
+        return f"Error adding document: {e}"
+
+
 # def get_document(db, collection_name, document_id):
 #     """
 #     Retrieves a document from a specified Firestore collection.

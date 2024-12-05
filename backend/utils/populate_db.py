@@ -3,8 +3,9 @@ from firebase_admin import credentials, firestore
 import json
 import os
 from typing import List
-from firebase_funs import add_document
 from bson import ObjectId
+
+# from firebase_funs import add_document
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 
@@ -16,6 +17,26 @@ def initialize_firestore():
     cred = credentials.Certificate("firebase_key.json")
     firebase_admin.initialize_app(cred)
     return firestore.client()
+
+
+db = initialize_firestore()
+
+
+def add_document(collection_name, document_id, data):
+    """
+    Adds a document (recipe, user,etc.) to a specified Firestore collection.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to create
+    :param data: A dictionary representing the data to store
+    :return: The result of the document creation
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.set(data)
+        return f"Document {document_id} added successfully."
+    except Exception as e:
+        return f"Error adding document: {e}"
 
 
 # def populate_food_data(db):
@@ -57,65 +78,113 @@ def initialize_firestore():
 
 def populate_users(db):
     """
-    Populate User collection.
+    Populate User collection with updated schema.
     """
     users = [
         {
             "_id": str(ObjectId()),
             "username": "johndoe",
             "email": "johndoe@example.com",
-            "plan_ids": [],  # empty list for now
-            "preferences": {
-                "dietary": ["vegetarian"],
-                "allergies": ["peanuts"],
-                "healthConditions": ["diabetes"],
-                "demographicInfo": {
-                    "ethnicity": "Caucasian",
-                    "height": None,
-                    "weight": None,
-                    "age": 29,
-                    "gender": "male",
-                },
-                "mealTimes": {
-                    "breakfast": "8:00 AM",
-                    "lunch": "1:00 PM",
-                    "dinner": "7:00 PM",
-                    "snacks": ["10:00 AM", "4:00 PM"],
+            "plan_ids": [],
+            "dietary_preferences": {
+                "preferences": ["vegetarian"],
+                "numerical_preferences": {
+                    "dairy": -1,
+                    "nuts": 0,
+                    "meat": 1,
                 },
             },
+            "health_info": {
+                "allergies": ["peanuts"],
+                "conditions": ["diabetes"],
+            },
+            "demographicsInfo": {
+                "ethnicity": "Caucasian",
+                "height": None,
+                "weight": None,
+                "age": 29,
+                "gender": "male",
+            },
+            "meal_plan_config": {
+                "num_days": 2,
+                "num_meals": 3,
+                "meal_configs": [
+                    {
+                        "meal_name": "breakfast",
+                        "meal_time": "8:00am",
+                        "beverage": True,
+                        "main_course": True,
+                        "side": False,
+                        "dessert": False,
+                    }
+                ],
+            },
+            "user_id": "674f7d4c5b4425639bef8cd666",
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         },
         {
             "_id": str(ObjectId()),
             "username": "janedoe",
-            "email": "janedoe@example.com",
+            "email": "janedoe125@example.com",
             "plan_ids": [],
-            "preferences": {
-                "dietary": ["vegan"],
-                "allergies": [],
-                "healthConditions": ["hypertension"],
-                "demographicInfo": {
-                    "ethnicity": "Asian",
-                    "height": None,
-                    "weight": None,
-                    "age": 35,
-                    "gender": "female",
-                },
-                "mealTimes": {
-                    "breakfast": "7:30 AM",
-                    "lunch": "12:30 PM",
-                    "dinner": "6:30 PM",
-                    "snacks": ["10:30 AM", "3:30 PM"],
+            "dietary_preferences": {
+                "preferences": ["vegan"],
+                "numerical_preferences": {
+                    "dairy": -1,
+                    "nuts": 0,
+                    "meat": 1,
                 },
             },
+            "health_info": {
+                "allergies": [],
+                "conditions": ["hypertension"],
+            },
+            "demographicsInfo": {
+                "ethnicity": "Asian",
+                "height": None,
+                "weight": None,
+                "age": 35,
+                "gender": "female",
+            },
+            "meal_plan_config": {
+                "num_days": 2,
+                "num_meals": 3,
+                "meal_configs": [
+                    {
+                        "meal_name": "breakfast",
+                        "meal_time": "7:30am",
+                        "beverage": True,
+                        "main_course": True,
+                        "side": False,
+                        "dessert": False,
+                    },
+                    {
+                        "meal_name": "lunch",
+                        "meal_time": "12:30pm",
+                        "beverage": True,
+                        "main_course": True,
+                        "side": True,
+                        "dessert": False,
+                    },
+                    {
+                        "meal_name": "dinner",
+                        "meal_time": "6:30pm",
+                        "beverage": True,
+                        "main_course": True,
+                        "side": True,
+                        "dessert": True,
+                    },
+                ],
+            },
+            "user_id": str(ObjectId()),
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
         },
     ]
 
     for user in users:
-        add_document(db, "users", user["_id"], user)
+        add_document("users", user["_id"], user)
 
 
 def populate_mealplans(db):
@@ -192,13 +261,13 @@ def populate_all_data():
     """
     Populate Firestore database with all collections.
     """
-    db = initialize_firestore()
+    # db = initialize_firestore()
 
     # populate_food_data(db)
 
     populate_users(db)
 
-    populate_mealplans(db)
+    # populate_mealplans(db)
 
 
 if __name__ == "__main__":

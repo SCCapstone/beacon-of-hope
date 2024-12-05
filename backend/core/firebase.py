@@ -51,6 +51,44 @@ def get_document(collection_name, document_id):
         return f"Error getting document: {e}"
 
 
+"""Update and Delete functions"""
+
+
+# Update Function
+def update_document(collection_name, document_id, data):
+    """
+    Updates a document in a specified Firestore collection.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to update
+    :param data: A dictionary representing the data to update
+    :return: A message indicating success or failure
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.update(data)
+        return f"Document {document_id} updated successfully."
+    except Exception as e:
+        return f"Error updating document: {e}"
+
+
+# Delete Function
+def delete_document(collection_name, document_id):
+    """
+    Deletes a document from a specified Firestore collection.
+
+    :param collection_name: The name of the Firestore collection
+    :param document_id: The ID of the document to delete
+    :return: A message indicating success or failure
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+        doc_ref.delete()
+        return f"Document {document_id} deleted successfully."
+    except Exception as e:
+        return f"Error deleting document: {e}"
+
+
 """Food and Beverage item retrieval functions"""
 
 
