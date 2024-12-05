@@ -235,7 +235,7 @@ input[type="checkbox"]:checked {
 }
 
 #food-pref--page h2,h3 {
-  font-family: "Arima";
+  /* font-family: "Arima"; */
 }
 
 .food-pref--card {

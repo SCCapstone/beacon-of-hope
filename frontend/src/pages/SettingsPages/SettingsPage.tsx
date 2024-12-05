@@ -5,7 +5,7 @@ import PersonalInfoModal from "./PersonalInfoModal";
 import LoginSecurityModal from "./LoginSecurityModal";
 import PrivacySharingModal from "./PrivacySharingModal";
 import NotificationsModal from "./NotificationsModal";
-import "./Settings.css";
+import "./css/Settings.css";
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
