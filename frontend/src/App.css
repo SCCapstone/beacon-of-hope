@@ -297,7 +297,10 @@ input[type="checkbox"]:checked {
 /****PRIVACY & SHARING PAGE****/
 
 
-/****LOGIN & SECURITY PAGE****/
+/**** SIGNUP, LOGIN, & SECURITY PAGE****/
+.google-login-button:hover + .tooltip {
+  display: block;
+}
 
 
 /****NOTIFICATIONS PAGE****/

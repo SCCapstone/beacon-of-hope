@@ -2,10 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 
-const LoginPage: React.FC = () => {
+const SignUpPage: React.FC = () => {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const navigate = useNavigate();
 
@@ -25,7 +28,7 @@ const LoginPage: React.FC = () => {
               color: "#525252",
             }}
           >
-            Login to your Account
+            Create your Account
           </h1>
           <p
             style={{
@@ -35,7 +38,7 @@ const LoginPage: React.FC = () => {
               color: "#525252",
             }}
           >
-            Log in to personalize your journey or explore as a guest
+            Join us to start your personalized healthy eating journey
             <br />
             <br />
           </p>
@@ -57,10 +60,9 @@ const LoginPage: React.FC = () => {
                 fontFamily: "Nunito Sans",
               }}
             >
-              Continue with Google
+              Sign up with Google
             </p>
           </button>
-
           <div
             style={{
               position: "absolute",
@@ -92,14 +94,32 @@ const LoginPage: React.FC = () => {
               marginTop: "18px",
             }}
           >
-            ------------or Sign in with Email------------
+            ------------or Sign up with Email------------
           </p>
         </div>
+
         <div id="login--content">
           <form>
             <div className="login--input">
               <label
-                htmlFor="email"
+                style={{
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  color: "#828282",
+                }}
+              >
+                Full Name
+              </label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+            </div>
+
+            <div className="login--input" style={{ marginTop: "24px" }}>
+              <label
                 style={{
                   fontWeight: "600",
                   fontSize: "14px",
@@ -109,19 +129,32 @@ const LoginPage: React.FC = () => {
                 Email
               </label>
               <input
-                type="text"
-                id="email"
+                type="email"
                 placeholder="mail@abc.com"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  console.log(email);
-                }}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+
             <div className="login--input" style={{ marginTop: "24px" }}>
               <label
-                htmlFor="password"
+                style={{
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  color: "#828282",
+                }}
+              >
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+              />
+            </div>
+
+            <div className="login--input" style={{ marginTop: "24px" }}>
+              <label
                 style={{
                   fontWeight: "600",
                   fontSize: "14px",
@@ -132,109 +165,97 @@ const LoginPage: React.FC = () => {
               </label>
               <input
                 type="password"
-                id="password"
                 placeholder="***********"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  console.log(password);
-                }}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
-            <div
-              id="login--remember"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginTop: "16px",
-                marginBottom: "24px",
-              }}
-            >
+            <div className="login--input" style={{ marginTop: "24px" }}>
               <label
                 style={{
-                  fontWeight: "400",
-                  fontSize: "12px",
-                  color: "#a1a1a1",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => {
-                    setRememberMe(e.target.checked);
-                  }}
-                  style={{
-                    margin: 0,
-                  }}
-                />
-                Remember Me
-              </label>
-
-              <a
-                href=""
-                style={{
                   fontWeight: "600",
-                  fontSize: "12px",
-                  color: "#7f265b",
-                  textDecoration: "none",
+                  fontSize: "14px",
+                  color: "#828282",
                 }}
               >
-                Forgot password?
-              </a>
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                placeholder="***********"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </div>
 
-            <button type="submit" id="login--submit">
-              Login
+            <button
+              type="submit"
+              id="login--submit"
+              style={{ marginTop: "32px" }}
+            >
+              Create Account
             </button>
           </form>
-          <p
-            id="create--account"
-            style={{ fontWeight: "400", fontSize: "18px", color: "#828282" }}
-          >
-            Not registered yet?{" "}
-            <a
-              onClick={() => navigate("/signup")}
-              style={{
-                color: "#7f265b",
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              Create an account
-            </a>
-          </p>
-          <p
-            id="guest--account"
+
+          <div
             style={{
-              fontStyle: "italic",
-              fontWeight: "400",
-              fontSize: "18px",
-              color: "#828282",
+              marginTop: "24px",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
             }}
           >
-            Want to try before commiting?{" "}
-            <a
-              onClick={() => {
-                navigate("/");
-              }}
+            <p
               style={{
-                color: "#7f265b",
-                textDecoration: "none",
-                cursor: "pointer",
+                fontWeight: "400",
+                fontSize: "16px",
+                color: "#525252",
+                margin: 0,
               }}
             >
-              Continue as guest
-            </a>
-          </p>
+              Already have an account?{" "}
+              <a
+                onClick={() => navigate("/login")}
+                style={{
+                  color: "#7f265b",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                }}
+              >
+                Login
+              </a>
+            </p>
+
+            <p
+              style={{
+                fontStyle: "italic",
+                fontWeight: "400",
+                fontSize: "16px",
+                color: "#525252",
+                margin: 0,
+              }}
+            >
+              Want to try before committing?{" "}
+              <a
+                onClick={() => navigate("/")}
+                style={{
+                  color: "#7f265b",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                }}
+              >
+                Continue as guest
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default LoginPage;
+export default SignUpPage;
