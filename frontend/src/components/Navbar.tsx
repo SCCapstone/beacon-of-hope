@@ -18,7 +18,7 @@ const Navbar: React.FC = () => {
                 {/* Header Section */}
                 <div id="sidebar--header">
                     <img src="../../sidebar-img.png" style={{ height: "60px", width: "60px" }} alt="Sidebar Icon" />
-                    {collapsed ? "" : <img src="../../public/beacon-logo.png" style={{ height: "80px", width: "105px" }} alt="Beacon Logo" />}
+                    {collapsed ? "" : <img src="../../beacon-logo.png" style={{ height: "80px", width: "105px" }} alt="Beacon Logo" />}
                 </div>
 
                 {/* Items Section */}

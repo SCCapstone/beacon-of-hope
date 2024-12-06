@@ -94,7 +94,7 @@ poetry run coverage report
 ## API Documentation
 TODO (Zach and Vansh put API endpoints for generating recommendations)
 
-- #### `<backend_ip/beacon/recommendation/random/>`
+- #### `<backend_ip/beacon/recommendation/random>`
    - HTTP Method: `POST`
    - Description: Generates a random meal plan based on the provided meal configuration for a specified number of days.
    - Request body:
