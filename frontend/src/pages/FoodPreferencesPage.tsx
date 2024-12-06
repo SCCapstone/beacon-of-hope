@@ -1,6 +1,8 @@
 // FoodPreferences.tsx
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import MealSpecificOptionsCard from '../components/FoodPreferencesCards/MealSpecificOptionsCard';
+import MealPlanConfigCard from '../components/FoodPreferencesCards/MealPlanConfigCard';
 
 const FoodPreferencesPage: React.FC = () => {
 
@@ -29,13 +31,15 @@ const FoodPreferencesPage: React.FC = () => {
     // Specific Pref Card
     const [mealName, setMealName] = useState<string>('');
     const [mealTime, setMealTime] = useState<string>('');
-    const [mealTypes, setMealTypes] = useState({
+    const [meal_types, setMealTypes] = useState({
       mainCourse: false,
       side: false,
       dessert: false,
       beverage: false
     });
 
+    
+    const [mealConfigs, setMealConfigs] = useState<any[]>([]);
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
       setter(e.target.value);
@@ -46,22 +50,49 @@ const FoodPreferencesPage: React.FC = () => {
       setter(Number(e.target.value));
     };
 
-    // Handle change for the meal name input
-    const handleMealPlanNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMealPlanName(e.target.value);
-    };
-
-    const handleMealNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setMealName(e.target.value);
-    };
-
-    // Handle change for the meal type checkboxes
-    const handleMealCheckboxChange = (mealType: string) => {
-      setMealTypes((prev) => ({
-        ...prev,
-        [mealType]: !prev[mealType as keyof typeof prev],
+    useEffect(() => {
+      const newMealConfigs = Array(mealsPerDay).fill(null).map(() => ({
+        meal_name: '',
+        meal_time: '',
+        meal_types: {
+          main_course: false,
+          side: false,
+          dessert: false,
+          beverage: false,
+        },
       }));
+  
+      setMealConfigs(newMealConfigs);
+    }, [mealsPerDay]);
+
+    const handleMealsPerDayChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setMealsPerDay(Number(e.target.value));
     };
+
+    const handleMealChange = (index: number, field: string, value: any) => {
+      const updatedMealConfigs = [...mealConfigs];
+      updatedMealConfigs[index][field] = value;
+      setMealConfigs(updatedMealConfigs);
+    };
+  
+    const handleMealCheckboxChange = (index: number, mealType: string) => {
+      const updatedMealConfigs = [...mealConfigs];
+      updatedMealConfigs[index].meal_types[mealType] = !updatedMealConfigs[index].meal_types[mealType];
+      setMealConfigs(updatedMealConfigs);
+    };
+
+    // Handle change for the meal name input
+    const handleMealPlanNameChange = (value: string) => {
+      setMealPlanName(value);
+    };
+
+    // const handleMealNameChange = (value: string) => {
+    //   setMealName(value);
+    // };
+
+    // const handleMealTimeChange = (value: string) => {
+    //   setMealTime(value);
+    // }
 
     const handleSliderChange = (setter: React.Dispatch<React.SetStateAction<number>>, value: number) => {
         setter(value);
@@ -84,22 +115,13 @@ const FoodPreferencesPage: React.FC = () => {
                 "meal_plan_config": {
                     "num_days": mealPlanLength,
                     "num_meals": mealsPerDay,
-                    "meal_configs": [
-                        {
-                            "meal_name": mealName,
-                            "meal_time": mealTime,
-                            "beverage": mealTypes.beverage,
-                            "main_course": mealTypes.mainCourse,
-                            "side": mealTypes.side,
-                            "dessert": mealTypes.dessert
-                        }
-                    ]
+                    "meal_configs": mealConfigs
                 },
             })
         };
 
         try {
-            const response = await fetch('http://localhost:8000/beacon/recommendation/random/', requestOptions);
+            const response = await fetch('http://localhost:8000/beacon/recommendation/random', requestOptions);
             const result = await response.json();
             localStorage.setItem('mealPlan', JSON.stringify(result));
             navigate('/meal-plan');
@@ -251,102 +273,22 @@ const FoodPreferencesPage: React.FC = () => {
                     </div>
                 </form>
             </div>
+            <MealPlanConfigCard 
+              mealPlanLength={mealPlanLength} mealsPerDay={mealsPerDay} mealPlanName={mealPlanName} handleDropdownChange={handleDropdownChange} handleMealsPerDayChange={handleMealsPerDayChange} handleMealPlanNameChange={handleMealPlanNameChange} setMealPlanLength={setMealPlanLength} setMealsPerDay={setMealsPerDay}
+            />
+            {mealConfigs.map((mealConfig, index) => (
+              <MealSpecificOptionsCard 
+                key={index} 
+                mealName={mealConfig.meal_mame} 
+                mealTime={mealConfig.meal_time} 
+                mealTypes={mealConfig.meal_types} 
+                onMealNameChange={(value: string) => handleMealChange(index, 'meal_name', value)} 
+                onMealTimeChange={(value: string) => handleMealChange(index, 'meal_time', value)} 
+                onMealCheckboxChange={(mealType: string) => handleMealCheckboxChange(index, mealType)}
+              />
+            ))}
 
-            <div className="food-pref--card">
-                <h2>Meal Plan Configuration</h2>
-                <form>
-                  <div className="form-group">
-                    <label htmlFor="mealPlanLength">Meal Plan Length (in days):</label>
-                    <select
-                      id="mealPlanLength"
-                      value={mealPlanLength}
-                      onChange={(e) => handleDropdownChange(e, setMealPlanLength)}
-                    >
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
-                      <option value={30}>30 days</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="mealsPerDay">Meals per Day:</label>
-                    <select
-                      id="mealsPerDay"
-                      value={mealsPerDay}
-                      onChange={(e) => handleDropdownChange(e, setMealsPerDay)}
-                    >
-                      <option value={3}>3 meals</option>
-                      <option value={4}>4 meals</option>
-                      <option value={5}>5 meals</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="mealPlanName">Meal Plan Name:</label>
-                    <input
-                      type="text"
-                      id="mealPlanName"
-                      value={mealPlanName}
-                      onChange={handleMealPlanNameChange}
-                      placeholder="Enter meal plan name"
-                    />
-                  </div>
-                </form>
-            </div>
-
-            <div className="food-pref--card">
-              <h3>Meal Specific Options</h3>
-              <form id='meal-spec--form'>
-                <div className="form-group">
-                  <label htmlFor="mealName">Meal Name</label>
-                  <input
-                    type="text"
-                    id="mealName"
-                    value={mealName}
-                    onChange={handleMealNameChange}
-                    placeholder="Enter meal plan name"
-                  />
-                </div>
-                <div className="checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={mealTypes.mainCourse}
-                      onChange={() => handleMealCheckboxChange('mainCourse')}
-                    />
-                    Main Course
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={mealTypes.side}
-                      onChange={() => handleMealCheckboxChange('side')}
-                    />
-                    Side
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={mealTypes.dessert}
-                      onChange={() => handleMealCheckboxChange('dessert')}
-                    />
-                    Dessert
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={mealTypes.beverage}
-                      onChange={() => handleMealCheckboxChange('beverage')}
-                    />
-                    Beverage
-                  </label>
-                </div>
-              </form>
-            </div>
-
-            <button onClick={handleSubmit
-            } type='submit' id='submit--button'>GENERATE MEAL</button>
-            <button onClick={() => {navigate('/meal-plan')}}></button>
+            <button onClick={handleSubmit} type='submit' id='submit--button'>GENERATE MEAL</button>
         </div>
     );
 };

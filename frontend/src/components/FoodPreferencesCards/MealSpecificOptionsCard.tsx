@@ -1,81 +1,78 @@
 // MealSpecificOptionsCard.tsx
 
+import React from "react";
+
 interface Props {
     mealName: string,
     mealTime: string,
-    mealTypes: {
-        main: boolean,
-        side: boolean,
-        dessert: boolean,
-        beverage: boolean
-    },
+    mealTypes: Record<string, boolean>,
     onMealNameChange: (value: string) => void;
     onMealTimeChange: (value: string) => void;
-    onMealCheckboxChange: (type: string) => void;
+    onMealCheckboxChange: (mealType: string) => void;
 };
 
 const MealSpecificOptionsCard:React.FC<Props> = ({mealName, mealTime, mealTypes, onMealNameChange, onMealTimeChange, onMealCheckboxChange}) => {
 
-
-
     return (
-        <div className="meal-specific-options-card">
-      <form>
-        <div className="form-group">
-          <label htmlFor="mealName">Meal Name</label>
-          <input
-            type="text"
-            id="mealName"
-            value={mealName}
-            onChange={(e) => onMealNameChange(e.target.value)}
-            placeholder="Enter meal name"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="mealTime">Meal Time</label>
-          <input
-            type="time"
-            id="mealTime"
-            value={mealTime}
-            onChange={(e) => onMealTimeChange(e.target.value)}
-          />
-        </div>
-        <div className="checkbox-group">
-          <label>
+      <div className="meal-specific-options-card">
+          
+        <h2>Meal Specific Options</h2>
+        <form>
+          <div className="form-group">
+            <label htmlFor="mealName">Meal Name</label>
             <input
-              type="checkbox"
-              checked={mealTypes.main}
-              onChange={() => onMealCheckboxChange('mainCourse')}
+              type="text"
+              id="mealName"
+              value={mealName}
+              onChange={(e) => onMealNameChange(e.target.value)}
+              placeholder="Enter meal name"
             />
-            Main Course
-          </label>
-          <label>
+          </div>
+          <div className="form-group">
+            <label htmlFor="mealTime">Meal Time</label>
             <input
-              type="checkbox"
-              checked={mealTypes.side}
-              onChange={() => onMealCheckboxChange('side')}
+              type="time"
+              id="mealTime"
+              value={mealTime}
+              onChange={(e) => onMealTimeChange(e.target.value)}
             />
-            Side
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={mealTypes.dessert}
-              onChange={() => onMealCheckboxChange('dessert')}
-            />
-            Dessert
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={mealTypes.beverage}
-              onChange={() => onMealCheckboxChange('beverage')}
-            />
-            Beverage
-          </label>
-        </div>
-      </form>
-    </div>
+          </div>
+          <div className="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={mealTypes.main_course}
+                onChange={() => onMealCheckboxChange('main_course')}
+              />
+              Main Course
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={mealTypes.side}
+                onChange={() => onMealCheckboxChange('side')}
+              />
+              Side
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={mealTypes.dessert}
+                onChange={() => onMealCheckboxChange('dessert')}
+              />
+              Dessert
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={mealTypes.beverage}
+                onChange={() => onMealCheckboxChange('beverage')}
+              />
+              Beverage
+            </label>
+          </div>
+        </form>
+      </div>
   );
 };
 

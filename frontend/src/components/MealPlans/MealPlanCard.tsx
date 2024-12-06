@@ -8,9 +8,10 @@ interface Props {
     dessertId: string;
     bevId: string;
     mealTime: string;
+    mealName: string
 }
 
-const MealPlanCard: React.FC<Props> = ({ mainCourseId, sideId, dessertId, bevId, mealTime }) => {
+const MealPlanCard: React.FC<Props> = ({ mainCourseId, sideId, dessertId, bevId, mealTime, mealName }) => {
     const [mainCourse, setMainCourse] = useState<any>(null);
     const [side, setSide] = useState<any>(null);
     const [bev, setBev] = useState<any>(null);
@@ -42,12 +43,13 @@ const MealPlanCard: React.FC<Props> = ({ mainCourseId, sideId, dessertId, bevId,
         console.log("Side:", side);
         console.log("Dessert:", dessert);
         console.log("Beverage:", bev);
+        console.log("Meal Name: ", mealName);
     }, [mainCourse, side, dessert, bev]);
 
     return (
         <div className="meal-plan-card">
-            <h2 className="meal-plan-title">Meal Plan</h2>
             <div className="meal-time">
+                <h2>{mealName}</h2>
                 <strong>Meal Time:</strong> {mealTime}
             </div>
             <div className="meal-items-container">

@@ -6,13 +6,17 @@ interface Meal {
     meals: Array<MealItem>
 };
 
-interface MealItem {
+interface MealType {
     main_course: string,
     beverage: string,
     side_dish: string,
-    dessert: string,
-    meal_time: string
+    dessert: string
+}
 
+interface MealItem {
+    meal_name: string,
+    meal_time: string,
+    meal_types: MealType
 }
 
 const MealPlanPage: React.FC = () => {
@@ -21,11 +25,14 @@ const MealPlanPage: React.FC = () => {
 
     const [selectedDay, setSelectedDay] = useState<Meal | null>({
         meals: [{
+            meal_name: '',
             meal_time: '',
-            beverage: '',
-            main_course: '',
-            side_dish: '',
-            dessert: ''
+            meal_types: {
+                beverage: '',
+                main_course: '',
+                side_dish: '',
+                dessert: ''
+            }
         }],
     });
 
@@ -68,11 +75,12 @@ const MealPlanPage: React.FC = () => {
                         selectedDay.meals.map((meal: any, mealIndex: number) => (
                             <MealPlanCard
                                 key={mealIndex}
-                                mainCourseId={meal.main_course}
-                                sideId={meal.side_dish}
-                                dessertId={meal.dessert}
-                                bevId={meal.beverage}
+                                mainCourseId={meal.meal_types.main_course}
+                                sideId={meal.meal_types.side_dish}
+                                dessertId={meal.meal_types.dessert}
+                                bevId={meal.meal_types.beverage}
                                 mealTime={meal.meal_time}
+                                mealName={meal.meal_name}
                             />
                         ))
                     ) : (
