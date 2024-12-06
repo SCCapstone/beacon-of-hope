@@ -6,13 +6,17 @@ interface Meal {
     meals: Array<MealItem>
 };
 
-interface MealItem {
+interface MealType {
     main_course: string,
     beverage: string,
-    sideDish: string,
-    dessert: string,
-    meal_time: string
+    side_dish: string,
+    dessert: string
+}
 
+interface MealItem {
+    meal_name: string,
+    meal_time: string,
+    meal_types: MealType
 }
 
 const MealPlanPage: React.FC = () => {
@@ -21,11 +25,14 @@ const MealPlanPage: React.FC = () => {
 
     const [selectedDay, setSelectedDay] = useState<Meal | null>({
         meals: [{
+            meal_name: '',
             meal_time: '',
-            beverage: '',
-            main_course: '',
-            sideDish: '',
-            dessert: ''
+            meal_types: {
+                beverage: '',
+                main_course: '',
+                side_dish: '',
+                dessert: ''
+            }
         }],
     });
 
@@ -41,21 +48,49 @@ const MealPlanPage: React.FC = () => {
                 <div id="days">
                     <h2>Days of the Week</h2>
                     <ul>
-                      {mealPlan.days.map((i: object, index: number) => (
-                        <li key={index}>
-                          <button onClick={() => handleDaySelect(i, index)}>
-                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index]}
-                          </button>
-                        </li>
-                      ))}
+                        {mealPlan.days.map((i: object, index: number) => (
+                            <li key={index}>
+                                <button
+                                    style={{
+                                        backgroundColor: '#ffe6c9',
+                                        border: '1px solid #ddd',
+                                        padding: '10px',
+                                        borderRadius: '5px',
+                                        cursor: 'pointer',
+                                        margin: '5px',
+                                        fontWeight: selectedDay === i ? 'bold' : 'normal',
+                                    }}
+                                    onClick={() => handleDaySelect(i, index)}
+                                    aria-pressed={selectedDay === i}
+                                >
+                                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index]}
+                                </button>
+                            </li>
+                        ))}
                     </ul>
                 </div>
+
                 <div id="meal-plan--cards">
-                    <MealPlanCard mainCourseId={selectedDay!.meals[0].main_course} sideId={selectedDay!.meals[0].sideDish} dessertId={selectedDay!.meals[0].dessert} bevId={selectedDay!.meals[0].beverage} mealTime={selectedDay!.meals[0].meal_time}/>
+                    {selectedDay && selectedDay.meals.length > 0 ? (
+                        selectedDay.meals.map((meal: any, mealIndex: number) => (
+                            <MealPlanCard
+                                key={mealIndex}
+                                mainCourseId={meal.meal_types.main_course}
+                                sideId={meal.meal_types.side_dish}
+                                dessertId={meal.meal_types.dessert}
+                                bevId={meal.meal_types.beverage}
+                                mealTime={meal.meal_time}
+                                mealName={meal.meal_name}
+                            />
+                        ))
+                    ) : (
+                        <p style={{ fontStyle: 'italic', color: '#555' }}>Please select a day to view meals.</p>
+                    )}
                 </div>
             </div>
         </div>
     );
+
 };
 
 export default MealPlanPage;

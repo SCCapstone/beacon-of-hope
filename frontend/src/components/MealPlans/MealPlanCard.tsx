@@ -1,85 +1,65 @@
-// MealPlanCard.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import MealItem from "./MealItem";
+import "./MealPlanCard.css";
 
 interface Props {
-    mainCourseId: string,
-    sideId: string,
-    dessertId: string,
-    bevId: string,
-    mealTime: string
+    mainCourseId: string;
+    sideId: string;
+    dessertId: string;
+    bevId: string;
+    mealTime: string;
+    mealName: string
 }
 
-const MealPlanCard: React.FC<Props> = ({ mainCourseId, sideId, dessertId, bevId, mealTime }) => {
-
-    const [mainCourse, setMainCourse] = useState(null);
-    const [side, setSide] = useState(null);
-    const [bev, setBev] = useState(null);
-    const [dessert, setDessert] = useState(null);
+const MealPlanCard: React.FC<Props> = ({ mainCourseId, sideId, dessertId, bevId, mealTime, mealName }) => {
+    const [mainCourse, setMainCourse] = useState<any>(null);
+    const [side, setSide] = useState<any>(null);
+    const [bev, setBev] = useState<any>(null);
+    const [dessert, setDessert] = useState<any>(null);
 
     useEffect(() => {
-        if(mainCourseId !== undefined) {
-            const fetchMainCourse = async () => {
-                try {
-                    const res = await fetch(`http://localhost:8000/beacon/get-recipe-info/1`);
-                    const data = await res.json();
-                    setMainCourse(data);
-                } catch(err) {
-                    console.log(err);
+        const fetchData = async (url: string, setState: Function) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error(`Failed to fetch: ${response.statusText}`);
+                    return;
                 }
+                const data = await response.json();
+                setState(data);
+            } catch (error) {
+                console.error(`Error fetching from ${url}:`, error);
             }
-            fetchMainCourse();
-        }
-        if(sideId !== undefined) {
-            const fetchSideCourse = async () => {
-                try {
-                    const res = await fetch(`http://localhost:8000/beacon/get-recipe-info/50`);
-                    const data = await res.json();
-                    setSide(data);
-                } catch(err) {
-                    console.log(err);
-                }
-            }
-            fetchSideCourse();
-        }
-        if(dessertId !== undefined) {
-            const fetchDessert = async () => {
-                try {
-                    const res = await fetch(`http://localhost:8000/beacon/get-recipe-info/4`);
-                    const data = await res.json();
-                    setDessert(data);
-                } catch(err) {
-                    console.log(err);
-                }
-            }
-            fetchDessert();
-        }
-        if(bevId !== undefined) {
-            const fetchBev = async () => {
-                try {
-                    const res = await fetch(`http://localhost:8000/beacon/get-beverage-info/2`);
-                    const data = await res.json();
-                    setBev(data);
-                } catch(err) {
-                    console.log(err);
-                }
-            }
-            fetchBev();
-        }
-    }, []);
+        };
 
-    console.log(mainCourse);
+        if (mainCourseId) fetchData(`http://localhost:8000/beacon/get-recipe-info/${mainCourseId}`, setMainCourse);
+        if (sideId) fetchData(`http://localhost:8000/beacon/get-recipe-info/${sideId}`, setSide);
+        if (dessertId) fetchData(`http://localhost:8000/beacon/get-recipe-info/${dessertId}`, setDessert);
+        if (bevId) fetchData(`http://localhost:8000/beacon/get-beverage-info/${bevId}`, setBev);
+    }, [mainCourseId, sideId, dessertId, bevId]);
+
+    useEffect(() => {
+        console.log("Main Course:", mainCourse);
+        console.log("Side:", side);
+        console.log("Dessert:", dessert);
+        console.log("Beverage:", bev);
+        console.log("Meal Name: ", mealName);
+    }, [mainCourse, side, dessert, bev]);
 
     return (
-        <div id='meal--plan'>
-            <h2>Meal Plan</h2>
-            {mainCourse && <MealItem item={mainCourse} type="Main Coure"/>}
-            {side && <MealItem item={side} type="Side"/>}
-            {bev && <MealItem item={bev} type="Beverage"/>}
-            {dessert && <MealItem item={dessert} type="Dessert"/>}
+        <div className="meal-plan-card">
+            <div className="meal-time">
+                <h2>{mealName}</h2>
+                <strong>Meal Time:</strong> {mealTime}
+            </div>
+            <div className="meal-items-container">
+                {mainCourse && <MealItem item={mainCourse} type="Main Course" />}
+                {side && <MealItem item={side} type="Side" />}
+                {dessert && <MealItem item={dessert} type="Dessert" />}
+                {bev && <MealItem item={bev} type="Beverage" />}
+            </div>
         </div>
     );
-}
-    
+};
 
 export default MealPlanCard;
