@@ -1,105 +1,161 @@
-import React, { useState } from 'react';
-import './css/CardStyles.css';
+const DietaryPreferences: React.FC<{
+  dairy: number;
+  meat: number;
+  vegetables: number;
+  glutenFree: boolean;
+  diabetes: boolean;
+  vegetarian: boolean;
+  vegan: boolean;
+  handleSliderChange: (
+    setter: React.Dispatch<React.SetStateAction<number>>,
+    value: number
+  ) => void;
+  handleCheckboxChange: (
+    setter: React.Dispatch<React.SetStateAction<boolean>>
+  ) => void;
+  setDairy: React.Dispatch<React.SetStateAction<number>>;
+  setMeat: React.Dispatch<React.SetStateAction<number>>;
+  setVegetables: React.Dispatch<React.SetStateAction<number>>;
+  setGlutenFree: React.Dispatch<React.SetStateAction<boolean>>;
+  setDiabetes: React.Dispatch<React.SetStateAction<boolean>>;
+  setVegetarian: React.Dispatch<React.SetStateAction<boolean>>;
+  setVegan: React.Dispatch<React.SetStateAction<boolean>>;
+}> = ({
+  dairy,
+  meat,
+  vegetables,
+  glutenFree,
+  diabetes,
+  vegetarian,
+  vegan,
+  handleSliderChange,
+  handleCheckboxChange,
+  setDairy,
+  setMeat,
+  setVegetables,
+  setGlutenFree,
+  setDiabetes,
+  setVegetarian,
+  setVegan,
+}) => {
+  const sliderLabels = ["Dislike", "No Preference", "Like"];
 
-const DietPreferences: React.FC = () => {
-    const [dairy, setDairy] = useState<number>(0);
-    const [meat, setMeat] = useState<number>(0);
-    const [vegetables, setVegetables] = useState<number>(0);
-    const [glutenFree, setGlutenFree] = useState<boolean>(false);
-    const [diabetes, setDiabetes] = useState<boolean>(false);
-    const [vegetarian, setVegetarian] = useState<boolean>(false);
-    const [vegan, setVegan] = useState<boolean>(false);
+  return (
+    <div className="bg-white/10 rounded-2xl shadow-lg p-6">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Dietary Preferences & Health
+      </h2>
 
-    const sliderLabels = ["Dislike", "Neutral", "Like"];
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Dairy Preference
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              value={dairy}
+              onChange={(e) =>
+                handleSliderChange(setDairy, Number(e.target.value))
+              }
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
+            />
+            <div className="flex justify-between text-sm text-gray-600 mt-1">
+              {sliderLabels.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+          </div>
 
-    const handleSliderChange = (setter: React.Dispatch<React.SetStateAction<number>>, value: number) => {
-        setter(value);
-    };
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Meat Preference
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              value={meat}
+              onChange={(e) =>
+                handleSliderChange(setMeat, Number(e.target.value))
+              }
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
+            />
+            <div className="flex justify-between text-sm text-gray-600 mt-1">
+              {sliderLabels.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+          </div>
 
-    const handleCheckboxChange = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-        setter((prev) => !prev);
-    };
-
-    return (
-        <div className="card">
-            <h2 className="card-title">Dietary Preferences</h2>
-            <form className="card-form">
-                <div className="slider-container">
-                    <label htmlFor="dairy">Dairy Preference</label>
-                    <input
-                        type="range"
-                        id="dairy"
-                        min="-1"
-                        max="1"
-                        step="1"
-                        value={dairy}
-                        onChange={(e) => handleSliderChange(setDairy, Number(e.target.value))}
-                    />
-                    <span>{sliderLabels[dairy + 1]}</span>
-                </div>
-                <div className="slider-container">
-                    <label htmlFor="meat">Meat Preference</label>
-                    <input
-                        type="range"
-                        id="meat"
-                        min="-1"
-                        max="1"
-                        step="1"
-                        value={meat}
-                        onChange={(e) => handleSliderChange(setMeat, Number(e.target.value))}
-                    />
-                    <span>{sliderLabels[meat + 1]}</span>
-                </div>
-                <div className="slider-container">
-                    <label htmlFor="vegetables">Vegetable Preference</label>
-                    <input
-                        type="range"
-                        id="vegetables"
-                        min="-1"
-                        max="1"
-                        step="1"
-                        value={vegetables}
-                        onChange={(e) => handleSliderChange(setVegetables, Number(e.target.value))}
-                    />
-                    <span>{sliderLabels[vegetables + 1]}</span>
-                </div>
-                <div className="checkbox-group">
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={glutenFree}
-                            onChange={() => handleCheckboxChange(setGlutenFree)}
-                        />
-                        Gluten-Free
-                    </label>
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={diabetes}
-                            onChange={() => handleCheckboxChange(setDiabetes)}
-                        />
-                        Diabetes
-                    </label>
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={vegetarian}
-                            onChange={() => handleCheckboxChange(setVegetarian)}
-                        />
-                        Vegetarian
-                    </label>
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={vegan}
-                            onChange={() => handleCheckboxChange(setVegan)}
-                        />
-                        Vegan
-                    </label>
-                </div>
-            </form>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              Vegetable Preference
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              value={vegetables}
+              onChange={(e) =>
+                handleSliderChange(setVegetables, Number(e.target.value))
+              }
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
+            />
+            <div className="flex justify-between text-sm text-gray-600 mt-1">
+              {sliderLabels.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+          </div>
         </div>
-    );
+
+        <div className="grid grid-cols-2 gap-4 mt-6">
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={glutenFree}
+              onChange={() => handleCheckboxChange(setGlutenFree)}
+              className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
+            />
+            <span className="text-gray-700">Gluten-Free</span>
+          </label>
+
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={diabetes}
+              onChange={() => handleCheckboxChange(setDiabetes)}
+              className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
+            />
+            <span className="text-gray-700">Diabetes</span>
+          </label>
+
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={vegetarian}
+              onChange={() => handleCheckboxChange(setVegetarian)}
+              className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
+            />
+            <span className="text-gray-700">Vegetarian</span>
+          </label>
+
+          <label className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={vegan}
+              onChange={() => handleCheckboxChange(setVegan)}
+              className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
+            />
+            <span className="text-gray-700">Vegan</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-export default DietPreferences;
+export default DietaryPreferences;

@@ -1,57 +1,130 @@
-import React, { useState } from 'react';
-import './css/CardStyles.css';
-
-const UserInformation: React.FC = () => {
-    const [height, setHeight] = useState<string>('');
-    const [age, setAge] = useState<string>('');
-    const [weight, setWeight] = useState<string>('');
-    const [gender, setGender] = useState<string>('');
-
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>, setter: React.Dispatch<React.SetStateAction<string>>) => {
-        setter(e.target.value);
-    };
-
-    return (
-        <div className="card">
-            <h2 className="card-title">User Information</h2>
-            <form className="card-form">
-                <div className="dropdown-container">
-                    <label htmlFor="height">Height</label>
-                    <select id="height" value={height} onChange={(e) => handleChange(e, setHeight)}>
-                        <option value="">Select Height</option>
-                        {/* Height options */}
-                    </select>
-                    <span>Enter Your Height in Feet</span>
-                </div>
-                <div className="dropdown-container">
-                    <label htmlFor="age">Age</label>
-                    <select id="age" value={age} onChange={(e) => handleChange(e, setAge)}>
-                        <option value="">Select Age</option>
-                        {/* Age options */}
-                    </select>
-                    <span>Specify Your Age</span>
-                </div>
-                <div className="dropdown-container">
-                    <label htmlFor="weight">Weight (lbs)</label>
-                    <select id="weight" value={weight} onChange={(e) => handleChange(e, setWeight)}>
-                        <option value="">Select Weight</option>
-                        {/* Weight options */}
-                    </select>
-                    <span>Enter Your Weight in Pounds</span>
-                </div>
-                <div className="dropdown-container">
-                    <label htmlFor="gender">Gender</label>
-                    <select id="gender" value={gender} onChange={(e) => handleChange(e, setGender)}>
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                    </select>
-                    <span>Specify Your Gender</span>
-                </div>
-            </form>
+const UserInformation: React.FC<{
+  height: string;
+  age: string;
+  weight: string;
+  gender: string;
+  handleChange: (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => void;
+  setHeight: React.Dispatch<React.SetStateAction<string>>;
+  setAge: React.Dispatch<React.SetStateAction<string>>;
+  setWeight: React.Dispatch<React.SetStateAction<string>>;
+  setGender: React.Dispatch<React.SetStateAction<string>>;
+}> = ({
+  height,
+  age,
+  weight,
+  gender,
+  handleChange,
+  setHeight,
+  setAge,
+  setWeight,
+  setGender,
+}) => {
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        User Information
+      </h2>
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex flex-col">
+          <label
+            htmlFor="height"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Height
+          </label>
+          <select
+            id="height"
+            value={height}
+            onChange={(e) => handleChange(e, setHeight)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+          >
+            <option value="">Select Height</option>
+            {/* Height options */}
+            {Array.from({ length: 100 }, (_, index) => (
+              <option key={index} value={index + 1}>
+                {index + 1} ft
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-gray-500">
+            Enter Your Height in Feet
+          </p>
         </div>
-    );
+
+        <div className="flex flex-col">
+          <label
+            htmlFor="age"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Age
+          </label>
+          <select
+            id="age"
+            value={age}
+            onChange={(e) => handleChange(e, setAge)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+          >
+            <option value="">Select Age</option>
+            {Array.from({ length: 100 }, (_, index) => (
+              <option key={index} value={index + 1}>
+                {index + 1}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-gray-500">Specify Your Age</p>
+        </div>
+
+        <div className="flex flex-col">
+          <label
+            htmlFor="weight"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Weight
+          </label>
+          <select
+            id="weight"
+            value={weight}
+            onChange={(e) => handleChange(e, setWeight)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+          >
+            <option value="">Select Weight</option>
+            {Array.from({ length: 300 }, (_, index) => (
+              <option key={index} value={index + 1}>
+                {index + 1} lbs
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-gray-500">
+            Enter Your Weight in Pounds
+          </p>
+        </div>
+
+        <div className="flex flex-col">
+          <label
+            htmlFor="gender"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Gender
+          </label>
+          <select
+            id="gender"
+            value={gender}
+            onChange={(e) => handleChange(e, setGender)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+          >
+            <option value="">Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+          <p className="mt-1 text-sm text-gray-500">Specify Your Gender</p>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 export default UserInformation;

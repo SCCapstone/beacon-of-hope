@@ -17,7 +17,7 @@ const WelcomePage: React.FC = () => {
                     </p>
                 </div>
                 <WelcomeCard id='button--one' header='Login' desc='Access your saved preferences for a tailored experience.' to='login'></WelcomeCard>
-                <WelcomeCard id='button--two' header='Default' desc='Start with our recommended settings for ease and simplicity.' to=''></WelcomeCard>
+                <WelcomeCard id='button--two' header='Default' desc='Start with our recommended settings for ease and simplicity.' to='home'></WelcomeCard>
                 <WelcomeCard id='button--three' header='Personas' desc='Explore different meal styles and explore one that suits your goals.' to='personas'></WelcomeCard>
             </div>
         </div>
