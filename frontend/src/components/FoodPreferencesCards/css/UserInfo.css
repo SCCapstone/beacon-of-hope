@@ -1,0 +1,57 @@
+.user-info--card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px #ffe6c9;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 600px;
+}
+
+.user-info--title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#user-info--form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    background: #fff;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 14.7391px;
+    max-width: 450px;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .dropdown-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0px;
+    gap: 8px;
+  }
+
+
+label {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+select {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    color: #333;
+}
+
+.dropdown-helper {
+    font-size: 14px;
+    color: #888;
+    margin-top: 5px;
+}

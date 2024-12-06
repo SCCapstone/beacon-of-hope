@@ -1,42 +1,387 @@
+body {
+  margin: 0%;
+  font-family: "Nunito Sans";
+}
+
+h1, h2, p {
+  font-family: "Nunito Sans";
+  margin: 0px;
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  height: 100vh;
+  font-family: "Nunito Sans", sans-serif;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/****LOGIN PAGE****/
+#login--page {
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+#login--left {
+  flex: 1.45;
+  max-height: 100%;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+#login--left img {
+  max-height: 100%;
+  max-width: fit-content;
 }
 
-.card {
-  padding: 2em;
+#login--right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0px;
+  gap: 3%;
+  max-height: 100vh;
 }
 
-.read-the-docs {
-  color: #888;
+#login--header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 463;
+  max-height: 50%;
+  padding: 0px;
+  gap: 3px;
+}
+
+#sign--in {
+  margin-left: 83px;
+}
+
+#login--header button {
+  background-color: #fff;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  gap: 13px;
+  height: 20%;
+  width: 100%;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+}
+
+.login--input {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  height: 6%;
+  padding: 0px;
+  gap: 4px;
+}
+
+.login--input input {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 13px 10px;
+  gap: 13px;
+  width: 420px;
+  height: 4%;
+  border: 1px solid #DEd2d9;
+  border-radius: 5px;
+}
+
+.login--input input::placeholder {
+  font-family: "Nunito Sans";
+  font-weight: 400;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+#login--remember {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 222px;
+  width: 420px;
+  height: 16px;
+}
+
+input[type="checkbox"] {
+  background-color: #fff;
+  border-radius: 5%;
+  border: 0px;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #7f265b;
+}
+
+#login--submit {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 13px 10px 12px;
+  gap: 13px;
+  margin-top: 32px;
+  width: 420px;
+  height: 54px;
+  background: #7f265b;
+  border: 0px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-family: "Nunito Sans";
+  font-size: 18px;
+  color: #fff;
+}
+
+#login--submit:hover {
+  cursor: pointer;
+}
+
+#create--account {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 6%;
+  padding: 0px;
+  gap: 10px;
+}
+
+#guest--account {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5%;
+  padding: 0px;
+  gap: 10px;
+}
+
+.error-message {
+  color: #ff0000;
+  background-color: #ffe6e6;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+/****WELCOME PAGE****/
+
+#welcome--page {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+}
+
+#welcome--left {
+  flex: 1.45;
+  max-height: 100%;
+}
+
+#welcome--left img {
+  max-height: 100%;
+}
+
+#welcome--right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+#welcome--header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 3px;
+}
+
+.welcome--button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-shadow: 10px 2px 32px rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  border: 0px;
+  width: 500px;
+  height: 17%;
+}
+
+.welcome--button:hover {
+  cursor: pointer;
+}
+
+#button--one {
+  background-color: #FFE6C9;
+}
+#button--two {
+  background-color: #e8e8e8;
+}
+#button--three {
+  background-color: #9a4678;
+}
+
+/****FOOD PREFERENCES PAGE****/
+
+#food-pref--page {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 150px;
+}
+
+#food-pref--page h2,h3 {
+  /* font-family: "Arima"; */
+}
+
+.food-pref--card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#submit--button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #E5AC62;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  color: black;
+  padding: 16px 32px;
+  left: 90%;
+  top: 90%;
+  font-family: "Arima";
+}
+
+/**USER INFO**/
+
+#user-info--form {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  background: #fff;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 14.7391px;
+  max-width: 450px;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.dropdown-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 8px;
+}
+
+/**DIET PREF**/
+
+/**MEAL PLAN CONFIG**/
+
+#meal-plan--page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+#meal-plan--content {
+  display: flex;
+  flex-direction: row;
+  justify-self: center;
+  align-items: flex-start;
+}
+
+#meal-plan--cards {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+#meal--plan {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+/****SETTINGS PAGE****/
+
+
+/****PERSONAL INFO PAGE*****/
+
+
+/****PRIVACY & SHARING PAGE****/
+
+
+/**** SIGNUP, LOGIN, & SECURITY PAGE****/
+.google-login-button:hover + .tooltip {
+  display: block;
+}
+
+
+/****NOTIFICATIONS PAGE****/
+
+
+/****NAVBAR****/
+
+#navbar {
+  position: fixed;
+  height: 100vh;
+  background-color: #EFEFEF;
+  z-index: 1;
+}
+
+#sidebar--header {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: 20px;
+}
+
+#sidebar--items {
+  margin-top: 25%;
+}
+
+#sidebar--button {
+  background-color: #E5AC62;
+  border: none;
+  border-radius: 100%;
+  height: 35px;
+  width: 35px;
+  font-weight: 400;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+.sidebar--item {
+  border-radius: 20%;
+}
+
+.page--content {
+  margin-left: 90px;
 }

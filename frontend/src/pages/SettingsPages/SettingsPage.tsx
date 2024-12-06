@@ -1,23 +1,103 @@
-// SettingsPage.tsx
-import React from "react";
-import SettingsCard from "../../components/SettingsCard";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Modal from "./Modal";
+import PersonalInfoModal from "./PersonalInfoModal";
+import LoginSecurityModal from "./LoginSecurityModal";
+import PrivacySharingModal from "./PrivacySharingModal";
+import NotificationsModal from "./NotificationsModal";
+import "./css/Settings.css";
 
 const SettingsPage: React.FC = () => {
-    return (
-        <div className="page" id="settings--page">
-            <h1 className="page--header">Account Settings</h1>
-            <div>
-                <SettingsCard name={"Personal Info"} desc={"Provide personal details and how we can reach you"} img={""} to={"personal-info"}/>
-                <SettingsCard name={"Login & Security"} desc={"Update your password and secure your account"} img={""} to={"login-and-security"}/>
-                <SettingsCard name={"Privacy & Sharing"} desc={"Manage your personal data, connected services, and data sharing settings"} img={""} to={"privacy-and-sharing"}/>
-                <SettingsCard name={"Notifications"} desc={"Choose notification preferences and how you want to be contacted"} img={""} to={"notifications"}/>
+  const navigate = useNavigate();
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  return (
+    <div className="settings-container">
+      <h1 className="settings-header">Account Settings</h1>
+      <div className="settings-grid">
+        {[
+          {
+            icon: "👤",
+            title: "Personal Info",
+            description: "Provide personal details and how we can reach you",
+            onClick: () => setActiveModal("personal-info"),
+          },
+          {
+            icon: "🔒",
+            title: "Login & Security",
+            description: "Update your password and secure your account",
+            onClick: () => setActiveModal("login-security"),
+          },
+          {
+            icon: "🔐",
+            title: "Privacy & Sharing",
+            description: "Manage your personal data and sharing settings",
+            onClick: () => setActiveModal("privacy"),
+          },
+          {
+            icon: "🔔",
+            title: "Notifications",
+            description: "Choose notification preferences",
+            onClick: () => setActiveModal("notifications"),
+          },
+        ].map(({ icon, title, description, onClick }, index) => (
+          <div key={index} className="settings-card" onClick={onClick}>
+            <span className="settings-card__icon">{icon}</span>
+            <div className="settings-card__content">
+              <h3 className="settings-card__title">{title}</h3>
+              <p className="settings-card__description">{description}</p>
             </div>
-            <div>
-                <h3>Need to deactivate your account?</h3>
-                <a href=""><p>Take care of that now</p></a>
-            </div>
-        </div>
-    )
+          </div>
+        ))}
+      </div>
+      <div className="settings-footer">
+        <p>Need to change your Meal Plan Preferences?</p>
+        <button
+          onClick={() => navigate("/food-preferences")}
+          className="settings-footer__link"
+        >
+          Take care of that now
+        </button>
+      </div>
+
+      {/* Modals */}
+      <Modal
+        isOpen={activeModal === "personal-info"}
+        onClose={() => setActiveModal(null)}
+        title="Personal Information"
+        maxWidth="650px"
+      >
+        <PersonalInfoModal />
+      </Modal>
+
+      <Modal
+        isOpen={activeModal === "login-security"}
+        onClose={() => setActiveModal(null)}
+        title="Login & Security"
+        maxWidth="650px"
+      >
+        <LoginSecurityModal />
+      </Modal>
+
+      <Modal
+        isOpen={activeModal === "privacy"}
+        onClose={() => setActiveModal(null)}
+        title="Privacy & Sharing"
+        maxWidth="650px"
+      >
+        <PrivacySharingModal />
+      </Modal>
+
+      <Modal
+        isOpen={activeModal === "notifications"}
+        onClose={() => setActiveModal(null)}
+        title="Notifications"
+        maxWidth="650px"
+      >
+        <NotificationsModal />
+      </Modal>
+    </div>
+  );
 };
 
 export default SettingsPage;

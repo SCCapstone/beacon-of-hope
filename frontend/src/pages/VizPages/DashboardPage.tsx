@@ -1,23 +1,10 @@
-import DailySummaries from "./DailySummariesPage";
-import KeyMetrics from "./KeyMetricsPage";
-import NutritionalHarmonyWheel from "./NutrientalHarmonyPage";
-import MealTimelineExplore from "./MealTimelinePage";
-import FlavorNetwork from "./FlavorNetworkPage";
+import React from 'react';
+import MealTimelinePage from './MealTimelinePage';
 
-export const DashboardPage = () => {
+export const DashboardPage: React.FC = () => {
   return (
-    <div>
-      <h1>Meal Insights Dashboard</h1>
-      <h2>Visualize Your Nutritional Journey</h2>
-      <div>
-        <KeyMetrics />
-        <DailySummaries />
-      </div>
-      <div>
-        <NutritionalHarmonyWheel />
-        <MealTimelineExplore />
-        <FlavorNetwork />
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <MealTimelinePage />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import {NutrientHarmonyWheel} from '../../components/viz/PatternExplorer/NutrientHarmonyWheel';
+import { NutrientHarmonyWheel } from "../../components/Visualizations/PatternExplorer/NutrientHarmonyWheel";
 
 // Wireframing for the Nutrient Harmony page
 
