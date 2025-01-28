@@ -1,9 +1,9 @@
-# tests/test_firestore.py
+# tests/test_recipes.py
 from django.test import TestCase
 from core.firebase import add_document, get_document
 
 
-class FirestoreTestCase(TestCase):
+class RecipesTestCase(TestCase):
     def setUp(self):
         self.recipe_data = {
             "recipe_name": "apple-pie",
