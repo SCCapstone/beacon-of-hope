@@ -28,7 +28,7 @@ Before you begin, ensure you have the following installed:
 
 2. **Set up the Frontend**
    ```bash
-   cd front-end
+   cd frontend
    npm install
    ```
 
@@ -60,8 +60,8 @@ Before you begin, ensure you have the following installed:
 
 - Frontend tests can be run using:
   ```bash
-  cd front-end
-  npm test
+  cd frontend
+  npm run test
   ```
 
 - Backend tests can be run using:

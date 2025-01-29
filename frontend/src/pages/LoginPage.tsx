@@ -119,7 +119,7 @@ const LoginPage: React.FC = () => {
         </div>
         <div id="login--content">
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={() => handleSubmit}>
             {error && <div className="error-message">{error}</div>}
             <div className="login--input">
               <label
@@ -212,7 +212,7 @@ const LoginPage: React.FC = () => {
               </a>
             </div>
 
-            <button type="submit" id="login--submit">
+            <button type="submit" id="login--submit" name='home-page'>
               Login
             </button>
           </form>
