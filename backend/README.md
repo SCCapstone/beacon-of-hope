@@ -70,19 +70,19 @@ back-end/
 
 Run the test suite (within the virtual environemnt):
 ```bash
-poetry run python manage.py test
+poetry run python manage.py test tests
 ```
 
 Run tests with coverage (within the virtual environemnt):
 ```bash
-poetry run coverage run manage.py test
+poetry run coverage run manage.py test tests
 poetry run coverage report
 ```
 
 ## 🔧 Available Commands
 
 - `python manage.py runserver` - Start development server
-- `python manage.py test` - Run tests
+- `python manage.py test tests` - Run tests
 
 ## 📚 Learn More
 
