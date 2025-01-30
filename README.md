@@ -58,15 +58,15 @@ Before you begin, ensure you have the following installed:
 
 ## 🧪 Testing
 
-- Frontend tests can be run using:
+- Frontend tests can be found in `frontend/tests` and run using:
   ```bash
   cd frontend
   npm run test
   ```
 
-- Backend tests can be run using:
+- Backend tests can be found in `backend/tests` and run using:
   ```bash
-  cd back-end
+  cd backend
   poetry run python manage.py test tests
   ```
 
