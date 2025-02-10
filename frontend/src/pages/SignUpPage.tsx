@@ -35,8 +35,10 @@ const SignUpPage: React.FC = () => {
         email,
         password,
       });
-
-      navigate("/"); // Navigate to home page after successful signup
+      if(response) {
+        navigate("/");
+      }
+      //navigate("/"); // Navigate to home page after successful signup
     } catch (err: any) {
       setError(
         err.response?.data?.message || "An error occurred during signup"
