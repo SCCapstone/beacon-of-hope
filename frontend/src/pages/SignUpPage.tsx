@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsv3";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import AuthService from "../services/auth.service";
 import "../App.css";
@@ -35,8 +35,10 @@ const SignUpPage: React.FC = () => {
         email,
         password,
       });
-
-      navigate("/"); // Navigate to home page after successful signup
+      if(response) {
+        navigate("/");
+      }
+      //navigate("/"); // Navigate to home page after successful signup
     } catch (err: any) {
       setError(
         err.response?.data?.message || "An error occurred during signup"
