@@ -201,106 +201,123 @@ const FoodPreferencesPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Information Card */}
-        <UserInformation
-          height={height}
-          age={age}
-          weight={weight}
-          gender={gender}
-          handleChange={handleChange}
-          setHeight={setHeight}
-          setAge={setAge}
-          setWeight={setWeight}
-          setGender={setGender}
-        />
+    <div className="w-screen h-screen overflow-hidden bg-gray-50">
+      {/* Header */}
+      <div className="w-full h-20 px-6 py-4 bg-white border-b flex-shrink-0 mb-8">
+        <div className="w-full flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800">
+              Food Preferences Setup
+            </h1>
+            <p className="text-gray-600">
+              Customize your dietary preferences and meal plan settings
+            </p>
+          </div>
+        </div>
+      </div>
 
-        {/* Dietary Preferences Card */}
-        <DietaryPreferences
-          dairy={dairy}
-          meat={meat}
-          vegetables={vegetables}
-          glutenFree={glutenFree}
-          diabetes={diabetes}
-          vegetarian={vegetarian}
-          vegan={vegan}
-          handleSliderChange={handleSliderChange}
-          handleCheckboxChange={handleCheckboxChange}
-          setDairy={setDairy}
-          setMeat={setMeat}
-          setVegetables={setVegetables}
-          setGlutenFree={setGlutenFree}
-          setDiabetes={setDiabetes}
-          setVegetarian={setVegetarian}
-          setVegan={setVegan}
-        />
+      {/* Content */}
+      <div className="px-6">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* User Information Card */}
+          <UserInformation
+            height={height}
+            age={age}
+            weight={weight}
+            gender={gender}
+            handleChange={handleChange}
+            setHeight={setHeight}
+            setAge={setAge}
+            setWeight={setWeight}
+            setGender={setGender}
+          />
 
-        {/* Meal Plan Configuration Card */}
-        <MealPlanConfigCard
-          mealPlanLength={mealPlanLength}
-          mealsPerDay={mealsPerDay}
-          mealPlanName={mealPlanName}
-          handleDropdownChange={handleDropdownChange}
-          handleMealsPerDayChange={handleMealsPerDayChange}
-          handleMealPlanNameChange={handleMealPlanNameChange}
-          setMealPlanLength={setMealPlanLength}
-          setMealsPerDay={setMealsPerDay}
-        />
+          {/* Dietary Preferences Card */}
+          <DietaryPreferences
+            dairy={dairy}
+            meat={meat}
+            vegetables={vegetables}
+            glutenFree={glutenFree}
+            diabetes={diabetes}
+            vegetarian={vegetarian}
+            vegan={vegan}
+            handleSliderChange={handleSliderChange}
+            handleCheckboxChange={handleCheckboxChange}
+            setDairy={setDairy}
+            setMeat={setMeat}
+            setVegetables={setVegetables}
+            setGlutenFree={setGlutenFree}
+            setDiabetes={setDiabetes}
+            setVegetarian={setVegetarian}
+            setVegan={setVegan}
+          />
 
-        {/* Meal Specific Options Card */}
-        <MealSpecificOptionsCard
-          mealIndex={currentMealIndex}
-          totalMeals={mealsPerDay}
-          mealName={mealConfigs[currentMealIndex].mealName}
-          mealTime={mealConfigs[currentMealIndex].mealTime}
-          mealTypes={mealConfigs[currentMealIndex].mealTypes}
-          onMealNameChange={(value) => {
-            setMealConfigs((prev) => {
-              const newConfigs = [...prev];
-              newConfigs[currentMealIndex] = {
-                ...newConfigs[currentMealIndex],
-                mealName: value,
-              };
-              return newConfigs;
-            });
-          }}
-          onMealTimeChange={(value) => {
-            setMealConfigs((prev) => {
-              const newConfigs = [...prev];
-              newConfigs[currentMealIndex] = {
-                ...newConfigs[currentMealIndex],
-                mealTime: value,
-              };
-              return newConfigs;
-            });
-          }}
-          onMealCheckboxChange={(type) => {
-            setMealConfigs((prev) => {
-              const newConfigs = [...prev];
-              newConfigs[currentMealIndex] = {
-                ...newConfigs[currentMealIndex],
-                mealTypes: {
-                  ...newConfigs[currentMealIndex].mealTypes,
-                  [type]:
-                    !newConfigs[currentMealIndex].mealTypes[
-                      type as keyof (typeof newConfigs)[typeof currentMealIndex]["mealTypes"]
-                    ],
-                },
-              };
-              return newConfigs;
-            });
-          }}
-          onPreviousMeal={handlePreviousMeal}
-          onNextMeal={handleNextMeal}
-        />
+          {/* Meal Plan Configuration Card */}
+          <MealPlanConfigCard
+            mealPlanLength={mealPlanLength}
+            mealsPerDay={mealsPerDay}
+            mealPlanName={mealPlanName}
+            handleDropdownChange={handleDropdownChange}
+            handleMealsPerDayChange={handleMealsPerDayChange}
+            handleMealPlanNameChange={handleMealPlanNameChange}
+            setMealPlanLength={setMealPlanLength}
+            setMealsPerDay={setMealsPerDay}
+          />
+
+          {/* Meal Specific Options Card */}
+          <MealSpecificOptionsCard
+            mealIndex={currentMealIndex}
+            totalMeals={mealsPerDay}
+            mealName={mealConfigs[currentMealIndex].mealName}
+            mealTime={mealConfigs[currentMealIndex].mealTime}
+            mealTypes={mealConfigs[currentMealIndex].mealTypes}
+            onMealNameChange={(value) => {
+              setMealConfigs((prev) => {
+                const newConfigs = [...prev];
+                newConfigs[currentMealIndex] = {
+                  ...newConfigs[currentMealIndex],
+                  mealName: value,
+                };
+                return newConfigs;
+              });
+            }}
+            onMealTimeChange={(value) => {
+              setMealConfigs((prev) => {
+                const newConfigs = [...prev];
+                newConfigs[currentMealIndex] = {
+                  ...newConfigs[currentMealIndex],
+                  mealTime: value,
+                };
+                return newConfigs;
+              });
+            }}
+            onMealCheckboxChange={(type) => {
+              setMealConfigs((prev) => {
+                const newConfigs = [...prev];
+                newConfigs[currentMealIndex] = {
+                  ...newConfigs[currentMealIndex],
+                  mealTypes: {
+                    ...newConfigs[currentMealIndex].mealTypes,
+                    [type]:
+                      !newConfigs[currentMealIndex].mealTypes[
+                        type as keyof (typeof newConfigs)[typeof currentMealIndex]["mealTypes"]
+                      ],
+                  },
+                };
+                return newConfigs;
+              });
+            }}
+            onPreviousMeal={handlePreviousMeal}
+            onNextMeal={handleNextMeal}
+          />
+        </div>
       </div>
 
       {/* Generate Button */}
-      <div className="mt-6">
+      <div className="mt-6 flex justify-center px-6">
         <button
           onClick={handleSubmit}
-          className="w-full bg-orange-400 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 ease-in-out transform hover:-translate-y-1"
+          className="px-12 bg-orange-400 hover:bg-orange-500 text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out transform hover:-translate-y-1"
         >
           GENERATE MEAL PLAN
         </button>

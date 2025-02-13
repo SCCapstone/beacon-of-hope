@@ -1,4 +1,3 @@
-// utils/colorUtils.ts
 interface HSLColor {
     h: number; // hue
     s: number; // saturation
