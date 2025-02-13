@@ -4,25 +4,21 @@ import WelcomePage from "../pages/WelcomePage";
 import LoginPage from "../pages/LoginPage";
 import SignUpPage from "../pages/SignUpPage";
 import HomePage from "../pages/HomePage";
-import MealPlanPage from "../pages/MealPlanPage";
+import MealPlanPage, { MealTimelinePage } from "../pages/MealTimelinePage";
 import FoodPreferencesPage from "../pages/FoodPreferencesPage";
 import SettingsPage from "../pages/SettingsPages/SettingsPage";
-import MealTimelinePage from "../pages/VizPages/MealTimelinePage";
+// import MealTimelinePage from "../pages/VizPages/MealTimelinePage";
 
 const UseRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/home" element={<HomePage />}></Route>
-      <Route path="/login" element={<LoginPage />}></Route>
-      <Route path="/signup" element={<SignUpPage />}></Route>
       <Route path="/" element={<WelcomePage />}></Route>
+      <Route path="/signup" element={<SignUpPage />}></Route>
+      <Route path="/login" element={<LoginPage />}></Route>
+      <Route path="/home" element={<HomePage />}></Route>
       <Route path="/food-preferences" element={<FoodPreferencesPage />}></Route>
-      <Route path="/meal-plan" element={<MealPlanPage />}></Route>
+      <Route path="/meal-plan" element={<MealTimelinePage/>}></Route>
       <Route path="/settings" element={<SettingsPage />}></Route>
-
-      {/* Visualization Routes */}
-      <Route path="/insights" element={<Navigate to="/insights/timeline" />} />
-      <Route path="/insights/timeline" element={<MealTimelinePage />} />
     </Routes>
   );
 };
