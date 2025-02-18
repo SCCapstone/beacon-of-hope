@@ -41,30 +41,43 @@ jobs:
           cd backend
           poetry install --no-interaction --no-root
 
-      # - name: Deploy to AWS EC2 via SCP
-      #   env:
-      #     AWS_HOST: ${{ secrets.AWS_HOST }}
-      #     AWS_USER: ubuntu
-      #     AWS_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
-      #   run: |
-      #     echo "$AWS_KEY" > key.pem
-      #     chmod 400 key.pem
-      - name: Add SSH Key to Agent
+      - name: Prepare SSH Key
+        env:
+          AWS_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
         run: |
-          eval "$(ssh-agent -s)"
-          echo "${{ secrets.AWS_PRIVATE_KEY }}" | tr -d '\r' | ssh-add -
+          # Ensure SSH directory exists
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
+          # Save and fix SSH private key formatting
+          echo "$AWS_KEY" | tr -d '\r' > ~/.ssh/aws_ec2_key.pem
+          chmod 400 ~/.ssh/aws_ec2_key.pem
+
+          # Start SSH agent and add key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/aws_ec2_key.pem
+
+          # Add EC2 host to known_hosts to prevent "Host verification failed"
+          ssh-keyscan -H ${{ secrets.AWS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to AWS EC2 via SCP
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_USER: ubuntu
+        run: |
+          echo "Starting SCP Transfer..."
           
-          # Copy entire project
-          scp -v -r -o StrictHostKeyChecking=no ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
+          # Copy entire project to EC2 instance
+          scp -v -r ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
 
       - name: Run Deployment Commands on EC2
         env:
           AWS_HOST: ${{ secrets.AWS_HOST }}
           AWS_USER: ubuntu
-          AWS_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
         run: |
-          ssh -o StrictHostKeyChecking=no $AWS_USER@$AWS_HOST << 'EOF'
+          echo "Running Deployment on EC2..."
+
+          ssh $AWS_USER@$AWS_HOST << 'EOF'
             set -e
 
             echo "Rebuilding Frontend..."
@@ -89,5 +102,5 @@ jobs:
             sudo systemctl status gunicorn --no-pager
           EOF
 
-      - name: Cleanup
-        run: rm -f key.pem
+      - name: Cleanup SSH Key
+        run: rm -f ~/.ssh/aws_ec2_key.pem
