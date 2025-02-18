@@ -51,7 +51,7 @@ jobs:
           chmod 400 key.pem
           
           # Copy entire project
-          scp -r -i key.pem ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
+          scp -r -i key.pem -o StrictHostKeyChecking=no ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
 
       - name: Run Deployment Commands on EC2
         env:
