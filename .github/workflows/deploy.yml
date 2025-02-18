@@ -48,7 +48,7 @@ jobs:
           AWS_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
         run: |
           echo "$AWS_KEY" > key.pem
-          chmod 600 key.pem
+          chmod 400 key.pem
           
           # Copy entire project
           scp -r -i key.pem ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
