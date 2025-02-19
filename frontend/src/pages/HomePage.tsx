@@ -25,8 +25,7 @@ const HomePage: React.FC = () => {
             <div className="flex flex-wrap -mx-4">
                 {[
                     { title: 'Food Preferences', text: 'Set your dietary preferences and restrictions.', path: '/food-preferences' },
-                    { title: 'Meal Plan', text: 'View and customize your weekly meal.', path: '/meal-plan' },
-                    { title: 'Visualization', text: 'Explore your dataset in insightful graphs.', path: '/insights/timeline' },
+                    { title: 'Meal Plan Calendar', text: 'View and customize your weekly meal.', path: '/meal-plan' },
                     { title: 'Settings', text: 'Manage your account settings.', path: '/settings' },
                 ].map(card => (
                     <div
