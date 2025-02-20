@@ -1,16 +1,21 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../app/store';
 
 // Define a constant for complementary accent color
 const ACCENT_COLOR = '#4B91D7';
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
+    const userState = useSelector((state: RootState) => (state.user));
+    // const user = JSON.parse(localStorage.getItem("user") || "null");
+    // console.log(userState.user.first_name);
 
     return (
         <div className="min-h-screen bg-white p-10">
             <div className="text-center mb-10">
-                <h1 className="text-3xl font-semibold text-gray-800">Welcome to Our Meal Planner</h1>
+                <h1 className="text-3xl font-semibold text-gray-800">Welcome to Our Meal Planner {userState.user.first_name}</h1>
                 <p className="text-base text-gray-600">
                     Helping you make healthy and informed meal decisions
                 </p>
@@ -20,8 +25,7 @@ const HomePage: React.FC = () => {
             <div className="flex flex-wrap -mx-4">
                 {[
                     { title: 'Food Preferences', text: 'Set your dietary preferences and restrictions.', path: '/food-preferences' },
-                    { title: 'Meal Plan', text: 'View and customize your weekly meal.', path: '/meal-plan' },
-                    { title: 'Visualization', text: 'Explore your dataset in insightful graphs.', path: '/insights/timeline' },
+                    { title: 'Meal Plan Calendar', text: 'View and customize your weekly meal.', path: '/meal-plan' },
                     { title: 'Settings', text: 'Manage your account settings.', path: '/settings' },
                 ].map(card => (
                     <div

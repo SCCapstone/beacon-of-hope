@@ -342,14 +342,24 @@ def login_user(request: HttpRequest):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
+
             user = get_user_by_email(
                 user_email=data["email"], password=data["password"]
             )
+
             if isinstance(user, Exception):
                 return JsonResponse({"Error": str(user)}, status=500)
+
             return JsonResponse(user, status=200)
+
+        except KeyError as e:  # Handle missing keys
+            return JsonResponse({"Error": f"Missing key: {str(e)}"}, status=400)
+
         except Exception as e:
-            return JsonResponse({"Error": e}, status=400)
+            return JsonResponse(
+                {"Error": str(e)}, status=400
+            )  # Ensure the error is JSON serializable
+
     return JsonResponse({"Error": "Invalid Request Method"}, status=400)
 
 

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthService from "../services/auth.service";
 import "../App.css";
+import { useDispatch, useSelector } from "react-redux";
+import { loginUser } from "../features/userSlice";
+import { AppStore, RootState } from "../app/store";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -9,25 +11,18 @@ const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string>("");
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppStore>();
+  const userState = useSelector((state: RootState) => (state.user));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     try {
-      const response = await AuthService.login({
-        email,
-        password,
-      });
-
-      // Store user data in localStorage if remember me is checked
-      if (rememberMe) {
-        localStorage.setItem("rememberMe", "true");
-      }
-
-      navigate("/home"); // Navigate to home page after successful login
-    } catch (err: any) {
-      setError(err.response?.data?.message || "An error occurred during login");
+      await dispatch(loginUser({email, password, rememberMe})).unwrap();
+      navigate("/home");
+    } catch(err: any) {
+      setError(err.response?.data?.message);
     }
   };
 
@@ -212,7 +207,7 @@ const LoginPage: React.FC = () => {
               </a>
             </div>
 
-            <button type="submit" id="login--submit">
+            <button type="submit" id="login--submit" name='home-page'>
               Login
             </button>
           </form>
