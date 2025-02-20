@@ -1,5 +1,6 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
+from functools import cache
 
 # Path to  service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
@@ -151,6 +152,7 @@ def get_user_by_email(user_email: str, password: str):
 """Food and Beverage item retrieval functions"""
 
 
+@cache
 def get_r3():
     """
     Retrieves all food recipes from Firestore.
@@ -166,6 +168,7 @@ def get_r3():
         return (f"Error retrieving r3: {e}", 500)
 
 
+@cache
 def get_beverages():
     """
     Retrieves all beverages from Firestore.

@@ -61,6 +61,7 @@ Before you begin, ensure you have the following installed:
 - Frontend tests can be found in `frontend/tests` and run using:
   ```bash
   cd frontend
+
   npm run test
   ```
 
