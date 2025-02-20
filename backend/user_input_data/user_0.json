@@ -1,0 +1,45 @@
+{
+  "Condition": "Healthy",
+  "recommendation_constraints": [
+    {
+      "meal_type": {
+        "meal_name": "breakfast",
+        "meal_config": [
+          "Beverage",
+          "Main Course"
+        ],
+        "time": "9:00"
+      }
+    },
+    {
+      "meal_type": {
+        "meal_name": "lunch",
+        "meal_config": [
+          "Beverage",
+          "Main Course",
+          "Side"
+        ],
+        "time": "13:00"
+      }
+    },
+    {
+      "meal_type": {
+        "meal_name": "dinner",
+        "meal_config": [
+          "Beverage",
+          "Main Course",
+          "Side",
+          "Dessert"
+        ],
+        "time": "20:00"
+      }
+    }
+  ],
+  "user_compatibilities": {
+    "dairyPreference": 0,
+    "meatPreference": 0,
+    "nutsPreference": 0
+  },
+  "time_period": 1,
+  "recommendations_per_day": 3
+}
