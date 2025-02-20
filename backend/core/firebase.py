@@ -1,6 +1,7 @@
 # TODO add robust error handling res, status = funciton()...
 import firebase_admin
 from firebase_admin import credentials, firestore
+from functools import cache
 
 # import os
 # Path to your service account key JSON file (CHANGE FOR AWS)
@@ -172,6 +173,7 @@ def get_user_by_email(user_email: str, password: str):
 """Food and Beverage item retrieval functions"""
 
 
+@cache
 def get_r3():
     """
     Retrieves all food recipes from firestore
@@ -187,6 +189,7 @@ def get_r3():
         return Exception(f"Error retrieving r3 : {e}")
 
 
+@cache
 def get_beverages():
     """
     Retrieves all beverages from firestore

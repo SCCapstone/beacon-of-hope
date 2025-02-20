@@ -1,112 +1,71 @@
 import random
-from .firebase import load_r3, load_beverages
+from .firebase import get_r3, get_beverages
+
+# TODO, consolidate this with bandit_helpers.py
+
+food_r3 = get_r3()
+beverages = get_beverages()
 
 
-class RecommendationEngine:
-    def __init__(self):
-        self.beverages, self.mcdonalds, self.taco_bell, self.treat_data = load_r3()
+def get_highest_prob_foods(items_probs, num_users):
+    user_items = {
+        i: {"Main Course": [], "Side": [], "Dessert": []}
+        for i in range(1, num_users + 1)
+    }
 
-    def get_highest_prob_foods(self, items_probs, num_users):
-        """
-        Extract the highest probability foods (Main Course, Side, Dessert) for each user.
+    for user, item, prob in items_probs:
+        # get item roles
+        item_roles = food_r3[item]["food_role"]
+        for role in item_roles:
+            if role == "Beverage":
+                continue
+            user_items[int(user)][role].append((item, float(prob)))
 
-        Args:
-            items_probs (list): A list of tuples containing (user, item, probability).
-            num_users (int): The total number of users.
+    rec_user_items = {
+        i: {"Main Course": [], "Side": [], "Dessert": []}
+        for i in range(1, num_users + 1)
+    }
 
-        Returns:
-            dict: A dictionary mapping each user to their highest-probability food items by category.
-        """
-        # Combine all food data
-        food_r3 = self.mcdonalds | self.taco_bell | self.treat_data
+    for user, role_dict in user_items.items():
+        for role, role_items in role_dict.items():
+            highest_prob = 0
+            for item, prob in role_items:
+                if prob > highest_prob:
+                    highest_prob = prob
+            highest_items = [item for item, prob in role_items if prob == highest_prob]
+            rec_user_items[user][role] = highest_items
 
-        # Initialize user items dictionary with empty lists for each category
-        user_items = {
-            i: {"Main Course": [], "Side": [], "Dessert": []}
-            for i in range(1, num_users + 1)
-        }
+    for user, role_dict in rec_user_items.items():
+        empty = []
+        non_empty = []
+        for key, val in role_dict.items():
+            if len(val) == 0:
+                empty.append(key)
+            else:
+                non_empty.append(key)
 
-        # Assign food items to users based on roles and probabilities
-        for user, item, prob in items_probs:
-            user = int(user)
-            prob = float(prob)
-            # Get item roles from food_r3
-            item_roles = food_r3[item]["food_role"]
-            for role in item_roles:
-                # Skip if the role is Beverage
-                if role == "Beverage":
-                    continue
-                # Append the item and its probability to the corresponding category
-                user_items[user][role].append((item, prob))
+        for empty_role in empty:
+            role_dict[empty_role] = random.choice(
+                [rec_user_items[user][non_empty_role] for non_empty_role in non_empty]
+            )
 
-        # Initialize recommendation dictionary
-        rec_user_items = {
-            i: {"Main Course": [], "Side": [], "Dessert": []}
-            for i in range(1, num_users + 1)
-        }
+    return rec_user_items
 
-        # Process each user's items to extract highest probability foods
-        for user, role_dict in user_items.items():
-            for role, role_items in role_dict.items():
-                # Find the highest probability
-                highest_prob = max((prob for item, prob in role_items), default=0)
-                # Get all items with the highest probability
-                highest_items = [
-                    item for item, prob in role_items if prob == highest_prob
-                ]
-                rec_user_items[user][role] = highest_items
 
-        # Handle cases where some categories are empty
-        for user, role_dict in rec_user_items.items():
-            empty = []
-            non_empty = []
-            # Identify empty and non-empty roles
-            for key, val in role_dict.items():
-                if len(val) == 0:
-                    empty.append(key)
-                else:
-                    non_empty.append(key)
+def get_highest_prob_bevs(items_probs, num_users):
+    user_items = {i: [] for i in range(1, num_users + 1)}
 
-            # Assign a random item from non-empty roles to empty roles
-            for empty_role in empty:
-                role_dict[empty_role] = random.choice(
-                    [
-                        rec_user_items[user][non_empty_role]
-                        for non_empty_role in non_empty
-                    ]
-                )
+    for user, item, prob in items_probs:
+        user_items[int(user)].append((item, float(prob)))
 
-        return rec_user_items
+    rec_user_items = {i: [] for i in range(1, num_users + 1)}
 
-    def get_highest_prob_bevs(self, items_probs, num_users):
-        """
-        Extract the highest probability beverages for each user.
+    for user, items in user_items.items():
+        highest_prob = 0
+        for item, prob in items:
+            if prob > highest_prob:
+                highest_prob = prob
+        highest_items = [item for item, prob in items if prob == highest_prob]
+        rec_user_items[user] = highest_items
 
-        Args:
-            items_probs (list): A list of tuples containing (user, item, probability).
-            num_users (int): The total number of users.
-
-        Returns:
-            dict: A dictionary mapping each user to their highest-probability beverage items.
-        """
-        # Initialize user items dictionary
-        user_items = {i: [] for i in range(1, num_users + 1)}
-
-        # Assign beverage items to users
-        for user, item, prob in items_probs:
-            user = int(user)
-            prob = float(prob)
-            user_items[user].append((item, prob))
-
-        # Initialize recommendation dictionary
-        rec_user_items = {i: [] for i in range(1, num_users + 1)}
-
-        # Process each user's items to extract highest probability beverages
-        for user, items in user_items.items():
-            # Find the highest probability
-            highest_prob = max((prob for item, prob in items), default=0)
-            # Get all items with the highest probability
-            highest_items = [item for item, prob in items if prob == highest_prob]
-            rec_user_items[user] = highest_items
-
-        return rec_user_items
+    return rec_user_items
