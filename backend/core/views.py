@@ -1,26 +1,23 @@
 # TODO Fix to not use csrf_exempt for safety purposes
+# TODO ensure all status codes are accurate
 from django.shortcuts import render
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import UserPreference, MenuItem
 
-# from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
 import random
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime, timedelta
 from bson import ObjectId
 import logging
 
-# from srlearn import BoostedRDNClassifier
 import json
 
-# from .bandit_helpers import (
-#     exhaustive_partition,
-#     gen_facts,
-#     gen_pairs,
-#     split_train_test,
-#     save_facts_pairs,
-# #     save_users,
-# )
+from .bandit_helpers import (
+    configure_bandit,
+    train_bandit,
+    test_bandit,
+    gen_bandit_rec,
+)
 from .firebase import (
     get_beverages,
     get_r3,
@@ -158,116 +155,104 @@ def random_recommendation(request: HttpRequest):
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
-def bandit_recommendation(request: HttpRequest, num_days, opinions, rec_constraints):
+@csrf_exempt
+def bandit_recommendation(request: HttpRequest):
     """
     Generate bandit-based meal recommendations for the specified number of days based on user opinions and constraints.
     """
-    # Load user opinions and facts
-    users = list(range(1, 28))  # Assuming 27 users
-    dairy_opinions, meat_opinions, nut_opinions = exhaustive_partition()
-    user_facts, food_facts = gen_facts(dairy_opinions, meat_opinions, nut_opinions)
-    pos_pairs, neg_pairs = gen_pairs(users, dairy_opinions, meat_opinions, nut_opinions)
+    # TODO, clean directory of previous configurations
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
 
-    # Split into training and testing data
-    user_train, user_test = split_train_test(user_facts)
-    food_train, food_test = split_train_test(food_facts)
-    train_pos, test_pos = split_train_test(pos_pairs)
-    train_neg, test_neg = split_train_test(neg_pairs)
-
-    train_facts = user_train + food_train
-    test_facts = user_test + food_test
-
-    # Train the bandit model using srlearn
-    clf = BoostedRDNClassifier(target="recommendation", trees=20)
-    clf.fit(train_facts + train_pos + train_neg)
-
-    # Test the model
-    predictions = clf.predict(test_facts + test_pos + test_neg)
-
-    # Process predictions to extract recommended items
-    rec_user_bevs = get_highest_prob_bevs(
-        [rec for rec in predictions if "bev" in rec], len(users)
-    )
-    rec_user_foods = get_highest_prob_foods(
-        [rec for rec in predictions if "food" in rec], len(users)
-    )
-
-    # Map user opinions to their index
-    all_users_opinions = [
-        [0, 0, 0],
-        [0, 0, 1],
-        [0, 0, -1],
-        [0, 1, 0],
-        [0, 1, 1],
-        [0, 1, -1],
-        [0, -1, 0],
-        [0, -1, 1],
-        [0, -1, -1],
-        [1, 0, 0],
-        [1, 0, 1],
-        [1, 0, -1],
-        [1, 1, 0],
-        [1, 1, 1],
-        [1, 1, -1],
-        [1, -1, 0],
-        [1, -1, 1],
-        [1, -1, -1],
-        [-1, 0, 0],
-        [-1, 0, 1],
-        [-1, 0, -1],
-        [-1, 1, 0],
-        [-1, 1, 1],
-        [-1, 1, -1],
-        [-1, -1, 0],
-        [-1, -1, 1],
-        [-1, -1, -1],
-    ]
-    user_index = all_users_opinions.index(list(opinions.values()))
-
-    # Get recommendations for the user
-    bevs = rec_user_bevs[user_index + 1]
-    foods = rec_user_foods[user_index + 1]
-
-    # Generate recommendations
-    meal_list = []
-    for constraint in rec_constraints:
-        meal = {}
-        constraint_type = constraint["meal_type"]
-        for item in constraint["meal_config"]:
-            meal[item] = ""
-        meal["meal_name"] = constraint["meal_name"]
-        meal_list.append(meal)
-
-    rec = [{f"day {day_num}": meal_list} for day_num in range(1, num_days + 1)]
-
-    # Populate the recommendations
-    beverages = MenuItem.objects.filter(item_type="beverage")
-    foods_db = MenuItem.objects.exclude(item_type="beverage")
-
-    for j, day in enumerate(rec, 1):
-        day_rec = day[f"day {j}"]
-        for meal in day_rec:
-            if "Beverage" in meal:
-                meal["Beverage"] = random.choice(
-                    [bev.name for bev in beverages if bev.id in bevs]
+            try:
+                meal_plan_config = data["meal_plan_config"]
+                num_days = meal_plan_config["num_days"]
+                num_meals = meal_plan_config["num_meals"]
+                meal_configs = meal_plan_config["meal_configs"]
+            except:
+                return JsonResponse(
+                    {
+                        "error": "Request body is missing meal_plan_config partially or completely."
+                    },
+                    status=403,
                 )
 
-            if "Main Course" in meal:
-                meal["Main Course"] = random.choice(
-                    [food.name for food in foods_db if food.id in foods]
+            try:
+                user_preferences = data["user_preferences"]
+                user_id = data["user_id"]
+            except:
+                return JsonResponse(
+                    {
+                        "error": "Request body is missing user_preferences or user_id partially or completely."
+                    },
+                    status=403,
                 )
 
-            if "Side" in meal:
-                meal["Side"] = random.choice(
-                    [food.name for food in foods_db if food.id in foods]
+            # Configure bandit
+            try:
+                bandit_trial_path, trial_num = configure_bandit(num_days)
+            except:
+                return JsonResponse(
+                    {"error": "There was an error in configuring the bandit setup"},
+                    status=500,
                 )
 
-            if "Dessert" in meal:
-                meal["Dessert"] = random.choice(
-                    [food.name for food in foods_db if food.id in foods]
+            # Train Bandit
+            success = train_bandit(bandit_trial_path)
+            if not success:
+                return JsonResponse(
+                    {"error": "There was an error in training the boosted bandit"},
+                    status=500,
                 )
 
-    return JsonResponse(rec)
+            # Test Bandit
+            success = test_bandit(bandit_trial_path)
+            if not success:
+                return JsonResponse(
+                    {"error": "There was an error in testing the boosted bandit"},
+                    status=500,
+                )
+
+            # Generate Bandit Recommendation
+            try:
+                days = gen_bandit_rec(
+                    trial_num, user_preferences, num_days, num_meals, meal_configs
+                )
+                # Construct meal plan object
+                mealplan = {
+                    "_id": str(ObjectId()),  # Unique ID for the meal plan
+                    "user_id": user_id,  # Link to the specific user
+                    "name": "Gen Meal Plan",
+                    "start_date": datetime.now(),
+                    "end_date": datetime.now() + timedelta(days=num_days),
+                    "days": days,
+                    "status": "active",
+                    "tags": ["user", "generated"],  # can change tags
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now(),
+                }
+
+            except:
+                return JsonResponse(
+                    {"error": "There was an error in generating the meal plan"},
+                    status=500,
+                )
+
+            # save meal plan to firebase
+            try:
+                add_mealplan(user_id, mealplan)
+                return JsonResponse(mealplan, status=200)
+            except Exception as e:
+                print(f"Error while saving meal plan: {e}")
+                return JsonResponse(mealplan, status=201)
+
+        except:
+            return JsonResponse(
+                {"error": "There was an error in generating the meal plan x"},
+                status=500,
+            )
+    return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
 
 
 def get_recipe_info(request: HttpRequest, recipe_id):

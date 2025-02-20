@@ -8,7 +8,7 @@ urlpatterns = [
         name="random_recommendation",
     ),
     path(
-        "recommendation/bandit/<int:num_days>/",
+        "recommendation/bandit",
         views.bandit_recommendation,
         name="bandit_recommendation",
     ),
