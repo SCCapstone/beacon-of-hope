@@ -11,3 +11,8 @@ repos:
     rev: 23.1a1
     hooks:
     - id: black
+
+exclude: |
+    (?x)(
+        ^backend/boosted_bandit/|
+    )

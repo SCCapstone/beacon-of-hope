@@ -1,0 +1,14 @@
+setParam: loadAllBasicModes=false.
+setParam: loadAllLibraries=false.
+setParam: maxTreeDepth=6.
+setParam: nodeSize=2.
+setParam: numOfClauses=8.
+setParam: numOfCycles=8.
+
+// predicate declarations
+
+mode: recommendation(+user_name, +item_name).
+mode: item(+item_name, +value).
+mode: item(+item_name, -value).
+mode: user(+user_name, +value).
+mode: user(+user_name, -value).
