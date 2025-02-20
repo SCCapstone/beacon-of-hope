@@ -250,7 +250,30 @@ def save_users(users, dairy_opinions, meat_opinions, nut_opinions, trial_num, nu
             json.dump(sample_user, write_file, indent=2)
 
 
+def clean_dir():
+    bandit_dir = os.path.join(settings.BASE_DIR, "boosted_bandit")
+    users_dir = os.path.join(settings.BASE_DIR, "user_input_data")
+    boosted_bandit_dirs = [
+        path
+        for path in [os.path.join(bandit_dir, dir) for dir in os.listdir(bandit_dir)]
+        if (os.path.isdir(path) and "trial0" not in path)
+    ]
+    user_input_dirs = [
+        path
+        for path in [os.path.join(users_dir, dir) for dir in os.listdir(users_dir)]
+        if (os.path.isdir(path) and "trial0" not in path)
+    ]
+    to_remove = boosted_bandit_dirs + user_input_dirs
+
+    for dir in to_remove:
+        if os.path.exists(dir):
+            shutil.rmtree(dir)
+
+
 def configure_bandit(num_days: int):
+    # clean previous directories
+    clean_dir()
+
     # Load users
     potential_users = list(range(1, 28))  # Assuming 27 users
 
