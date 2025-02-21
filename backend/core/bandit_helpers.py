@@ -71,8 +71,8 @@ def gen_facts(dairy_opinions, meat_opinions, nut_opinions):
             user_facts.append(f"preference(user_{user}, negative_{feature_name}).")
 
     # Generate food attribute facts
-    food_items = get_r3()
-    beverages = get_beverages()
+    food_items = get_r3()[0]
+    beverages = get_beverages()[0]
     all_data = [beverages, food_items]
 
     for data, prefix in zip(all_data, ["bev", "food"]):
@@ -104,8 +104,8 @@ def gen_pairs(users, dairy_opinions, meat_opinions, nut_opinions):
     _, neg_dairy, _ = dairy_opinions
     _, neg_meat, _ = meat_opinions
     _, neg_nuts, _ = nut_opinions
-    food_items = get_r3()
-    beverages = get_beverages()
+    food_items = get_r3()[0]
+    beverages = get_beverages()[0]
     for user in users:
         for data, is_bev in ((beverages, True), (food_items, False)):
             for key, item_info in data.items():
@@ -481,8 +481,8 @@ def gen_bandit_rec(trial_num, user_preferences, num_days, num_meals, meal_config
         meal_list.append(meal)
     days = [{"day": day_num, "meals": meal_list.copy()} for day_num in range(num_days)]
 
-    food_items = get_r3()
-    beverages = get_beverages()
+    food_items = get_r3()[0]
+    beverages = get_beverages()[0]
     for day in days:
         day_rec = day["meals"]
         for meal in day_rec:

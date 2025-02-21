@@ -3,8 +3,8 @@ from .firebase import get_r3, get_beverages
 
 # TODO, consolidate this with bandit_helpers.py
 
-food_r3 = get_r3()
-beverages = get_beverages()
+food_r3 = get_r3()[0]
+beverages = get_beverages()[0]
 
 
 def get_highest_prob_foods(items_probs, num_users):
