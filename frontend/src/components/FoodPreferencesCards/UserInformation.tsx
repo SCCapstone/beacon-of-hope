@@ -42,15 +42,22 @@ const UserInformation: React.FC<{
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
           >
             <option value="">Select Height</option>
-            {/* Height options */}
-            {Array.from({ length: 100 }, (_, index) => (
-              <option key={index} value={index + 1}>
-                {index + 1} ft
-              </option>
-            ))}
+            {Array.from({ length: 5 }, (_, feet) => {
+              return Array.from({ length: 12 }, (_, inches) => {
+                const totalFeet = feet + 4; // Start from 4 feet
+                return (
+                  <option
+                    key={`${totalFeet}-${inches}`}
+                    value={`${totalFeet}'${inches}"`}
+                  >
+                    {`${totalFeet}' ${inches}"`}
+                  </option>
+                );
+              });
+            })}
           </select>
           <p className="mt-1 text-sm text-gray-500">
-            Enter Your Height in Feet
+            Enter Your Height (ft/in)
           </p>
         </div>
 

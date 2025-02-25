@@ -15,7 +15,6 @@ import { FoodView } from "./components/FoodView";
 import { IngredientView } from "./components/IngredientView";
 import { PatternInsights } from "./components/PatternInsights";
 import { WeekSelector } from "./components/WeekSelector";
-import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
 import { usePatternAnalysis } from "./hooks/usePatternAnalysis";
@@ -241,19 +240,33 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               >
                 <div className="flex-1 overflow-y-auto">
                   <div className="p-4 space-y-6">
-                    <CollapsiblePanel
-                      title="Filters"
-                      subtitle="Customize your meal view"
-                    >
-                      <FilterPanel
-                        filters={filters}
-                        userPreferences={userPreferences}
-                        onFilterChange={updateFilters}
-                      />
-                    </CollapsiblePanel>
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                      {/* Header */}
+                      <div className="w-full px-4 py-3 flex items-center justify-between text-left rounded-t-lg">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            Filters
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            Customize your meal view
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="overflow-hidden">
+                        <div className="p-4 border-t border-gray-100 bg-gray-50">
+                          <FilterPanel
+                            filters={filters}
+                            userPreferences={userPreferences}
+                            onFilterChange={updateFilters}
+                          />
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Pattern Insights Panel */}
-                    <CollapsiblePanel
+                    {/* <CollapsiblePanel
                       title="Pattern Insights"
                       subtitle="Discover your eating patterns"
                     >
@@ -265,7 +278,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                         selectedIngredient={selectedIngredient}
                         managementTips={managementTips}
                       />
-                    </CollapsiblePanel>
+                    </CollapsiblePanel> */}
                   </div>
                 </div>
               </motion.div>

@@ -63,6 +63,8 @@ const MealPlanConfigCard: React.FC<Props> = ({
               onChange={handleMealsPerDayChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             >
+              <option value={1}>1 meal</option>
+              <option value={2}>2 meals</option>
               <option value={3}>3 meals</option>
               <option value={4}>4 meals</option>
               <option value={5}>5 meals</option>
@@ -82,7 +84,7 @@ const MealPlanConfigCard: React.FC<Props> = ({
             id="mealPlanName"
             value={mealPlanName}
             onChange={(e) => handleMealPlanNameChange(e.target.value)}
-            placeholder="Enter meal plan name"
+            placeholder="Enter the Meal Plan Name"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
           />
         </div>

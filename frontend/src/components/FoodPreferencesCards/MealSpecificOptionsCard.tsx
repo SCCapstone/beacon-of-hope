@@ -127,7 +127,12 @@ const MealSpecificOptionsCard: React.FC<Props> = ({
                 className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
               />
               <span className="text-gray-700">
-                {type.replace(/([A-Z])/g, " $1").trim()}
+                {type
+                  .replace(/([A-Z])/g, " $1")
+                  .trim()
+                  .split(" ")
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ")}{" "}
               </span>
             </label>
           ))}
