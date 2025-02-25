@@ -66,8 +66,8 @@ def random_recommendation(request: HttpRequest):
                 )
 
             # Retrieve food and beverage data
-            food_items = get_r3()
-            beverages = get_beverages()
+            food_items = get_r3()[0]
+            beverages = get_beverages()[0]
 
             if isinstance(food_items, Exception):
                 logger.error(f"Error retrieving food items: {food_items}")
@@ -258,7 +258,7 @@ def bandit_recommendation(request: HttpRequest):
 def get_recipe_info(request: HttpRequest, recipe_id):
     if request.method == "GET":
         # Get R3 representation of the specified recipe
-        r3 = get_single_r3(recipe_id)
+        r3, _ = get_single_r3(recipe_id)
 
         if isinstance(r3, Exception):
             return JsonResponse({"Error": "Error retrieving recipe"}, status=400)
@@ -268,7 +268,7 @@ def get_recipe_info(request: HttpRequest, recipe_id):
 
 def get_beverage_info(request: HttpRequest, beverage_id):
     if request.method == "GET":
-        bev = get_single_beverage(beverage_id)
+        bev, _ = get_single_beverage(beverage_id)
         if isinstance(bev, Exception):
             return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
         return JsonResponse(bev, status=200)
@@ -377,7 +377,7 @@ def delete_account(request: HttpRequest, user_id: str):
 
 def retrieve_meal_plan(request: HttpRequest, user_id: str):
     if request.method == "GET":
-        meal_plan = get_user_mealplan(user_id=user_id)
+        meal_plan, _ = get_user_mealplan(user_id=user_id)
         if isinstance(meal_plan, Exception):
             return JsonResponse({"Error": str(meal_plan)}, status=500)
         return JsonResponse(meal_plan, status=200)
