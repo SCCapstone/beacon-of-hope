@@ -342,11 +342,9 @@ def login_user(request: HttpRequest):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
-
-            user = get_user_by_email(
+            user, _ = get_user_by_email(
                 user_email=data["email"], password=data["password"]
             )
-
             if isinstance(user, Exception):
                 return JsonResponse({"Error": str(user)}, status=500)
 
