@@ -12,16 +12,16 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string>("");
   const navigate = useNavigate();
   const dispatch = useDispatch<AppStore>();
-  const userState = useSelector((state: RootState) => (state.user));
+  const userState = useSelector((state: RootState) => state.user);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     try {
-      await dispatch(loginUser({email, password, rememberMe})).unwrap();
+      await dispatch(loginUser({ email, password, rememberMe })).unwrap();
       navigate("/home");
-    } catch(err: any) {
+    } catch (err: any) {
       setError(err.response?.data?.message);
     }
   };
@@ -113,7 +113,6 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
         <div id="login--content">
-
           <form onSubmit={handleSubmit}>
             {error && <div className="error-message">{error}</div>}
             <div className="login--input">
@@ -207,7 +206,7 @@ const LoginPage: React.FC = () => {
               </a>
             </div>
 
-            <button type="submit" id="login--submit" name='home-page'>
+            <button type="submit" id="login--submit" name="home-page">
               Login
             </button>
           </form>
