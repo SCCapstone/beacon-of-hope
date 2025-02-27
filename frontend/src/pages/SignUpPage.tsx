@@ -46,7 +46,7 @@ const SignUpPage: React.FC = () => {
         password,
       });
       if(response) {
-        navigate("/");
+        navigate("/home");
       }
       //navigate("/"); // Navigate to home page after successful signup
     } catch (err: any) {

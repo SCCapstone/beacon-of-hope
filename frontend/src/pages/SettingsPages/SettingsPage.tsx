@@ -76,7 +76,7 @@ const SettingsPage: React.FC = () => {
         title="Login & Security"
         maxWidth="650px"
       >
-        <LoginSecurityModal />
+        <LoginSecurityModal/>
       </Modal>
 
       <Modal
