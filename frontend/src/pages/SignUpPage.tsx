@@ -5,6 +5,8 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import AuthService from "../services/auth.service";
 import "../App.css";
+import Modal from "../pages/SettingsPages/Modal";
+import TermsAndConditionsModal from "./SignUpPages/TermsAndConditionsModal";
 
 const SignUpPage: React.FC = () => {
   const [fullName, setFullName] = useState("");
@@ -13,6 +15,8 @@ const SignUpPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string>("");
+  const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
+  const [termsModal, setTermsModal] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -22,6 +26,12 @@ const SignUpPage: React.FC = () => {
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
+      //alert("Passwords do not match");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError("You must accept the Terms and Conditions to sign up");
+      //alert("You must accept the Terms and Conditions to signup");
       return;
     }
 
@@ -238,6 +248,35 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
+            <div style={{ marginTop: "24px" }}>
+              <label
+              style={{
+                fontWeight: "400",
+                fontSize: "15px",
+                color: "#a1a1a1",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}>
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                />
+                I have read and accept the{<a
+                onClick={() => {setTermsModal("terms-conditions")}}
+                href="javascript:;"
+                style={{
+                  fontWeight: "600",
+                  fontSize: "15px",
+                  color: "#7f265b",
+                  textDecoration: "none",
+                }}>
+                  Terms and Conditions
+                </a>}
+              </label>
+            </div>
             <button
               type="submit"
               id="login--submit"
@@ -303,6 +342,15 @@ const SignUpPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/*Terms and Conditions Modal*/}
+      <Modal 
+          isOpen={termsModal === "terms-conditions"}
+          onClose={() => setTermsModal(null)}
+          title="Terms of Service"
+          maxWidth="60%">
+          <TermsAndConditionsModal />
+      </Modal>
     </div>
   );
 };
