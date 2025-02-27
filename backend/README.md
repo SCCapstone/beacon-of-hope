@@ -91,8 +91,7 @@ poetry run coverage report
 - [Poetry Documentation](https://python-poetry.org/docs/)
 
 
-## API Documentation
-TODO (Zach and Vansh put API endpoints for generating recommendations)
+## API Endpoints
 
 - #### `<backend_ip/beacon/recommendation/bandit>`
    - HTTP Method: `POST`
@@ -125,6 +124,11 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
             }
         ]
     },
+    "user_preferences":{
+        "dairyPreference": 1,
+        "meatPreference": 0,
+        "nutsPreference": -1
+    },
     "user_id": "674f7d4c5b4425639bef8cd6"
   }
   ```
@@ -144,8 +148,8 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
                 {
                     "_id": "5a934e000102030405000000",
                     "meal_time": "8:00am",
-                    "beverage": "bev123",
-                    "main_course": "food456",
+                    "beverage": "10", // this is a meal id, use <backend_ip>/beacon/get-beverage-info/<str:bev_id>
+                    "main_course": "25", // use <backend_ip>/beacon/get-recipe-info/<str:food_id>
                     "side_dish": null,
                     "dessert": null
                 }
@@ -213,8 +217,8 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
                 {
                     "_id": "5a934e000102030405000000",
                     "meal_time": "8:00am",
-                    "beverage": "bev123",
-                    "main_course": "food456",
+                    "beverage": "10", // use <backend_ip>/beacon/get-beverage-info/<str:bev_id> to retrieve more info
+                    "main_course": "25", // use <backend_ip>/beacon/get-recipe-info/<str:food_id> to retrieve more info
                     "side_dish": null,
                     "dessert": null
                 }
@@ -233,7 +237,7 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
 
 - #### `<backend_ip>/beacon/recommendation/retrieve-latest/<str:user_id>`
    - HTTP Method: `GET`
-   - Description: Retrieve atest meal plan recommendation for a particular user
+   - Description: Retrieve latest meal plan recommendation for a particular user
    - Parameters:
     - `user_id`: str
    - Returns:
