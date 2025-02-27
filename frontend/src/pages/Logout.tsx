@@ -14,7 +14,7 @@ const Logout: React.FC = () => {
         console.error("Error during logout:", error);
       }
 
-      // Clear user session (e.g., localStorage or cookies)
+
       localStorage.removeItem("user");
       localStorage.removeItem("authToken");
 
