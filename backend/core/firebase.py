@@ -211,7 +211,7 @@ def get_single_beverage(beverage_id):
 """Meal plan retrieval functions"""
 
 
-def get_user_mealplan(user_id, latest=True, date=None):
+def get_latest_user_mealplan(user_id):
     """
     Retrieves a meal plan for a specific user.
     Returns a tuple: (meal plan data or error message, status code)
@@ -225,17 +225,42 @@ def get_user_mealplan(user_id, latest=True, date=None):
         if not plan_ids:
             return ("No meal plans found for user.", 404)
 
-        # If latest is True, retrieve the most recent plan.
-        plan_id = str(plan_ids[-1]) if latest else str(plan_ids[-1])
+        # return the last meal plan in the list
+        plan_id = str(plan_ids[-1])
         meal_plan, status = get_document("mealplans", plan_id)
         return (meal_plan, status)
     except Exception as e:
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
 
 
-def get_latest_user_mealplan(user_id):
-    # Placeholder for future implementation.
-    return ("Not implemented", 501)
+def get_all_user_mealplans(user_id):
+    """
+    Retrieves all meal plan for a specific user.
+    Returns a tuple: (meal plan data or error message, status code)
+    """
+    try:
+        user, status = get_document("users", user_id)
+        if status != 200:
+            return (user, status)
+
+        plan_ids = user.get("plan_ids", [])
+        if not plan_ids:
+            return ("No meal plans found for user.", 404)
+
+        try:
+            meal_plans = [
+                get_document("mealplans", str(plan_id))[0] for plan_id in plan_ids
+            ]
+            return (meal_plans, 200)
+        except:
+            return (
+                {
+                    "Error": f"There was an error in retrieving the user {user_id}'s meal plans"
+                },
+                500,
+            )
+    except Exception as e:
+        return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
 
 
 """Object creation functions"""

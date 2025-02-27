@@ -26,7 +26,8 @@ from .firebase import (
     get_user_by_email,
     add_user,
     delete_user,
-    get_user_mealplan,
+    get_latest_user_mealplan,
+    get_all_user_mealplans,
     add_mealplan,
 )
 
@@ -377,8 +378,17 @@ def delete_account(request: HttpRequest, user_id: str):
 
 def retrieve_meal_plan(request: HttpRequest, user_id: str):
     if request.method == "GET":
-        meal_plan, _ = get_user_mealplan(user_id=user_id)
+        meal_plan, _ = get_latest_user_mealplan(user_id=user_id)
         if isinstance(meal_plan, Exception):
             return JsonResponse({"Error": str(meal_plan)}, status=500)
         return JsonResponse(meal_plan, status=200)
+    return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+
+def retrieve_all_meal_plans(request: HttpRequest, user_id: str):
+    if request.method == "GET":
+        meal_plans, _ = get_all_user_mealplans(user_id=user_id)
+        if isinstance(meal_plans, Exception):
+            return JsonResponse({"Error": str(meal_plans)}, status=500)
+        return JsonResponse({"meal_plans": meal_plans}, status=200)
     return JsonResponse({"Error": "Invalid Request Method"}, status=400)
