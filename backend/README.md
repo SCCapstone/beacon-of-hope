@@ -269,6 +269,43 @@ poetry run coverage report
     }
     ```
 
+- #### `<backend_ip>/beacon/recommendation/retrieve-all/<str:user_id>`
+   - HTTP Method: `GET`
+   - Description: Retrieve all meal plans for a particular user
+   - Parameters:
+    - `user_id`: str
+   - Returns:
+    ```json
+   {"meal_plans":[
+    {
+    "_id": PyMongo ObjectId,
+    "name": "Generated Meal Plan",
+    "start_date": DateTime,
+    "end_date": DateTime,
+    "days": [
+        {
+            "day": int,
+            "meals": [
+                {
+                    "_id": PyMongo ObjectId,
+                    "meal_time": str,
+                    "beverage": str,
+                    "main_course": str,
+                    "side_dish": str,
+                    "dessert": str
+                }
+            ]
+        }
+    ],
+    "status": str,
+    "tags": [str],
+    "created_at": DateTime,
+    "updated_at": DateTime
+    }
+    ]
+    }
+    ```
+
 - #### `<backend_ip>/beacon/get-recipe-info/<str:food_id>`
   - HTTP Method: `GET`
   - Parameters (no request body)
