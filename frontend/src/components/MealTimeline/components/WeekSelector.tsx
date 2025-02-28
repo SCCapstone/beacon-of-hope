@@ -35,7 +35,7 @@ export const WeekSelector: React.FC<WeekSelectorProps> = ({
 
   const moveWeek = (direction: "prev" | "next") => {
     const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + (direction === "next" ? 7 : -7));
+    newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
     onDateChange(newDate);
   };
 
