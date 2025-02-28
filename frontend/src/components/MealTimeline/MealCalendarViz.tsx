@@ -283,7 +283,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           onClick={handleMainAreaClick}
         >
           {/* Level Selector Bar */}
-          <div className="w-full h-16 px-4 bg-white/80 backdrop-blur-md border-b border-[#FFE6C9] shadow-sm z-10 flex items-center justify-between">
+          <div className="w-full h-16 px-4 bg-white/80 backdrop-blur-md border-b border-t border-[#FFE6C9] shadow-sm z-10 flex items-center justify-between">
             {/* Left side group */}
             <div className="flex items-center">
               {/* Toggle Button */}

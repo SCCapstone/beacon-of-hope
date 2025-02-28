@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       />
 
       {/* Header Content */}
-      <div className="relative px-8 py-4 flex items-center justify-between bg-gradient-to-b from-white/80 to-white/60">
+      <div className="relative px-8 py-1 flex items-center justify-between bg-gradient-to-b from-white/80 to-white/60">
         {/* Logo and Title Section */}
         <div className="flex items-center space-x-6">
           <Link to="/" className="group relative">
