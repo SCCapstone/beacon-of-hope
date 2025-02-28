@@ -114,7 +114,7 @@ export const MealView: React.FC<MealViewProps> = ({
       <div className="flex-1 overflow-y-auto relative">
         <div className="flex h-full">
           {/* Time slots column */}
-          <div className="w-24 flex-shrink-0 bg-white z-10 border-r">
+          <div className="w-20 flex-shrink-0 bg-white z-10 border-r">
             {TIME_SLOTS.map((time) => (
               <div
                 key={time}
