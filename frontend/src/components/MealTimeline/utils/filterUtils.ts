@@ -56,13 +56,24 @@ export const filterData = async (
         ).every(([nutrient, range]) => {
           const value =
             meal.nutritionalInfo[nutrient as keyof typeof meal.nutritionalInfo];
-          return value !== undefined && value >= range.min && value <= range.max;
+          return (
+            value !== undefined && value >= range.min && value <= range.max
+          );
         });
         if (!meetsNutritionalCriteria) return false;
 
         // Health filters
-        if (filters.healthFilters.diabetesFriendly && !meal.diabetesFriendly) {
-          return false;
+        if (filters.healthFilters.diabetesFriendly) {
+          // Check both explicit and calculated diabetes-friendly status
+          const isDiabetesFriendly =
+            meal.diabetesFriendly !== undefined
+              ? meal.diabetesFriendly
+              : meal.foods.every(
+                  (food) =>
+                    food.diabetesFriendly ||
+                    (food.nutritionalInfo.glycemicIndex || 70) < 55
+                );
+          if (!isDiabetesFriendly) return false;
         }
 
         if (filters.healthFilters.culturalPreference.length > 0) {
@@ -71,7 +82,13 @@ export const filterData = async (
               filters.healthFilters.culturalPreference.includes(origin)
             )
           );
-          if (!hasMatchingCulture) return false;
+          // If no cultural origin is specified, include the meal
+          if (
+            !hasMatchingCulture &&
+            meal.foods.some((food) => food.culturalOrigin)
+          ) {
+            return false;
+          }
         }
 
         if (filters.healthFilters.allergenFree.length > 0) {

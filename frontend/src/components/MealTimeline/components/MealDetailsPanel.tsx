@@ -31,6 +31,35 @@ interface MealDetailsPanelProps {
   };
 }
 
+const formatNutritionalValue = (key: string, value: number): string => {
+  switch (key) {
+    case "calories":
+      return `${value} kcal`;
+    case "glycemicIndex":
+      return value.toString();
+    case "glycemicLoad":
+      return value.toString();
+    default:
+      return `${value}g`;
+  }
+};
+
+const isDiabetesFriendly = (meal: Meal): boolean => {
+  // Check if meal is explicitly marked as diabetes friendly
+  if (meal.diabetesFriendly !== undefined) return meal.diabetesFriendly;
+
+  // If not explicitly marked, check if all foods are diabetes friendly
+  if (meal.foods.every((food) => food.diabetesFriendly)) return true;
+
+  // Check glycemic index if available
+  const avgGI =
+    meal.foods.reduce((sum, food) => {
+      return sum + (food.nutritionalInfo.glycemicIndex || 0);
+    }, 0) / meal.foods.length;
+
+  return avgGI < 55; // Low glycemic index threshold
+};
+
 export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   meal,
   recommendation,
@@ -103,9 +132,11 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                             {food.type.replace("_", " ")}
                           </p>
                         </div>
-                        {food.diabetesFriendly && (
+                        {food.diabetesFriendly !== undefined && (
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            Diabetes-Friendly
+                            {food.diabetesFriendly
+                              ? "Diabetes-Friendly"
+                              : "High GI"}
                           </span>
                         )}
                       </div>
@@ -165,22 +196,78 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                           Nutritional Values
                         </h4>
                         <div className="grid grid-cols-4 gap-3">
-                          {Object.entries(food.nutritionalInfo).map(
-                            ([key, value]) => (
+                          {Object.entries(food.nutritionalInfo)
+                            .filter(([key]) => {
+                              // Filter out optional fields that are undefined
+                              const value =
+                                food.nutritionalInfo[
+                                  key as keyof typeof food.nutritionalInfo
+                                ];
+                              return (
+                                value !== undefined &&
+                                ![
+                                  "glycemicIndex",
+                                  "glycemicLoad",
+                                  "sugarContent",
+                                ].includes(key)
+                              );
+                            })
+                            .map(([key, value]) => (
                               <div
                                 key={key}
                                 className="bg-white p-3 rounded-lg text-center"
                               >
                                 <div className="text-lg font-semibold text-gray-800">
                                   {value}
+                                  {key === "calories" ? " kcal" : "g"}
                                 </div>
                                 <div className="text-xs text-gray-500 capitalize">
                                   {key.replace(/([A-Z])/g, " $1").trim()}
                                 </div>
                               </div>
-                            )
-                          )}
+                            ))}
                         </div>
+
+                        {/* Optional Nutritional Values */}
+                        {(food.nutritionalInfo.glycemicIndex !== undefined ||
+                          food.nutritionalInfo.glycemicLoad !== undefined ||
+                          food.nutritionalInfo.sugarContent !== undefined) && (
+                          <div className="mt-4 grid grid-cols-3 gap-3">
+                            {food.nutritionalInfo.glycemicIndex !==
+                              undefined && (
+                              <div className="bg-white p-3 rounded-lg text-center">
+                                <div className="text-lg font-semibold text-gray-800">
+                                  {food.nutritionalInfo.glycemicIndex}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Glycemic Index
+                                </div>
+                              </div>
+                            )}
+                            {food.nutritionalInfo.glycemicLoad !==
+                              undefined && (
+                              <div className="bg-white p-3 rounded-lg text-center">
+                                <div className="text-lg font-semibold text-gray-800">
+                                  {food.nutritionalInfo.glycemicLoad}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Glycemic Load
+                                </div>
+                              </div>
+                            )}
+                            {food.nutritionalInfo.sugarContent !==
+                              undefined && (
+                              <div className="bg-white p-3 rounded-lg text-center">
+                                <div className="text-lg font-semibold text-gray-800">
+                                  {food.nutritionalInfo.sugarContent}g
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Sugars
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Additional Information */}
@@ -285,34 +372,37 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   </div>
 
                   {/* Reasons */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      Why This Meal?
-                    </h3>
-                    <div className="space-y-2">
-                      {recommendation.reasons.map((reason, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2 text-sm"
-                        >
-                          <svg
-                            className="w-5 h-5 text-green-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          <span>{reason}</span>
+                  {recommendation.reasons &&
+                    recommendation.reasons.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium text-gray-700">
+                          Why This Meal?
+                        </h3>
+                        <div className="space-y-2">
+                          {recommendation.reasons.map((reason, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center space-x-2 text-sm"
+                            >
+                              <svg
+                                className="w-5 h-5 text-green-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              <span>{reason}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    )}
 
                   {/* Nutritional Impact */}
                   <div className="space-y-3">
@@ -340,34 +430,39 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   </div>
 
                   {/* Health Benefits */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      Health Benefits
-                    </h3>
-                    <div className="space-y-2">
-                      {recommendation.healthBenefits.map((benefit, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2 text-sm"
-                        >
-                          <svg
-                            className="w-5 h-5 text-blue-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M13 10V3L4 14h7v7l9-11h-7z"
-                            />
-                          </svg>
-                          <span>{benefit}</span>
+                  {recommendation.healthBenefits &&
+                    recommendation.healthBenefits.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-medium text-gray-700">
+                          Health Benefits
+                        </h3>
+                        <div className="space-y-2">
+                          {recommendation.healthBenefits.map(
+                            (benefit, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center space-x-2 text-sm"
+                              >
+                                <svg
+                                  className="w-5 h-5 text-blue-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                                  />
+                                </svg>
+                                <span>{benefit}</span>
+                              </div>
+                            )
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    )}
                 </div>
               </motion.div>
             ) : (

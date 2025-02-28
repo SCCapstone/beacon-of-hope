@@ -1,4 +1,4 @@
-import { DayMeals } from "../../components/MealTimeline/types";
+import { DayMeals } from "../components/MealTimeline/types";
 
 // Helper function to create dates for a week
 const getDateForThisWeek = (dayOffset: number): Date => {
@@ -9,8 +9,7 @@ const getDateForThisWeek = (dayOffset: number): Date => {
 
 export const sampleData: DayMeals[] = [
   {
-    // Monday
-    date: getDateForThisWeek(3),
+    date: getDateForThisWeek(-1),
     meals: [
       {
         id: "breakfast-sun",
@@ -210,7 +209,7 @@ export const sampleData: DayMeals[] = [
   },
   {
     // Tuesday
-    date: getDateForThisWeek(4),
+    date: getDateForThisWeek(0),
     meals: [
       {
         id: "breakfast-mon",
@@ -337,7 +336,7 @@ export const sampleData: DayMeals[] = [
     ],
   },
   {
-    date: getDateForThisWeek(5),
+    date: getDateForThisWeek(1),
     meals: [], // Empty meals array
     isEmpty: true, // Mark as empty
     recommendations: [

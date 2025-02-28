@@ -19,10 +19,21 @@ export const analyzeFoodCorrelations = (
 ): Array<{ food1: string; food2: string; correlation: number }> => {
   const foodPairs = new Map<string, number>();
   const foodCounts = new Map<string, number>();
+  const culturalPairs = new Map<string, Set<string>>();
 
   meals.forEach((meal) => {
     meal.foods.forEach((food1) => {
       foodCounts.set(food1.name, (foodCounts.get(food1.name) || 0) + 1);
+
+      // Track cultural patterns if available
+      if (food1.culturalOrigin?.length) {
+        food1.culturalOrigin.forEach((culture) => {
+          if (!culturalPairs.has(culture)) {
+            culturalPairs.set(culture, new Set());
+          }
+          culturalPairs.get(culture)?.add(food1.name);
+        });
+      }
 
       meal.foods.forEach((food2) => {
         if (food1.id !== food2.id) {
@@ -70,6 +81,16 @@ export const generateHealthInsights = (
 ): string[] => {
   const insights: string[] = [];
 
+  // Calculate average glycemic impact
+  const glycemicImpact =
+    meals.reduce((acc, meal) => {
+      const mealGI =
+        meal.foods.reduce((sum, food) => {
+          return sum + (food.nutritionalInfo.glycemicIndex || 70); // Default to high if not specified
+        }, 0) / meal.foods.length;
+      return acc + mealGI;
+    }, 0) / meals.length;
+
   // Analyze nutritional balance
   const avgNutrition = meals.reduce(
     (acc, meal) => ({
@@ -93,6 +114,11 @@ export const generateHealthInsights = (
       insights.push(
         "Consider smaller portion sizes for better glucose control"
       );
+    }
+    if (glycemicImpact > 55) {
+      insights.push("Consider lower glycemic index alternatives");
+    } else if (glycemicImpact <= 55) {
+      insights.push("Good glycemic profile maintained");
     }
   }
 

@@ -6,6 +6,7 @@ export interface NutritionalInfo {
   fiber: number;
   glycemicIndex?: number;
   glycemicLoad?: number;
+  sugarContent?: number;
 }
 
 export interface Ingredient {
@@ -18,7 +19,7 @@ export interface Ingredient {
   allergens: string[];
   culturalOrigin?: string[];
   substitutes?: string[];
-  diabetesFriendly: boolean;
+  diabetesFriendly?: boolean;
 }
 
 export interface Food {
@@ -31,8 +32,9 @@ export interface Food {
   cookingTime: number;
   instructions: string[];
   culturalOrigin?: string[];
-  diabetesFriendly: boolean;
+  diabetesFriendly?: boolean;
   allergens: string[];
+  tips?: string[]; // Add as optional
 }
 
 export interface Meal {
@@ -42,7 +44,9 @@ export interface Meal {
   type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   foods: Food[];
   nutritionalInfo: NutritionalInfo;
-  diabetesFriendly: boolean;
+  diabetesFriendly?: boolean;
+  culturalTips?: string[];
+  healthBenefits?: string[];
 }
 
 export interface DayMeals {
@@ -138,14 +142,14 @@ export interface ManagementTip {
 export interface MealRecommendation {
   meal: Meal;
   score: number; // 0-100 score for how well it matches user preferences
-  reasons: string[]; // Why this meal is recommended
+  reasons?: string[]; // Why this meal is recommended
   nutritionalImpact: {
     calories: number;
     carbs: number;
     protein: number;
     fiber: number;
   };
-  healthBenefits: string[];
+  healthBenefits?: string[];
   replacementFor?: {
     mealId: string;
     timeSlot: string;
