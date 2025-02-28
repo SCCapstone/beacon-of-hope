@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Meal } from "../types";
 import { COLOR_SCHEMES } from "../constants";
 import { MealRecommendation } from "../types";
-import { NutritionalGoalsProgress } from "./NutritionalGoalsProgress";
-import LOGO from "../../../assets/logo.png";
 
 interface MealDetailsPanelProps {
   meal: Meal | null;
@@ -477,13 +475,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                 <div className="p-6 space-y-6">
                   {/* Logo and Title */}
                   <div className="text-center mb-8">
-                    {/* <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center overflow-hidden">
-                    <img
-                      src={LOGO}
-                      alt="Meal Explorer"
-                      className="w-10 h-10 object-contain"
-                    />
-                  </div> */}
                     <h2 className="text-2xl font-semibold text-gray-800">
                       Meal Explorer
                     </h2>

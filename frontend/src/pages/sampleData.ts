@@ -9,7 +9,7 @@ const getDateForThisWeek = (dayOffset: number): Date => {
 
 export const sampleData: DayMeals[] = [
   {
-    date: getDateForThisWeek(-1),
+    date: getDateForThisWeek(4),
     meals: [
       {
         id: "breakfast-sun",
@@ -209,7 +209,7 @@ export const sampleData: DayMeals[] = [
   },
   {
     // Tuesday
-    date: getDateForThisWeek(0),
+    date: getDateForThisWeek(5),
     meals: [
       {
         id: "breakfast-mon",
@@ -336,7 +336,7 @@ export const sampleData: DayMeals[] = [
     ],
   },
   {
-    date: getDateForThisWeek(1),
+    date: getDateForThisWeek(6),
     meals: [], // Empty meals array
     isEmpty: true, // Mark as empty
     recommendations: [

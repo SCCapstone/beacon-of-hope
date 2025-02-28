@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useSelector } from 'react-redux';
+import { RootState } from '../app/store';
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
@@ -8,22 +10,23 @@ import { MainLayout } from "../components/Layouts/MainLayout";
 
 const FoodPreferencesPage: React.FC = () => {
   const navigate = useNavigate();
+  const userState = useSelector((state: RootState) => (state.user));
 
   // User Info
-  const [height, setHeight] = useState<string>("");
-  const [age, setAge] = useState<string>("");
-  const [weight, setWeight] = useState<string>("");
-  const [gender, setGender] = useState<string>("");
+  const [height, setHeight] = useState<string>(`5'8"`);
+  const [age, setAge] = useState<string>("26");
+  const [weight, setWeight] = useState<string>("185");
+  const [gender, setGender] = useState<string>("Male");
 
   // Meal Plan Config Card
   const [mealPlanLength, setMealPlanLength] = useState<number>(7);
   const [mealsPerDay, setMealsPerDay] = useState<number>(3);
-  const [mealPlanName, setMealPlanName] = useState<string>("");
+  const [mealPlanName, setMealPlanName] = useState<string>("Your Meal Plan...");
 
   // Dietary Pref Card
   const [dairy, setDairy] = useState<number>(1);
   const [meat, setMeat] = useState<number>(1);
-  const [vegetables, setVegetables] = useState<number>(1);
+  const [nuts, setNuts] = useState<number>(1);
   const [glutenFree, setGlutenFree] = useState<boolean>(false);
   const [diabetes, setDiabetes] = useState<boolean>(false);
   const [vegetarian, setVegetarian] = useState<boolean>(false);
@@ -42,21 +45,38 @@ const FoodPreferencesPage: React.FC = () => {
         beverage: boolean;
       };
     }>
-  >(() => {
-    // Initialize with 3 meal configs (default mealsPerDay value)
-    return Array(3)
-      .fill(null)
-      .map(() => ({
-        mealName: "",
-        mealTime: "",
-        mealTypes: {
-          mainCourse: false,
-          side: false,
-          dessert: false,
-          beverage: false,
-        },
-      }));
-  });
+  >(() => [
+    {
+      mealName: "Breakfast",
+      mealTime: "08:00",
+      mealTypes: {
+        mainCourse: true,
+        side: true,
+        dessert: false,
+        beverage: true,
+      },
+    },
+    {
+      mealName: "Lunch",
+      mealTime: "12:00",
+      mealTypes: {
+        mainCourse: true,
+        side: true,
+        dessert: true,
+        beverage: true,
+      },
+    },
+    {
+      mealName: "Dinner",
+      mealTime: "18:00",
+      mealTypes: {
+        mainCourse: true,
+        side: true,
+        dessert: true,
+        beverage: true,
+      },
+    },
+  ]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -133,21 +153,12 @@ const FoodPreferencesPage: React.FC = () => {
   const handleSubmit = async () => {
     console.log("Starting submit process...");
 
-    // Default meal configs for different times of day
-    const defaultMealConfigs = [
-      { meal_name: "breakfast", meal_time: "08:00" },
-      { meal_name: "lunch", meal_time: "12:00" },
-      { meal_name: "dinner", meal_time: "18:00" },
-    ];
-
     // Process all meal configs based on mealsPerDay
     const processedMealConfigs = Array.from(
       { length: mealsPerDay },
       (_, index) => ({
-        meal_name:
-          mealConfigs[index]?.mealName || defaultMealConfigs[index].meal_name,
-        meal_time:
-          mealConfigs[index]?.mealTime || defaultMealConfigs[index].meal_time,
+        meal_name: mealConfigs[index]?.mealName,
+        meal_time: "",
         meal_types: {
           beverage: mealConfigs[index]?.mealTypes.beverage || true,
           main_course: mealConfigs[index]?.mealTypes.mainCourse || true,
@@ -163,6 +174,12 @@ const FoodPreferencesPage: React.FC = () => {
         num_meals: mealsPerDay,
         meal_configs: processedMealConfigs,
       },
+      user_preferences: {
+        dairyPreference:dairy,
+        meatPreference: meat,
+        nutsPreference: nuts,
+      },
+      "user_id": userState.user._id
     };
 
     console.log("Request body:", JSON.stringify(requestBody, null, 2));
@@ -228,7 +245,7 @@ const FoodPreferencesPage: React.FC = () => {
             <DietaryPreferences
               dairy={dairy}
               meat={meat}
-              vegetables={vegetables}
+              nuts={nuts}
               glutenFree={glutenFree}
               diabetes={diabetes}
               vegetarian={vegetarian}
@@ -237,7 +254,7 @@ const FoodPreferencesPage: React.FC = () => {
               handleCheckboxChange={handleCheckboxChange}
               setDairy={setDairy}
               setMeat={setMeat}
-              setVegetables={setVegetables}
+              setNuts={setNuts}
               setGlutenFree={setGlutenFree}
               setDiabetes={setDiabetes}
               setVegetarian={setVegetarian}
