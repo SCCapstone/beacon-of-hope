@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
     return (
         <div className="min-h-screen bg-white p-10">
             <div className="text-center mb-10">
-                <h1 className="text-3xl font-semibold text-gray-800">Welcome to Our Meal Planner {userState.user.first_name}</h1>
+                <h1 className="text-3xl font-semibold text-gray-800">Welcome to Our Meal Planner, {userState.user.first_name}</h1>
                 <p className="text-base text-gray-600">
                     Helping you make healthy and informed meal decisions
                 </p>
