@@ -7,16 +7,13 @@ import {
   Ingredient,
   VisualizationLevel,
   MealRecommendation,
-  FilterOptions,
 } from "./types";
 import { LevelSelector } from "./components/LevelSelector";
 import { FilterPanel } from "./components/FilterPanel";
 import { MealView } from "./components/MealView";
 import { FoodView } from "./components/FoodView";
 import { IngredientView } from "./components/IngredientView";
-import { PatternInsights } from "./components/PatternInsights";
 import { WeekSelector } from "./components/WeekSelector";
-import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
 import { usePatternAnalysis } from "./hooks/usePatternAnalysis";
@@ -81,10 +78,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   const { filters, updateFilters } = useFilters();
   const { patterns } = usePatternAnalysis(weekData);
-
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    updateFilters(newFilters);
-  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -210,7 +203,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   return (
     <div
-      className="w-screen h-[calc(100vh-5rem)] overflow-hidden bg-gradient-to-br from-[#FFF5E9] to-[#FFE6C9]/30"
+      className="w-screen h-screen flex flex-col overflow-hidden bg-gray-100"
       ref={vizRef}
     >
       {/* Header/Title Bar */}
@@ -224,7 +217,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       </div> */}
 
       {/* Main Content */}
-      <div className="w-full h-full flex overflow-hidden">
+      <div className="w-full flex-1 flex overflow-hidden">
         {/* Left Panel Container */}
         <motion.div
           initial={false}
@@ -240,36 +233,34 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="h-full w-[320px] bg-white/80 backdrop-blur-md shadow-lg flex flex-col overflow-hidden border-r border-[#FFE6C9]"
+                className="h-full w-[320px] bg-white shadow-lg flex flex-col overflow-hidden"
               >
                 <div className="flex-1 overflow-y-auto">
                   <div className="p-4 space-y-6">
-                    <CollapsiblePanel
-                      title="Filters"
-                      subtitle="Customize your meal view"
-                    >
-                      <FilterPanel
-                        filters={filters}
-                        userPreferences={userPreferences}
-                        onFilterChange={handleFilterChange}
-                        weekData={weekData}
-                      />
-                    </CollapsiblePanel>
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                      {/* Header */}
+                      <div className="w-full px-4 py-3 flex items-center justify-between text-left rounded-t-lg">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            Filters
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            Customize your meal view
+                          </p>
+                        </div>
+                      </div>
 
-                    {/* Pattern Insights Panel */}
-                    <CollapsiblePanel
-                      title="Pattern Insights"
-                      subtitle="Discover your eating patterns"
-                    >
-                      <PatternInsights
-                        patterns={patterns}
-                        currentLevel={currentLevel}
-                        selectedMeal={selectedMeal}
-                        selectedFood={selectedFood}
-                        selectedIngredient={selectedIngredient}
-                        managementTips={managementTips}
-                      />
-                    </CollapsiblePanel>
+                      {/* Content */}
+                      <div className="overflow-hidden">
+                        <div className="p-4 border-t border-gray-100 bg-gray-50">
+                          <FilterPanel
+                            filters={filters}
+                            userPreferences={userPreferences}
+                            onFilterChange={updateFilters}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -279,21 +270,21 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
         {/* Center Calendar View */}
         <div
-          className="flex-1 flex flex-col min-w-0"
+          className="flex-1 flex flex-col min-w-0 bg-gray-50"
           onClick={handleMainAreaClick}
         >
           {/* Level Selector Bar */}
-          <div className="w-full h-16 px-4 bg-white/80 backdrop-blur-md border-b border-t border-[#FFE6C9] shadow-sm z-10 flex items-center justify-between">
+          <div className="w-full h-16 px-4 bg-white border-b shadow-sm z-10 flex items-center justify-between">
             {/* Left side group */}
             <div className="flex items-center">
               {/* Toggle Button */}
               <motion.button
                 initial={false}
                 onClick={() => setShowLeftPanel(!showLeftPanel)}
-                className="mr-4 p-1.5 rounded-full hover:bg-[#FFE6C9]/50 transition-colors"
+                className="mr-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
               >
                 <svg
-                  className={`w-5 h-5 text-[#FF9F1C] transition-transform duration-300 ${
+                  className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${
                     !showLeftPanel ? "rotate-180" : ""
                   }`}
                   fill="none"
@@ -310,15 +301,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               </motion.button>
 
               {/* Divider */}
-              <div className="h-8 w-px bg-[#FFE6C9]" />
+              <div className="h-8 w-px bg-gray-200 mr-4"></div>
 
               {/* Level Selector */}
-              <div className="ml-4">
-                <LevelSelector
-                  currentLevel={currentLevel}
-                  onLevelChange={setCurrentLevel}
-                />
-              </div>
+              <LevelSelector
+                currentLevel={currentLevel}
+                onLevelChange={setCurrentLevel}
+              />
             </div>
 
             {/* Right side - Week Selector */}
@@ -327,12 +316,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               onDateChange={setSelectedDate}
             />
           </div>
-
           {/* Main Visualization Area */}
-          <div className="flex-1 flex overflow-hidden p-4">
+          <div className="flex-1 flex overflow-hidden">
             {/* Calendar View */}
-            <div className="flex-1 min-w-0">
-              <div className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg h-full overflow-hidden border border-[#FFE6C9]">
+            <div className="flex-1 min-w-0 p-4">
+              <div className="bg-white rounded-lg shadow-sm h-full overflow-hidden border border-gray-200">
                 {currentLevel === "meal" && (
                   <MealView
                     weekData={weekData}
@@ -361,7 +349,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             </div>
 
             {/* Right Panel */}
-            <div className="w-[480px] ml-4 bg-white/80 backdrop-blur-md rounded-xl shadow-lg z-10 flex-shrink-0 border border-[#FFE6C9]">
+            <div className="w-[480px] bg-white shadow-lg z-10 flex-shrink-0">
               <MealDetailsPanel
                 meal={selectedMeal}
                 recommendation={selectedRecommendation}
