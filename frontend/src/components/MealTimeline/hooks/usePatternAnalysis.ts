@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { DayMeals, PatternAnalysis, MealPattern } from "../types";
 interface HealthMetrics {
-  glycemicLoad: number;
+  glycemicLoad: number | null;
   fiberIntake: number;
   proteinDistribution: number;
   mealTiming: {
@@ -13,7 +13,7 @@ interface HealthMetrics {
     carbs: number;
     fats: number;
   };
-  culturalAdherence: number;
+  culturalAdherence: number | null;
   allergensExposure: string[];
 }
 
@@ -22,14 +22,21 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to estimate glycemic load when GI is not available
+  const estimateGlycemicLoad = (carbs: number): number => {
+    return carbs * 0.5; // Assumes medium glycemic index of 50
+  };
+
   const analyzeHealthMetrics = (data: DayMeals[]): HealthMetrics => {
     let totalMeals = 0;
     let glycemicLoadSum = 0;
+    let hasGlycemicData = false;
     let fiberSum = 0;
     let proteinSum = 0;
     const mealTimes: number[] = [];
     const nutrientSums = { protein: 0, carbs: 0, fats: 0 };
     const allergenExposures = new Set<string>();
+    const culturalOrigins = new Set<string>();
 
     data.forEach((day) => {
       const dayMealTimes: number[] = [];
@@ -43,13 +50,16 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
 
         // Analyze meal components
         meal.foods.forEach((food) => {
-          // Glycemic load calculation
-          const gl = food.nutritionalInfo.glycemicIndex
-            ? (food.nutritionalInfo.glycemicIndex *
+          // Glycemic load calculation with fallback
+          if (food.nutritionalInfo.glycemicIndex !== undefined) {
+            hasGlycemicData = true;
+            glycemicLoadSum +=
+              (food.nutritionalInfo.glycemicIndex *
                 food.nutritionalInfo.carbs) /
-              100
-            : 0;
-          glycemicLoadSum += gl;
+              100;
+          } else {
+            glycemicLoadSum += estimateGlycemicLoad(food.nutritionalInfo.carbs);
+          }
 
           // Nutrient tracking
           nutrientSums.protein += food.nutritionalInfo.protein;
@@ -59,6 +69,13 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
 
           // Track allergens
           food.allergens.forEach((allergen) => allergenExposures.add(allergen));
+
+          // Track cultural origins if available
+          if (food.culturalOrigin) {
+            food.culturalOrigin.forEach((origin) =>
+              culturalOrigins.add(origin)
+            );
+          }
         });
       });
 
@@ -89,8 +106,8 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
       nutrientSums.protein * 4 + nutrientSums.carbs * 4 + nutrientSums.fats * 9;
 
     return {
-      glycemicLoad: glycemicLoadSum / totalMeals,
-      fiberIntake: fiberSum / data.length, // Daily average
+      glycemicLoad: hasGlycemicData ? glycemicLoadSum / totalMeals : null,
+      fiberIntake: fiberSum / data.length,
       proteinDistribution: ((nutrientSums.protein * 4) / totalCalories) * 100,
       mealTiming: {
         consistent: gapConsistency,
@@ -101,7 +118,8 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
         carbs: ((nutrientSums.carbs * 4) / totalCalories) * 100,
         fats: ((nutrientSums.fats * 9) / totalCalories) * 100,
       },
-      culturalAdherence: calculateCulturalAdherence(data),
+      culturalAdherence:
+        culturalOrigins.size > 0 ? calculateCulturalAdherence(data) : null,
       allergensExposure: Array.from(allergenExposures),
     };
   };
@@ -109,13 +127,15 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
   const generateHealthInsights = (metrics: HealthMetrics): string[] => {
     const insights: string[] = [];
 
-    // Glycemic Load Insights
-    if (metrics.glycemicLoad > 20) {
-      insights.push(
-        "Consider reducing high-glycemic foods to better manage blood sugar levels"
-      );
-    } else if (metrics.glycemicLoad < 10) {
-      insights.push("Your meals have a good glycemic profile");
+    // Glycemic Load Insights - only if data is available
+    if (metrics.glycemicLoad !== null) {
+      if (metrics.glycemicLoad > 20) {
+        insights.push(
+          "Consider reducing high-glycemic foods to better manage blood sugar levels"
+        );
+      } else if (metrics.glycemicLoad < 10) {
+        insights.push("Your meals have a good glycemic profile");
+      }
     }
 
     // Fiber Insights
@@ -197,7 +217,7 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
             if (!mealTimePatterns.has(timeKey)) {
               mealTimePatterns.set(timeKey, new Set());
             }
-            mealTimePatterns.get(timeKey)?.add(day.date);
+            mealTimePatterns.get(timeKey)?.add(day.date.toISOString());
 
             // Analyze food patterns within meals
             meal.foods.forEach((food) => {
@@ -235,19 +255,23 @@ export const usePatternAnalysis = (weekData: DayMeals[]) => {
           patterns: [], // Your existing pattern analysis
           recommendations: healthInsights,
           healthInsights: {
-            diabetesImpact: `Glycemic Load: ${healthMetrics.glycemicLoad.toFixed(
-              1
-            )} - ${
-              healthMetrics.glycemicLoad < 15 ? "Good" : "Needs attention"
-            }`,
-            culturalAlignment: `Cultural adherence: ${healthMetrics.culturalAdherence.toFixed(
-              1
-            )}%`,
+            diabetesImpact:
+              healthMetrics.glycemicLoad !== null
+                ? `Glycemic Load: ${healthMetrics.glycemicLoad.toFixed(1)} - ${
+                    healthMetrics.glycemicLoad < 15 ? "Good" : "Needs attention"
+                  }`
+                : "Glycemic load data not available",
+            culturalAlignment:
+              healthMetrics.culturalAdherence !== null
+                ? `Cultural adherence: ${healthMetrics.culturalAdherence.toFixed(
+                    1
+                  )}%`
+                : "Cultural alignment data not available",
             nutritionalBalance: `Protein: ${healthMetrics.nutrientBalance.protein.toFixed(
               1
-            )}% | 
-              Carbs: ${healthMetrics.nutrientBalance.carbs.toFixed(1)}% | 
-              Fats: ${healthMetrics.nutrientBalance.fats.toFixed(1)}%`,
+            )}% | Carbs: ${healthMetrics.nutrientBalance.carbs.toFixed(
+              1
+            )}% | Fats: ${healthMetrics.nutrientBalance.fats.toFixed(1)}%`,
           },
         };
 
@@ -299,18 +323,31 @@ function generateRecommendations(
 function analyzeDiabetesImpact(weekData: DayMeals[]): string {
   let highGICount = 0;
   let totalMeals = 0;
+  let hasGIData = false;
 
   weekData.forEach((day) => {
     day.meals.forEach((meal) => {
       totalMeals++;
-      const averageGI =
-        meal.foods.reduce((sum, food) => {
-          return sum + (food.nutritionalInfo.glycemicIndex || 0);
-        }, 0) / meal.foods.length;
+      const validGIFoods = meal.foods.filter(
+        (food) => food.nutritionalInfo.glycemicIndex !== undefined
+      );
 
-      if (averageGI > 70) highGICount++;
+      if (validGIFoods.length > 0) {
+        hasGIData = true;
+        const averageGI =
+          validGIFoods.reduce(
+            (sum, food) => sum + (food.nutritionalInfo.glycemicIndex || 0),
+            0
+          ) / validGIFoods.length;
+
+        if (averageGI > 70) highGICount++;
+      }
     });
   });
+
+  if (!hasGIData) {
+    return "Glycemic index data not available";
+  }
 
   const highGIPercentage = (highGICount / totalMeals) * 100;
 

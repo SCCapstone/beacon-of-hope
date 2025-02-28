@@ -10,6 +10,7 @@ import {
   diabetesManagementTips,
   nutritionalGoals,
 } from "./sampleData";
+import { MainLayout } from "../components/Layouts/MainLayout";
 
 export const MealTimelinePage: React.FC = () => {
   const [weekData, setWeekData] = useState<DayMeals[]>([]);
@@ -107,8 +108,10 @@ export const MealTimelinePage: React.FC = () => {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-gray-50">
-      {/* Main Visualization */}
+    <MainLayout
+      title="Meal Calendar"
+      subtitle="Plan and Track Your Meals With Ease"
+    >
       <MealCalendarViz
         initialData={weekData}
         userPreferences={{
@@ -122,7 +125,7 @@ export const MealTimelinePage: React.FC = () => {
         //   console.log("Selected recommendation:", recommendation);
         // }}
       />
-    </div>
+    </MainLayout>
   );
 };
 

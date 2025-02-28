@@ -110,20 +110,18 @@ export const COLOR_SCHEMES = {
   },
 } as const;
 
-export const RECOMMENDATION_COLORS = {
-  high: {
-    background: "rgba(16, 185, 129, 0.1)",
-    text: "#065f46",
-    glow: "rgba(16, 185, 129, 0.2)",
+export const THEME_COLORS = {
+  primary: "#FFE6C9",
+  secondary: "#FF9F1C",
+  accent: "#2EC4B6",
+  background: {
+    light: "#FFF5E9",
+    dark: "#FFE6C9",
   },
-  medium: {
-    background: "rgba(234, 179, 8, 0.1)",
-    text: "#854d0e",
-    glow: "rgba(234, 179, 8, 0.2)",
+  text: {
+    primary: "#1A1A1A",
+    secondary: "#4A5568",
+    accent: "#FF9F1C",
   },
-  low: {
-    background: "rgba(239, 68, 68, 0.1)",
-    text: "#991b1b",
-    glow: "rgba(239, 68, 68, 0.2)",
-  },
+  border: "#FFE6C9",
 } as const;

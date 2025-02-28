@@ -1,7 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { MealRecommendation } from "../types";
-import { COLOR_SCHEMES } from "../constants";
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
@@ -19,6 +18,32 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   className = "",
 }) => {
   const { meal, score, nutritionalImpact } = recommendation;
+
+  // Helper function to check if meal is diabetes friendly
+  const isDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
+    // If explicitly marked
+    if (meal.diabetesFriendly !== undefined) return meal.diabetesFriendly;
+
+    // Check foods
+    const allFoodsDiabetesFriendly = meal.foods.every(
+      (food) => food.diabetesFriendly !== undefined && food.diabetesFriendly
+    );
+    if (allFoodsDiabetesFriendly) return true;
+
+    // Check glycemic index if available
+    const hasLowGI = meal.foods.every((food) => {
+      const gi = food.nutritionalInfo.glycemicIndex;
+      return gi !== undefined && gi < 55; // 55 is generally considered low GI
+    });
+
+    return hasLowGI;
+  };
+
+  // Format nutritional impact values
+  const formatImpact = (value: number): string => {
+    const prefix = value > 0 ? "+" : "";
+    return `${prefix}${value}`;
+  };
 
   return (
     <motion.div
@@ -88,9 +113,14 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </h3>
           <div className="flex items-center space-x-2 mt-0.5">
             <span className="text-xs text-gray-500">{meal.time}</span>
-            {meal.diabetesFriendly && (
+            {isDiabetesFriendly(meal) && (
               <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
                 DF
+              </span>
+            )}
+            {meal.nutritionalInfo.glycemicIndex !== undefined && (
+              <span className="text-xs text-gray-500">
+                GI: {meal.nutritionalInfo.glycemicIndex}
               </span>
             )}
           </div>
@@ -102,23 +132,41 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">
               {meal.nutritionalInfo.calories} cal
-              {isSelected && (
-                <span className="text-green-600 ml-1">
-                  ({nutritionalImpact.calories > 0 ? "+" : ""}
-                  {nutritionalImpact.calories})
+              {isSelected && nutritionalImpact && (
+                <span
+                  className={`ml-1 ${
+                    nutritionalImpact.calories > 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  ({formatImpact(nutritionalImpact.calories)})
                 </span>
               )}
             </span>
             <span className="text-gray-600">
               {meal.nutritionalInfo.carbs}g carbs
-              {isSelected && (
-                <span className="text-green-600 ml-1">
-                  ({nutritionalImpact.carbs > 0 ? "+" : ""}
-                  {nutritionalImpact.carbs}g)
+              {isSelected && nutritionalImpact && (
+                <span
+                  className={`ml-1 ${
+                    nutritionalImpact.carbs > 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  ({formatImpact(nutritionalImpact.carbs)}g)
                 </span>
               )}
             </span>
           </div>
+
+          {/* Optional Health Benefits Preview */}
+          {recommendation.healthBenefits &&
+            recommendation.healthBenefits.length > 0 && (
+              <div className="mt-1 text-xs text-gray-500 truncate">
+                {recommendation.healthBenefits[0]}
+              </div>
+            )}
         </div>
       </div>
 

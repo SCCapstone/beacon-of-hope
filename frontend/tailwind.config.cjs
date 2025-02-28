@@ -55,7 +55,11 @@ theme: {
         600: '#C9E2FF',
         700: '#7C3AED',
       }
-    }
+    },
+    backdropFilter: {
+      'none': 'none',
+      'blur': 'blur(16px)',
+    },
   }
 },
 plugins: [require("tailwindcss-animate")],
