@@ -20,7 +20,6 @@ import { CollapsiblePanel } from "./components/CollapsiblePanel";
 import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
 import { usePatternAnalysis } from "./hooks/usePatternAnalysis";
-import { useVisualizationData } from "./hooks/useVisualizationData";
 import { useFilters } from "./hooks/useFilters";
 
 interface MealCalendarVizProps {
