@@ -179,6 +179,8 @@ poetry run coverage report
       "meal_plan_config": {
         "num_days": 3,
         "num_meals": 3,
+        "starting_date":"2025-02-08",
+        "meal_plan_name": "Diabetes + Weight Loss Management",
         "meal_configs": [
             {
                 "meal_name": "breakfast",
@@ -203,39 +205,48 @@ poetry run coverage report
   ```
    - Response:
       - (200) returns a generated meal plan in JSON
+      - Note that the numbers that are the values of keys `beverage`, `main_course`, etc are item ids. For more information about beverages, use the `get-beverage-info` endpoint and for all other items' information use the `get-recipe-info` endpoint
    ```json
    {
-    "_id": "507f191e810c19729de860ea",
-    "user_id": "674f7d4c5b4425639bef8cd6",
-    "name": "Generated Meal Plan",
-    "start_date": "2024-12-04T08:00:00Z",
-    "end_date": "2024-12-07T08:00:00Z",
-    "days": [
-        {
-            "day": 0,
-            "meals": [
-                {
-                    "_id": "5a934e000102030405000000",
-                    "meal_time": "8:00am",
-                    "beverage": "10", // use <backend_ip>/beacon/get-beverage-info/<str:bev_id> to retrieve more info
-                    "main_course": "25", // use <backend_ip>/beacon/get-recipe-info/<str:food_id> to retrieve more info
-                    "side_dish": null,
-                    "dessert": null
-                }
-            ]
-        }
-    ],
-    "status": "active",
-    "tags": ["random", "generated"],
-    "created_at": "2024-12-04T12:00:00Z",
-    "updated_at": "2024-12-04T12:00:00Z"
-    }
+    "_id": "67c231ba88fa8471eed74c30",
+    "user_id": "67c149e417717376a4ab1dff",
+    "name": "User Meal Plan",
+    "days":
+      {
+        "2025-02-28": [
+          {"_id": "67c231ba88fa8471eed74c2e",
+            "meal_time": "8:00am",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "beverage": "18",
+              "main_course": "27",
+              "side_dish": "1",
+              "dessert": "21"
+            }
+          }
+        ],
+        "2025-03-01": [
+          {
+            "_id": "67c231ba88fa8471eed74c2f",
+            "meal_time": "8:00am",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "beverage": "5",
+              "main_course": "50",
+              "side_dish": "33",
+              "dessert": "34"
+            }
+          }
+        ]
+      }
+  }
     ```
       - (400) Missing or invalid input
       - (500) Internal Server error
 
 
 - #### `<backend_ip>/beacon/recommendation/retrieve-latest/<str:user_id>`
+   - **Deprecated**
    - HTTP Method: `GET`
    - Description: Retrieve latest meal plan recommendation for a particular user
    - Parameters:
@@ -270,6 +281,7 @@ poetry run coverage report
     ```
 
 - #### `<backend_ip>/beacon/recommendation/retrieve-all/<str:user_id>`
+   - **Deprecated**
    - HTTP Method: `GET`
    - Description: Retrieve all meal plans for a particular user
    - Parameters:

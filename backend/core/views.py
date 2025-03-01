@@ -31,7 +31,11 @@ from .firebase import (
     add_mealplan,
 )
 
-# TODO, add error checking for all recieved responses and send corresponding status code for errors faced
+# TODO, make sure that starting date recieved for bandit and random
+# Should be a REQUIRED parameter in request body
+# TODO, related to above, standardize error checking for parameters
+# (in some sections we use try catch and in some we use if-block)
+
 
 logger = logging.getLogger(__name__)  # neccesary to generate meal plan
 
@@ -43,11 +47,18 @@ def random_recommendation(request: HttpRequest):
             data = json.loads(request.body)
             meal_plan_config = data.get("meal_plan_config")
             user_id = data.get("user_id")
+            meal_plan_name = data.get("meal_plan_name")
+
+            # TODO, propogate exception if parameters are not in request body
+            starting_date = data.get("starting_date", datetime.now())
 
             if not meal_plan_config:
                 return JsonResponse(
                     {"error": "Meal plan configuration is required."}, status=400
                 )
+
+            if not meal_plan_name:
+                meal_plan_name = "User Meal Plan"
 
             # Validate required fields
             num_days = meal_plan_config.get("num_days")
@@ -91,9 +102,10 @@ def random_recommendation(request: HttpRequest):
 
             # Generate meal plan
             logger.info("Generating meal plan...")
-            days = []
+            days = {}
+
             for day_index in range(num_days):
-                day = {"day": day_index, "meals": []}
+                meals = []
                 for meal_config in meal_configs:
                     meal_types = {}
 
@@ -121,34 +133,30 @@ def random_recommendation(request: HttpRequest):
                         "meal_name": meal_config.get("meal_name", ""),
                         "meal_types": meal_types,
                     }
-                    day["meals"].append(meal)
-                days.append(day)
+                    meals.append(meal)
+                date_str = (starting_date + timedelta(days=day_index)).strftime(
+                    "%Y-%m-%d"
+                )
+                days[date_str] = meals
 
             # Construct meal plan object
             mealplan = {
                 "_id": str(ObjectId()),  # Unique ID for the meal plan
                 "user_id": user_id,  # Link to the specific user
-                "name": "Gen Meal Plan",
-                "start_date": datetime.now(),
-                "end_date": datetime.now() + timedelta(days=num_days),
+                "name": meal_plan_name,
                 "days": days,
-                "status": "active",
-                "tags": ["user", "generated"],  # can change tags
-                "created_at": datetime.now(),
-                "updated_at": datetime.now(),
             }
 
             # save meal plan to firebase
             try:
                 add_mealplan(user_id, mealplan)
+                # TODO add dayplans to firebase as a part of dictionary
                 return JsonResponse(mealplan, status=200)
             except Exception as e:
-                print(f"Error while saving meal plan: {e}")
+                print(
+                    f"Error while saving meal plan to database. Here is a copy of the generated meal plan: {e}"
+                )
                 return JsonResponse(mealplan, status=201)
-
-            # logger.info(f"Generated meal plan: {mealplan}")
-            return JsonResponse(mealplan)
-
         except Exception as e:
             logger.exception("An error occurred while generating the meal plan.")
             return JsonResponse({"error": f"{e}"}, status=500)
@@ -164,7 +172,9 @@ def bandit_recommendation(request: HttpRequest):
     # TODO, clean directory of previous configurations
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
+            data: dict = json.loads(request.body)
+            meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
+            starting_date = data.get("starting_date", datetime.now())
 
             try:
                 meal_plan_config = data["meal_plan_config"]
@@ -218,22 +228,20 @@ def bandit_recommendation(request: HttpRequest):
             # Generate Bandit Recommendation
             try:
                 days = gen_bandit_rec(
-                    trial_num, user_preferences, num_days, num_meals, meal_configs
+                    trial_num,
+                    user_preferences,
+                    num_days,
+                    num_meals,
+                    meal_configs,
+                    starting_date,
                 )
                 # Construct meal plan object
                 mealplan = {
                     "_id": str(ObjectId()),  # Unique ID for the meal plan
                     "user_id": user_id,  # Link to the specific user
-                    "name": "Gen Meal Plan",
-                    "start_date": datetime.now(),
-                    "end_date": datetime.now() + timedelta(days=num_days),
+                    "name": meal_plan_name,
                     "days": days,
-                    "status": "active",
-                    "tags": ["user", "generated"],  # can change tags
-                    "created_at": datetime.now(),
-                    "updated_at": datetime.now(),
                 }
-
             except:
                 return JsonResponse(
                     {"error": "There was an error in generating the meal plan"},
@@ -243,6 +251,7 @@ def bandit_recommendation(request: HttpRequest):
             # save meal plan to firebase
             try:
                 add_mealplan(user_id, mealplan)
+                print("hello")
                 return JsonResponse(mealplan, status=200)
             except Exception as e:
                 print(f"Error while saving meal plan: {e}")
@@ -392,3 +401,7 @@ def retrieve_all_meal_plans(request: HttpRequest, user_id: str):
             return JsonResponse({"Error": str(meal_plans)}, status=500)
         return JsonResponse({"meal_plans": meal_plans}, status=200)
     return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+
+def retrieve_by_day(request: HttpRequest, user_id: str, date: str):
+    ...
