@@ -26,9 +26,10 @@ from .firebase import (
     get_user_by_email,
     add_user,
     delete_user,
-    get_latest_user_mealplan,
-    get_all_user_mealplans,
-    add_mealplan,
+    get_latest_user_meal_plan,
+    get_all_user_meal_plans,
+    add_meal_plan,
+    add_dayplan,
 )
 
 # TODO, make sure that starting date recieved for bandit and random
@@ -137,10 +138,10 @@ def random_recommendation(request: HttpRequest):
                 date_str = (starting_date + timedelta(days=day_index)).strftime(
                     "%Y-%m-%d"
                 )
-                days[date_str] = meals
+                days[date_str] = {"_id": str(ObjectId()), "meals": meals}
 
             # Construct meal plan object
-            mealplan = {
+            meal_plan = {
                 "_id": str(ObjectId()),  # Unique ID for the meal plan
                 "user_id": user_id,  # Link to the specific user
                 "name": meal_plan_name,
@@ -149,14 +150,19 @@ def random_recommendation(request: HttpRequest):
 
             # save meal plan to firebase
             try:
-                add_mealplan(user_id, mealplan)
-                # TODO add dayplans to firebase as a part of dictionary
-                return JsonResponse(mealplan, status=200)
+                for date, day_plan in meal_plan["days"].items():
+                    day_plan["user_id"] = user_id
+                    day_plan["meal_plan_id"] = meal_plan["_id"]
+                    add_dayplan(user_id, date, day_plan)
+
+                add_meal_plan(user_id, meal_plan)
+
+                return JsonResponse(meal_plan, status=200)
             except Exception as e:
                 print(
                     f"Error while saving meal plan to database. Here is a copy of the generated meal plan: {e}"
                 )
-                return JsonResponse(mealplan, status=201)
+                return JsonResponse(meal_plan, status=201)
         except Exception as e:
             logger.exception("An error occurred while generating the meal plan.")
             return JsonResponse({"error": f"{e}"}, status=500)
@@ -236,7 +242,7 @@ def bandit_recommendation(request: HttpRequest):
                     starting_date,
                 )
                 # Construct meal plan object
-                mealplan = {
+                meal_plan = {
                     "_id": str(ObjectId()),  # Unique ID for the meal plan
                     "user_id": user_id,  # Link to the specific user
                     "name": meal_plan_name,
@@ -248,14 +254,20 @@ def bandit_recommendation(request: HttpRequest):
                     status=500,
                 )
 
-            # save meal plan to firebase
             try:
-                add_mealplan(user_id, mealplan)
-                print("hello")
-                return JsonResponse(mealplan, status=200)
+                # save day plans to firebase
+                for date, day_plan in meal_plan["days"].items():
+                    day_plan["user_id"] = user_id
+                    day_plan["meal_plan_id"] = meal_plan["_id"]
+                    add_dayplan(user_id, date, day_plan)
+
+                # save meal plan to firebase
+                add_meal_plan(user_id, meal_plan)
+
+                return JsonResponse(meal_plan, status=200)
             except Exception as e:
                 print(f"Error while saving meal plan: {e}")
-                return JsonResponse(mealplan, status=201)
+                return JsonResponse(meal_plan, status=201)
 
         except:
             return JsonResponse(
@@ -387,7 +399,7 @@ def delete_account(request: HttpRequest, user_id: str):
 
 def retrieve_meal_plan(request: HttpRequest, user_id: str):
     if request.method == "GET":
-        meal_plan, _ = get_latest_user_mealplan(user_id=user_id)
+        meal_plan, _ = get_latest_user_meal_plan(user_id=user_id)
         if isinstance(meal_plan, Exception):
             return JsonResponse({"Error": str(meal_plan)}, status=500)
         return JsonResponse(meal_plan, status=200)
@@ -396,7 +408,7 @@ def retrieve_meal_plan(request: HttpRequest, user_id: str):
 
 def retrieve_all_meal_plans(request: HttpRequest, user_id: str):
     if request.method == "GET":
-        meal_plans, _ = get_all_user_mealplans(user_id=user_id)
+        meal_plans, _ = get_all_user_meal_plans(user_id=user_id)
         if isinstance(meal_plans, Exception):
             return JsonResponse({"Error": str(meal_plans)}, status=500)
         return JsonResponse({"meal_plans": meal_plans}, status=200)

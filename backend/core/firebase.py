@@ -104,6 +104,39 @@ def update_document_list_attr(collection_name, document_id, key, list_val):
         return (f"Error updating document: {e}", 500)
 
 
+def update_document_dict_attr(
+    collection_name, document_id, dict_field_name, key, value
+):
+    """
+    Updates or adds a key-value pair in a dictionary field of a Firestore document.
+
+    Args:
+        collection_name (str): Name of the Firestore collection
+        document_id (str): ID of the document to update
+        dict_field_name (str): Name of the dictionary field in the document
+        key (str): Dictionary key to update or add
+        value: Value to set for the specified key
+
+    Returns:
+        tuple: (result message, status code)
+    """
+    try:
+        doc_ref = db.collection(collection_name).document(document_id)
+
+        # Construct the field path for the nested update
+        field_path = f"{dict_field_name}.{key}"
+
+        # Update the specific key in the dictionary
+        doc_ref.update({field_path: value})
+
+        return (
+            f"Successfully updated key '{key}' to '{value}' in dictionary '{dict_field_name}' of document {document_id}.",
+            200,
+        )
+    except Exception as e:
+        return (f"Error updating document: {e}", 500)
+
+
 def delete_document(collection_name, document_id):
     """
     Deletes a document from a specified Firestore collection.
@@ -211,7 +244,7 @@ def get_single_beverage(beverage_id):
 """Meal plan retrieval functions"""
 
 
-def get_latest_user_mealplan(user_id: str):
+def get_latest_user_meal_plan(user_id: str):
     """
     Retrieves a meal plan for a specific user.
     Returns a tuple: (meal plan data or error message, status code)
@@ -227,13 +260,13 @@ def get_latest_user_mealplan(user_id: str):
 
         # return the last meal plan in the list
         plan_id = str(plan_ids[-1])
-        meal_plan, status = get_document("mealplans", plan_id)
+        meal_plan, status = get_document("meal_plans", plan_id)
         return (meal_plan, status)
     except Exception as e:
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
 
 
-def get_all_user_mealplans(user_id: str):
+def get_all_user_meal_plans(user_id: str):
     """
     Retrieves all meal plan for a specific user.
     Returns a tuple: (meal plan data or error message, status code)
@@ -249,7 +282,7 @@ def get_all_user_mealplans(user_id: str):
 
         try:
             meal_plans = [
-                get_document("mealplans", str(plan_id))[0] for plan_id in plan_ids
+                get_document("meal_plans", str(plan_id))[0] for plan_id in plan_ids
             ]
             return (meal_plans, 200)
         except:
@@ -264,7 +297,7 @@ def get_all_user_mealplans(user_id: str):
 
 
 # TODO
-def get_user_mealplan_by_date(user_id: str, date: str):
+def get_user_meal_plan_by_date(user_id: str, date: str):
     """
     Retrieves a meal plan for a specific user.
     Returns a tuple: (meal plan data or error message, status code)
@@ -280,7 +313,7 @@ def get_user_mealplan_by_date(user_id: str, date: str):
 
         # return the last meal plan in the list
         plan_id = str(plan_ids[-1])
-        meal_plan, status = get_document("mealplans", plan_id)
+        meal_plan, status = get_document("meal_plans", plan_id)
         return (meal_plan, status)
     except Exception as e:
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
@@ -297,7 +330,7 @@ def add_user(user_id, user):
     return add_document("users", user_id, user)
 
 
-def add_mealplan(user_id, meal_plan):
+def add_meal_plan(user_id, meal_plan):
     """
     Saves a meal plan to Firestore and updates the user's plan_ids list.
     Returns a tuple: (result message, status code)
@@ -310,13 +343,37 @@ def add_mealplan(user_id, meal_plan):
         if update_status != 200:
             return (update_res, update_status)
 
-        add_res, add_status = add_document("mealplans", meal_plan_id, meal_plan)
+        add_res, add_status = add_document("meal_plans", meal_plan_id, meal_plan)
         if add_status != 200:
             return (add_res, add_status)
 
         return ("Meal plan added successfully.", 200)
     except Exception as e:
         return (f"There was an issue saving the meal plan: {e}", 500)
+
+
+def add_dayplan(user_id, date, day_plan):
+    # in the user object in firebase, we want to store a sub-object of the following form
+    # day_plans: {"2025-03-01": day_plan_id}
+    # where day_plan_id links to a day plan object in the day_plans collection
+    try:
+        # add a reference to the user's day plan in the user firebase object
+        update_res, update_status = update_document_dict_attr(
+            "users", user_id, "day_plans", date, day_plan["_id"]
+        )
+        if update_status != 200:
+            return (update_res, update_status)
+
+        # save the user's dayplan
+        add_res, add_status = add_document("day_plans", day_plan["_id"], day_plan)
+        if add_status != 200:
+            return (add_res, add_status)
+
+        return ("Day Plan saved successfully", 200)
+    except Exception as e:
+        print("Oh no")
+        return (f"There was an issue saving the day plan: {e}", 500)
+        ...
 
 
 """Object deletion functions"""

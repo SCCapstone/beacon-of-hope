@@ -490,15 +490,17 @@ def gen_bandit_rec(
         meal_list.append(meal)
 
     days = {
-        (starting_date + timedelta(days=day_index)).strftime(
-            "%Y-%m-%d"
-        ): meal_list.copy()
+        (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d"): {
+            "_id": str(ObjectId()),
+            "meals": meal_list.copy(),
+        }
         for day_index in range(num_days)
     }
     food_items, _ = get_r3()
     beverages, _ = get_beverages()
-    for day_date, day_rec in days.items():
-        for meal in day_rec:
+
+    for day_rec in days.values():
+        for meal in day_rec["meals"]:
             meal = meal["meal_types"]
             if "beverage" in meal:
                 try:
