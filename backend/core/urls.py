@@ -23,6 +23,11 @@ urlpatterns = [
         name="retrieve_all_meal_plans",
     ),
     path(
+        "recommendation/retrieve-days/<str:user_id>",
+        views.retrieve_day_plans,
+        name="retrieve_day_plans",
+    ),
+    path(
         "get-recipe-info/<str:recipe_id>", views.get_recipe_info, name="get_recipe_info"
     ),
     path(

@@ -8,8 +8,10 @@ import subprocess
 from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
 from bson import ObjectId
 from django.conf import settings
+from datetime import timedelta
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
+# TODO, consolidate with recommendation.py
 
 
 def exhaustive_partition():
@@ -71,8 +73,8 @@ def gen_facts(dairy_opinions, meat_opinions, nut_opinions):
             user_facts.append(f"preference(user_{user}, negative_{feature_name}).")
 
     # Generate food attribute facts
-    food_items = get_r3()[0]
-    beverages = get_beverages()[0]
+    food_items, _ = get_r3()
+    beverages, _ = get_beverages()
     all_data = [beverages, food_items]
 
     for data, prefix in zip(all_data, ["bev", "food"]):
@@ -104,8 +106,10 @@ def gen_pairs(users, dairy_opinions, meat_opinions, nut_opinions):
     _, neg_dairy, _ = dairy_opinions
     _, neg_meat, _ = meat_opinions
     _, neg_nuts, _ = nut_opinions
-    food_items = get_r3()[0]
-    beverages = get_beverages()[0]
+
+    food_items, _ = get_r3()
+    beverages, _ = get_beverages()
+
     for user in users:
         for data, is_bev in ((beverages, True), (food_items, False)):
             for key, item_info in data.items():
@@ -400,10 +404,12 @@ def test_bandit(bandit_trial_path):
         return False
 
 
-def gen_bandit_rec(trial_num, user_preferences, num_days, num_meals, meal_configs):
+def gen_bandit_rec(
+    trial_num, user_preferences, num_days, num_meals, meal_configs, starting_date
+):
     # open up user configuration file (how many dislike/like/no pref meat, dairy, or nuts)
-    with open(f"boosted_bandit/trial{trial_num}/config.json", "r") as file:
-        config_dict = json.load(file)
+    # with open(f"boosted_bandit/trial{trial_num}/config.json", "r") as file:
+    #     config_dict = json.load(file)
 
     # open up results of test set recommendations
     with open(
@@ -465,8 +471,11 @@ def gen_bandit_rec(trial_num, user_preferences, num_days, num_meals, meal_config
     with open(f"user_input_data/trial{trial_num}/user_{user + 1}.json", "r") as file:
         user_info = json.load(file)
         num_days = user_info["time_period"]
+
+    # skeleton structure of meals that will be recommended throughout a single day
     meal_list = []
 
+    # iterate over each meal config and populate day meal list
     for meal_config in meal_configs:
         meal = {}
         meal_components = {}
@@ -476,16 +485,22 @@ def gen_bandit_rec(trial_num, user_preferences, num_days, num_meals, meal_config
             meal_components[item_type] = ""
         meal["meal_name"] = meal_config["meal_name"]
         meal["_id"] = str(ObjectId())  # Unique ID for the meal
-        meal["meal_time"] = (meal_config.get("meal_time", ""),)
+        meal["meal_time"] = meal_config.get("meal_time", "")
         meal["meal_types"] = meal_components
         meal_list.append(meal)
-    days = [{"day": day_num, "meals": meal_list.copy()} for day_num in range(num_days)]
 
-    food_items = get_r3()[0]
-    beverages = get_beverages()[0]
-    for day in days:
-        day_rec = day["meals"]
-        for meal in day_rec:
+    days = {
+        (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d"): {
+            "_id": str(ObjectId()),
+            "meals": meal_list.copy(),
+        }
+        for day_index in range(num_days)
+    }
+    food_items, _ = get_r3()
+    beverages, _ = get_beverages()
+
+    for day_rec in days.values():
+        for meal in day_rec["meals"]:
             meal = meal["meal_types"]
             if "beverage" in meal:
                 try:
