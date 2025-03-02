@@ -102,6 +102,7 @@ poetry run coverage report
    - JSON Schema:
    ```json
    {
+      "starting_date": "2025-03-08",
       "meal_plan_config": {
         "num_days": 3,
         "num_meals": 3,
@@ -176,6 +177,7 @@ poetry run coverage report
    - JSON Schema:
    ```json
    {
+      "starting_date": "2025-03-08",
       "meal_plan_config": {
         "num_days": 3,
         "num_meals": 3,
@@ -315,6 +317,48 @@ poetry run coverage report
     "updated_at": DateTime
     }
     ]
+    }
+    ```
+
+- #### `<backend_ip>/beacon/recommendation/retrieve-days/<str:user_id>`
+   - HTTP Method: `POST`
+   - Description: Retrieve specific meal plans for a particular user based on a list of dates
+   - Parameters:
+    - `user_id`: str
+    - Request body:
+      - Content-type: application/json
+
+      - JSON Schema:
+        ```json
+        {
+            "dates": ["2025-03-08", "2025-04-01"]
+        }
+        ```
+
+   - Returns:
+    ```json
+      {
+        "day_plans": {
+        "2025-03-02": {
+          "user_id": "67c149e417717376a4ab1dff",
+          "meal_plan_id": "67c39f266c4433c982d7c3c2",
+          "meals": [
+            {
+              "meal_types": {
+                "beverage": "25",
+                "dessert": "4",
+                "main_course": "41",
+                "side": "41"
+              },
+              "meal_time": "8:00am",
+              "meal_name": "breakfast",
+              "_id": "67c39f266c4433c982d7c3be"
+            }
+          ],
+          "_id": "67c39f266c4433c982d7c3c1"
+        },
+        "2025-03-03": {}
+      }
     }
     ```
 

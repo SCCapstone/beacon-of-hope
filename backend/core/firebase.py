@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 from functools import cache
+from typing import List
 
 # Path to  service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
@@ -296,25 +297,35 @@ def get_all_user_meal_plans(user_id: str):
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
 
 
-# TODO
-def get_user_meal_plan_by_date(user_id: str, date: str):
+def get_day_plans(user_id: str, dates: List[str]):
     """
-    Retrieves a meal plan for a specific user.
+    Retrieves a set of meal plans for a specific user based on given dates.
     Returns a tuple: (meal plan data or error message, status code)
     """
     try:
+        print("hello here")
         user, status = get_document("users", user_id)
         if status != 200:
             return (user, status)
+        print("1")
+        dates = set(dates)  # convert to set for checking inclusion in constant time
+        day_plans = {}
+        if not user["day_plans"]:
+            return ("No day plans found for user.", 404)
 
-        plan_ids = user.get("plan_ids", [])
-        if not plan_ids:
-            return ("No meal plans found for user.", 404)
+        print("2")
+        for date, day_plan_id in user["day_plans"].items():
+            print("x")
+            if date in dates:
+                # retrieve the day_plan using its id
+                day_plan, status = get_document("day_plans", day_plan_id)
+                if status != 200:
+                    return (day_plan, status)
+                day_plans[date] = day_plan
 
-        # return the last meal plan in the list
-        plan_id = str(plan_ids[-1])
-        meal_plan, status = get_document("meal_plans", plan_id)
-        return (meal_plan, status)
+        # return the day_plans
+        print("3")
+        return (day_plans, status)
     except Exception as e:
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
 
