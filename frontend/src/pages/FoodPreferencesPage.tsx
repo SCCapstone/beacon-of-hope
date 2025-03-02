@@ -22,6 +22,7 @@ const FoodPreferencesPage: React.FC = () => {
   const [mealPlanLength, setMealPlanLength] = useState<number>(7);
   const [mealsPerDay, setMealsPerDay] = useState<number>(3);
   const [mealPlanName, setMealPlanName] = useState<string>("Your Meal Plan...");
+  const [mealPlanStartDate, setMealPlanStartDate] = useState<string>("");
 
   // Dietary Pref Card
   const [dairy, setDairy] = useState<number>(1);
@@ -169,6 +170,7 @@ const FoodPreferencesPage: React.FC = () => {
     );
 
     const requestBody = {
+      starting_date: mealPlanStartDate,
       meal_plan_config: {
         num_days: mealPlanLength,
         num_meals: mealsPerDay,
@@ -266,11 +268,13 @@ const FoodPreferencesPage: React.FC = () => {
               mealPlanLength={mealPlanLength}
               mealsPerDay={mealsPerDay}
               mealPlanName={mealPlanName}
+              mealPlanStartDate={mealPlanStartDate}
               handleDropdownChange={handleDropdownChange}
               handleMealsPerDayChange={handleMealsPerDayChange}
               handleMealPlanNameChange={handleMealPlanNameChange}
               setMealPlanLength={setMealPlanLength}
               setMealsPerDay={setMealsPerDay}
+              setMealPlanStartDate={setMealPlanStartDate}
             />
 
             {/* Meal Specific Options Card */}
