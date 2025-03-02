@@ -237,7 +237,6 @@ def bandit_recommendation(request: HttpRequest):
                 trial_num,
                 user_preferences,
                 num_days,
-                num_meals,
                 meal_configs,
                 starting_date,
             )

@@ -5,13 +5,87 @@ import re
 from .firebase import get_r3, get_beverages
 import shutil
 import subprocess
-from .recommendation import get_highest_prob_bevs, get_highest_prob_foods
 from bson import ObjectId
 from django.conf import settings
-from datetime import timedelta
+from datetime import datetime, timedelta
+
+from typing import Dict, List
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
-# TODO, consolidate with recommendation.py
+
+food_items, _ = get_r3()
+beverages, _ = get_beverages()
+
+
+def get_highest_prob_foods(items_probs, num_users):
+    """Group together the highest probability food items in each role (dessert, main course, etc.).
+
+    Positional arguments:
+    items_probs --
+    num_users   -- The number of users that for which we are grouping together food items
+    """
+
+    user_items = {
+        i: {"Main Course": [], "Side": [], "Dessert": []}
+        for i in range(1, num_users + 1)
+    }
+
+    for user, item, prob in items_probs:
+        # get item roles
+        item_roles = food_items[item]["food_role"]
+        for role in item_roles:
+            if role == "Beverage":
+                continue
+            user_items[int(user)][role].append((item, float(prob)))
+
+    rec_user_items = {
+        i: {"Main Course": [], "Side": [], "Dessert": []}
+        for i in range(1, num_users + 1)
+    }
+
+    for user, role_dict in user_items.items():
+        for role, role_items in role_dict.items():
+            highest_prob = 0
+            for item, prob in role_items:
+                if prob > highest_prob:
+                    highest_prob = prob
+            highest_items = [item for item, prob in role_items if prob == highest_prob]
+            rec_user_items[user][role] = highest_items
+
+    for user, role_dict in rec_user_items.items():
+        empty = []
+        non_empty = []
+        for key, val in role_dict.items():
+            if len(val) == 0:
+                empty.append(key)
+            else:
+                non_empty.append(key)
+
+        for empty_role in empty:
+            role_dict[empty_role] = random.choice(
+                [rec_user_items[user][non_empty_role] for non_empty_role in non_empty]
+            )
+
+    return rec_user_items
+
+
+def get_highest_prob_bevs(items_probs, num_users):
+    user_items = {i: [] for i in range(1, num_users + 1)}
+
+    for user, item, prob in items_probs:
+        user_items[int(user)].append((item, float(prob)))
+
+    rec_user_items = {i: [] for i in range(1, num_users + 1)}
+
+    for user, items in user_items.items():
+        highest_prob = 0
+        for item, prob in items:
+            if prob > highest_prob:
+                highest_prob = prob
+        highest_items = [item for item, prob in items if prob == highest_prob]
+        rec_user_items[user] = highest_items
+
+    return rec_user_items
 
 
 def exhaustive_partition():
@@ -73,8 +147,6 @@ def gen_facts(dairy_opinions, meat_opinions, nut_opinions):
             user_facts.append(f"preference(user_{user}, negative_{feature_name}).")
 
     # Generate food attribute facts
-    food_items, _ = get_r3()
-    beverages, _ = get_beverages()
     all_data = [beverages, food_items]
 
     for data, prefix in zip(all_data, ["bev", "food"]):
@@ -106,9 +178,6 @@ def gen_pairs(users, dairy_opinions, meat_opinions, nut_opinions):
     _, neg_dairy, _ = dairy_opinions
     _, neg_meat, _ = meat_opinions
     _, neg_nuts, _ = nut_opinions
-
-    food_items, _ = get_r3()
-    beverages, _ = get_beverages()
 
     for user in users:
         for data, is_bev in ((beverages, True), (food_items, False)):
@@ -275,13 +344,13 @@ def clean_dir():
 
 
 def configure_bandit(num_days: int):
-    # clean previous directories
+    # clean previous directories of bandit training sessions
     clean_dir()
 
     # Load users
     potential_users = list(range(1, 28))  # Assuming 27 users
 
-    # Load user opinions on dairy meat and nuts
+    # Load all possible user opinions on dairy meat and nuts
     dairy_opinions, meat_opinions, nut_opinions = exhaustive_partition()
 
     # generate facts about users (whether they prefer ingredients or not)
@@ -327,9 +396,7 @@ def configure_bandit(num_days: int):
 
 
 def train_bandit(bandit_trial_path):
-    """
-    Train boosted bandit on given facts about food items and user preferences and positive and negative recommendations (80% of original dataset)
-    """
+    """Train boosted bandit on given facts about food items and user preferences and positive and negative recommendations (80% of original dataset)"""
 
     # command line arguments
     train_command = [
@@ -365,11 +432,9 @@ def train_bandit(bandit_trial_path):
 
 
 def test_bandit(bandit_trial_path):
-    """
-    Test trained bandit on test set (20% of original dataset)
-    """
+    """Test trained bandit on test set (20% of original dataset)"""
 
-    # command line arguments
+    # command line arguments for training bandit
     test_command = [
         "java",
         "-jar",
@@ -405,13 +470,26 @@ def test_bandit(bandit_trial_path):
 
 
 def gen_bandit_rec(
-    trial_num, user_preferences, num_days, num_meals, meal_configs, starting_date
-):
-    # open up user configuration file (how many dislike/like/no pref meat, dairy, or nuts)
-    # with open(f"boosted_bandit/trial{trial_num}/config.json", "r") as file:
-    #     config_dict = json.load(file)
+    trial_num: int,
+    user_preferences: Dict[str, int],
+    num_days: int,
+    meal_configs: List[Dict],
+    starting_date: datetime,
+) -> Dict:
+    """Take Bandit Output and generate a meal plan
 
-    # open up results of test set recommendations
+    Positional arguments:
+    trial_num        -- Number of the bandit training session
+    user_preferences -- Dictionary of the form {'dairyPreference': 1, 'meatPreference': 0, 'nutsPreference': -1}.
+                        Contains ternary preference (-1(dislike); 0(neutral); 1(like)) for dairy meat and nuts
+    num_days         -- Length of the meal plan in days
+    meal_configs     -- List of configuration objects that contain the structure of each user requested meal
+    starting_date    -- Starting date of the meal plan
+
+    Returns:
+    days             -- A dictionary of meal plans, consisting of a sequence of meals for each day
+    """
+    # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
         f"boosted_bandit/trial{trial_num}/test/results_recommendation.db", "r"
     ) as rec_file:
@@ -421,18 +499,17 @@ def gen_bandit_rec(
     pos_recs = [rec for rec in recs if not rec.startswith("!")]
     neg_recs = [rec[1:] for rec in recs if rec.startswith("!")]
     all_recs = pos_recs + neg_recs
+    bev_recs = [rec for rec in all_recs if "bev" in rec]
+    food_recs = [rec for rec in all_recs if "food" in rec]
 
     # find the probability of each recommendation being successful
     pattern = r"\d+\.?\d*"
-    items_and_probs = [tuple(re.findall(pattern, rec)) for rec in all_recs]
+    food_items_and_probs = [tuple(re.findall(pattern, rec)) for rec in food_recs]
+    bev_items_and_probs = [tuple(re.findall(pattern, rec)) for rec in bev_recs]
 
-    rec_user_bevs = get_highest_prob_bevs(
-        [rec for i, rec in enumerate(items_and_probs) if "bev" in all_recs[i]], 27
-    )
+    rec_user_bevs = get_highest_prob_bevs(bev_items_and_probs, 27)
 
-    rec_user_foods = get_highest_prob_foods(
-        [rec for i, rec in enumerate(items_and_probs) if "food" in all_recs[i]], 27
-    )
+    rec_user_foods = get_highest_prob_foods(food_items_and_probs, 27)
 
     all_users_opinions = [
         [0, 0, 0],
@@ -463,32 +540,38 @@ def gen_bandit_rec(
         [-1, -1, 1],
         [-1, -1, -1],
     ]
+
+    # get dairy, meat, and nut opinions for the particular user
+    print(user_preferences)
     user_opinions = list(user_preferences.values())
     user = all_users_opinions.index(user_opinions)
+
+    # get corresponding bandit recommended foods and bevs for the user
     bevs = rec_user_bevs[user + 1]
     foods = rec_user_foods[user + 1]
 
-    with open(f"user_input_data/trial{trial_num}/user_{user + 1}.json", "r") as file:
-        user_info = json.load(file)
-        num_days = user_info["time_period"]
-
-    # skeleton structure of meals that will be recommended throughout a single day
+    # create a skeleton structure of meals that will be recommended throughout a single day
     meal_list = []
 
     # iterate over each meal config and populate day meal list
+    # for item roles (main course, side dish, etc.) create a key-val pair
+    # if the user expects that role to be in the meal
     for meal_config in meal_configs:
-        meal = {}
         meal_components = {}
-        for item_type, is_present in meal_config["meal_types"].items():
+        for item_role, is_present in meal_config["meal_types"].items():
             if not is_present:
                 continue
-            meal_components[item_type] = ""
-        meal["meal_name"] = meal_config["meal_name"]
-        meal["_id"] = str(ObjectId())  # Unique ID for the meal
-        meal["meal_time"] = meal_config.get("meal_time", "")
-        meal["meal_types"] = meal_components
+            meal_components[item_role] = ""
+
+        meal = {
+            "_id": str(ObjectId()),  # Unique ID for the meal
+            "meal_name": meal_config["meal_name"],
+            "meal_time": meal_config.get("meal_time", ""),
+            "meal_types": meal_components,
+        }
         meal_list.append(meal)
 
+    # create a skeleton structure for the number of days that the user wants the meal plan
     days = {
         (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d"): {
             "_id": str(ObjectId()),
@@ -496,11 +579,12 @@ def gen_bandit_rec(
         }
         for day_index in range(num_days)
     }
-    food_items, _ = get_r3()
-    beverages, _ = get_beverages()
 
+    # popoulate each day recommendation for the user
     for day_rec in days.values():
+        # iterate over meals
         for meal in day_rec["meals"]:
+            # populate each meal component
             meal = meal["meal_types"]
             if "beverage" in meal:
                 try:
