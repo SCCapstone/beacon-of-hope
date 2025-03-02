@@ -6,7 +6,6 @@ interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
   onClick: () => void;
   isSelected: boolean;
-  isEmptyDay?: boolean;
   className?: string;
 }
 
@@ -14,7 +13,6 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   recommendation,
   onClick,
   isSelected,
-  isEmptyDay = false,
   className = "",
 }) => {
   const { meal, score, nutritionalImpact } = recommendation;
@@ -47,7 +45,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
 
   return (
     <motion.div
-      whileHover={{ scale: isEmptyDay ? 1.02 : 1.01, y: -1 }}
+      whileHover={{ scale: 1.01, y: -1 }}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -55,13 +53,13 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
       className={`${className} relative p-3 rounded-lg cursor-pointer
         transform transition-all duration-300
         ${isSelected ? "ring-2 ring-green-500" : ""}
-        ${isEmptyDay ? "bg-white/90" : "bg-white/75"}
+        ${"bg-white/75"}
         backdrop-blur-sm`}
       style={{
         boxShadow: isSelected
           ? "0 0 15px rgba(16, 185, 129, 0.2)"
           : "0 2px 4px rgba(0,0,0,0.05)",
-        height: "80px",
+        height: "90px",
       }}
     >
       {/* Simulation Indicator */}
@@ -78,7 +76,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
       )}
 
       {/* Recommendation Badge */}
-      {isEmptyDay && (
+      {
         <div className="absolute -top-3 left-4 z-10">
           <span
             className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 
@@ -87,7 +85,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             Recommended
           </span>
         </div>
-      )}
+      }
 
       {/* Score Badge */}
       <div className="absolute top-2 right-2 z-10">
@@ -119,9 +117,9 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
               </span>
             )}
             {meal.nutritionalInfo.glycemicIndex !== undefined && (
-              <span className="text-xs text-gray-500">
-                GI: {meal.nutritionalInfo.glycemicIndex}
-              </span>
+                <span className="text-xs text-gray-500">
+                GI: {meal.nutritionalInfo.glycemicIndex.toFixed(2)}
+                </span>
             )}
           </div>
         </div>

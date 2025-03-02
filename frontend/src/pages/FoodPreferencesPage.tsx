@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSelector } from 'react-redux';
-import { RootState } from '../app/store';
+import { useSelector } from "react-redux";
+import { RootState } from "../app/store";
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
@@ -9,10 +9,11 @@ import MealSpecificOptionsCard from "../components/FoodPreferencesCards/MealSpec
 import { MainLayout } from "../components/Layouts/MainLayout";
 import { personas } from "./personas";
 
+import { convertTime24to12 } from "../utils/mealPlanTransformer";
 
 const FoodPreferencesPage: React.FC = () => {
   const navigate = useNavigate();
-  const userState = useSelector((state: RootState) => (state.user));
+  const userState = useSelector((state: RootState) => state.user);
 
   // User Info
   const [height, setHeight] = useState<string>(`5'8"`);
@@ -21,8 +22,8 @@ const FoodPreferencesPage: React.FC = () => {
   const [gender, setGender] = useState<string>("Male");
 
   // Meal Plan Config Card
-  const [mealPlanLength, setMealPlanLength] = useState<number>(7);
-  const [mealsPerDay, setMealsPerDay] = useState<number>(3);
+  const [mealPlanLength, setMealPlanLength] = useState<number>(1);
+  const [mealsPerDay, setMealsPerDay] = useState<number>(1);
   const [mealPlanName, setMealPlanName] = useState<string>("Your Meal Plan...");
   const [mealPlanStartDate, setMealPlanStartDate] = useState<string>("");
 
@@ -134,13 +135,18 @@ const FoodPreferencesPage: React.FC = () => {
         // Add new meal configs
         for (let i = prev.length; i < newMealsPerDay; i++) {
           newConfigs.push({
-            mealName: "",
-            mealTime: "",
+            mealName: "New Meal",
+            mealTime: new Date()
+              .toLocaleTimeString("en-US", {
+                hour: "numeric",
+                hour12: true,
+                minute: "numeric",
+              }),  // Current Time
             mealTypes: {
-              mainCourse: false,
-              side: false,
+              mainCourse: true,
+              side: true,
               dessert: false,
-              beverage: false,
+              beverage: true,
             },
           });
         }
@@ -190,7 +196,7 @@ const FoodPreferencesPage: React.FC = () => {
       { length: mealsPerDay },
       (_, index) => ({
         meal_name: mealConfigs[index]?.mealName,
-        meal_time: "",
+        meal_time: convertTime24to12(mealConfigs[index]?.mealTime),
         meal_types: {
           beverage: mealConfigs[index]?.mealTypes.beverage || true,
           main_course: mealConfigs[index]?.mealTypes.mainCourse || true,
@@ -208,14 +214,14 @@ const FoodPreferencesPage: React.FC = () => {
         meal_configs: processedMealConfigs,
       },
       user_preferences: {
-        dairyPreference:dairy,
+        dairyPreference: dairy,
         meatPreference: meat,
         nutsPreference: nuts,
       },
-      "user_id": userState.user._id
+      user_id: userState.user._id,
     };
 
-    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    // console.log("Request body:", JSON.stringify(requestBody, null, 2));
 
     const requestOptions = {
       method: "POST",
@@ -226,10 +232,11 @@ const FoodPreferencesPage: React.FC = () => {
     try {
       console.log(
         "Sending request to:",
-        "http://localhost:8000/beacon/recommendation/bandit"
+        "http://localhost:8000/beacon/recommendation/random"
       );
+      console.log("Request body:", JSON.stringify(requestBody, null, 2));
       const response = await fetch(
-        "http://localhost:8000/beacon/recommendation/bandit",
+        "http://localhost:8000/beacon/recommendation/random",
         requestOptions
       );
       console.log("Response status:", response.status);
@@ -256,45 +263,10 @@ const FoodPreferencesPage: React.FC = () => {
       title="Food Preferences"
       subtitle="Customize Your Dietary Preferences"
     >
-      {/* Enable vertical scrolling */}
-      <div className="w-screen h-screen overflow-y-auto bg-gray-50">
-        {/* Persona Selection Section */}
-        <div className="flex justify-center items-center gap-4 mt-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-large text-gray-700">
-              Select Our Recommended Personas
-            </span>
-            <div className="relative group">
-              <button
-                onClick={() => applyPersona("earlJones")}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200"
-              >
-                Earl Jones
-              </button>
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
-                Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
-              </div>
-            </div>
-          </div>
+      <div className="w-screen h-screen overflow-hidden bg-gray-50">
 
-          <div className="relative group">
-            <button
-              onClick={() => applyPersona("jessicaSmith")}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200"
-            >
-              Jessica Smith
-            </button>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                            px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
-              A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
-              low-glycemic, diabetic-friendly meals.
-            </div>
-          </div>
-        </div>
-
-        {/* Content Section with Grid Layout */}
-        <div className="px-6 pb-16">
+        {/* Content */}
+        <div className="px-6">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* User Information Card */}
             <UserInformation

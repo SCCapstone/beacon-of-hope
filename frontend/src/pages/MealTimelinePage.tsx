@@ -106,62 +106,64 @@ export const MealTimelinePage: React.FC = () => {
     );
   }
 
-  // const mealPlan = JSON.parse(localStorage.getItem("mealPlan") || "{}");
-  const mealPlan = {
-      _id: "67c3945d890a0c1920acc8b2",
-      user_id: "67c149e417717376a4ab1dff",
-      name: "User Meal Plan",
-      days: {
-        "2025-03-01": {
-          _id: "67c3945d890a0c1920acc8ae",
-          meals: [
-            {
-              _id: "67c3945d890a0c1920acc8ac",
-              meal_time: "8:00am",
-              meal_name: "breakfast",
-              meal_types: {
-                beverage: "6",
-                main_course: "27",
-                side_dish: "33",
-                dessert: "14",
-              },
-            },
-            {
-              _id: "67c3945d890a0c1920acc8ad",
-              meal_time: "9:00am",
-              meal_name: "lunch",
-              meal_types: { main_course: "38", dessert: "30" },
-            },
-          ],
-          user_id: "67c149e417717376a4ab1dff",
-          meal_plan_id: "67c3945d890a0c1920acc8b2",
-        },
-        "2025-03-02": {
-          _id: "67c3945d890a0c1920acc8b1",
-          meals: [
-            {
-              _id: "67c3945d890a0c1920acc8af",
-              meal_time: "8:00am",
-              meal_name: "breakfast",
-              meal_types: {
-                beverage: "10",
-                main_course: "9",
-                side_dish: "31",
-                dessert: "14",
-              },
-            },
-            {
-              _id: "67c3945d890a0c1920acc8b0",
-              meal_time: "8:00am",
-              meal_name: "lunch",
-              meal_types: { main_course: "34", dessert: "26" },
-            },
-          ],
-          user_id: "67c149e417717376a4ab1dff",
-          meal_plan_id: "67c3945d890a0c1920acc8b2",
-        },
-      },
-    };
+  // console.log(localStorage.getItem("mealPlan"));
+  const mealPlan = JSON.parse(localStorage.getItem("mealPlan") || "{}");
+
+  // const mealPlan = {
+  //     _id: "67c3945d890a0c1920acc8b2",
+  //     user_id: "67c149e417717376a4ab1dff",
+  //     name: "User Meal Plan",
+  //     days: {
+  //       "2025-03-01": {
+  //         _id: "67c3945d890a0c1920acc8ae",
+  //         meals: [
+  //           {
+  //             _id: "67c3945d890a0c1920acc8ac",
+  //             meal_time: "8:00am",
+  //             meal_name: "breakfast",
+  //             meal_types: {
+  //               beverage: "6",
+  //               main_course: "27",
+  //               side_dish: "33",
+  //               dessert: "14",
+  //             },
+  //           },
+  //           {
+  //             _id: "67c3945d890a0c1920acc8ad",
+  //             meal_time: "9:00am",
+  //             meal_name: "lunch",
+  //             meal_types: { main_course: "38", dessert: "30" },
+  //           },
+  //         ],
+  //         user_id: "67c149e417717376a4ab1dff",
+  //         meal_plan_id: "67c3945d890a0c1920acc8b2",
+  //       },
+  //       "2025-03-02": {
+  //         _id: "67c3945d890a0c1920acc8b1",
+  //         meals: [
+  //           {
+  //             _id: "67c3945d890a0c1920acc8af",
+  //             meal_time: "8:00am",
+  //             meal_name: "breakfast",
+  //             meal_types: {
+  //               beverage: "10",
+  //               main_course: "9",
+  //               side_dish: "31",
+  //               dessert: "14",
+  //             },
+  //           },
+  //           {
+  //             _id: "67c3945d890a0c1920acc8b0",
+  //             meal_time: "8:00am",
+  //             meal_name: "lunch",
+  //             meal_types: { main_course: "34", dessert: "26" },
+  //           },
+  //         ],
+  //         user_id: "67c149e417717376a4ab1dff",
+  //         meal_plan_id: "67c3945d890a0c1920acc8b2",
+  //       },
+  //     },
+  //   };
 
   return (
     <MainLayout

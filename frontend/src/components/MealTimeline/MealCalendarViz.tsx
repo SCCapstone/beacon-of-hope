@@ -119,7 +119,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           const existingDay = merged.get(dateKey)!;
           merged.set(dateKey, {
             ...existingDay,
-            isEmpty: existingDay.meals.length === 0,
           });
         } else {
           merged.set(dateKey, day);
@@ -159,7 +158,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         const processedData = initialData.map((day) => ({
           ...day,
           date: new Date(day.date),
-          isEmpty: day.isEmpty || !day.meals || day.meals.length === 0,
         }));
         setWeekData(processedData);
       } catch (error) {

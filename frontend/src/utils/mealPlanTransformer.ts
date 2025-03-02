@@ -54,6 +54,14 @@ interface R3Macronutrients {
   Iron?: R3Nutrient;
 }
 
+export function convertTime24to12(time24h: string): string {
+  const [hours, minutes] = time24h.split(":");
+  let hour = parseInt(hours, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour}:${minutes} ${period}`;
+}
+
 function convertTime12to24(time12h: string): string {
   const [time, modifier] = time12h.split(/([AaPp][Mm])/);
   let [hours, minutes] = time.split(":");
@@ -62,7 +70,7 @@ function convertTime12to24(time12h: string): string {
     hours = "00";
   }
 
-  if (modifier.toLowerCase() === "pm") {
+  if (modifier?.toLowerCase() === "pm") {
     hours = String(parseInt(hours, 10) + 12);
   }
 
@@ -216,8 +224,8 @@ export async function transformMealPlanToRecommendations(
             (ing: any) => ({
               id: (ing.name || ing.ingredient_name).toLowerCase().replace(/\s+/g, "-"),
               name: ing.name || ing.ingredient_name,
-              amount: parseFloat(ing.quantity.measure) || 1,
-              unit: ing.quantity.unit || "piece",
+              amount: parseFloat(ing.quantity?.measure) || 1,
+              unit: ing.quantity?.unit || "unit",
               category: ing.category || "other",
               nutritionalInfo: calculateNutritionalInfo(ing),
               allergens: ing.allergies?.category || [],

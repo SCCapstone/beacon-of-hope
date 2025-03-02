@@ -1,6 +1,8 @@
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { parseISO, format, addDays } from 'date-fns';
+import { useEffect, useState } from 'react';
 
 interface Props {
   mealPlanLength: number;
@@ -30,8 +32,22 @@ const MealPlanConfigCard: React.FC<Props> = ({
   handleMealPlanNameChange,
   setMealPlanLength,
   setMealsPerDay,
-  setMealPlanStartDate
+  setMealPlanStartDate,
 }) => {
+  const [mealPlanEndDate, setMealPlanEndDate] = useState<string>("");
+  
+  // Calculate end date whenever start date or length changes
+  useEffect(() => {
+    if (mealPlanStartDate) {
+      const startDate = parseISO(mealPlanStartDate);
+      // Subtract 1 from mealPlanLength because end date is inclusive
+      const endDate = addDays(startDate, mealPlanLength - 1); 
+      setMealPlanEndDate(format(endDate, "yyyy-MM-dd"));
+    } else {
+      setMealPlanEndDate("");
+    }
+  }, [mealPlanStartDate, mealPlanLength]);
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -44,7 +60,7 @@ const MealPlanConfigCard: React.FC<Props> = ({
               htmlFor="mealPlanLength"
               className="text-sm font-medium text-gray-700 mb-1"
             >
-              Meal Plan Length (in days)
+              Meal Plan Length
             </label>
             <select
               id="mealPlanLength"
@@ -52,6 +68,8 @@ const MealPlanConfigCard: React.FC<Props> = ({
               onChange={(e) => handleDropdownChange(e, setMealPlanLength)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             >
+              <option value={1}>1 day</option>
+              <option value={3}>3 days</option>
               <option value={7}>7 days</option>
               <option value={14}>14 days</option>
               <option value={30}>30 days</option>
@@ -63,7 +81,7 @@ const MealPlanConfigCard: React.FC<Props> = ({
               htmlFor="mealsPerDay"
               className="text-sm font-medium text-gray-700 mb-1"
             >
-              Meals per Day
+              Meals Per Day
             </label>
             <select
               id="mealsPerDay"
@@ -97,35 +115,57 @@ const MealPlanConfigCard: React.FC<Props> = ({
           />
         </div>
 
-        <div className="flex flex-col">
-          <label
-            htmlFor="mealPlanStartDate"
-            className="text-sm font-medium text-gray-700 mb-1"
-          >
-            Meal Plan Start Date
-          </label>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  value={mealPlanStartDate ? new Date(mealPlanStartDate) : null}
-                  onChange={(newValue: any) => {
-                    setMealPlanStartDate(
-                      newValue ? newValue.toISOString().split("T")[0] : ""
-                    );
-                  }}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: "small",
-                      placeholder: "Select date",
-                      sx: {
-                        width: "420px", // Match the width of other inputs
-                        "& .MuiInputBase-root": {
-                        }
-                      }
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col">
+            <label
+              htmlFor="mealPlanStartDate"
+              className="text-sm font-medium text-gray-700 mb-1"
+            >
+              Meal Plan Start Date
+            </label>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                value={mealPlanStartDate ? parseISO(mealPlanStartDate) : null}
+                onChange={(newValue: any) => {
+                  setMealPlanStartDate(
+                    newValue ? format(newValue, "yyyy-MM-dd") : ""
+                  );
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: "small",
+                    placeholder: "Select start date",
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </div>
+
+          <div className="flex flex-col">
+            <label
+              htmlFor="mealPlanEndDate"
+              className="text-sm font-medium text-gray-700 mb-1"
+            >
+              Meal Plan End Date
+            </label>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                value={mealPlanEndDate ? parseISO(mealPlanEndDate) : null}
+                readOnly
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: "small",
+                    placeholder: "End date (calculated)",
+                    InputProps: {
+                      readOnly: true,
                     },
-                  }}
-                />
-          </LocalizationProvider>
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </div>
         </div>
       </form>
     </div>

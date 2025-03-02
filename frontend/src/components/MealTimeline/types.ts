@@ -52,7 +52,6 @@ export interface Meal {
 export interface DayMeals {
   date: Date;
   meals: Meal[];
-  isEmpty?: boolean; // Flag to indicate a day with no meals
 }
 
 export interface DayRecommendations {

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { DayMeals, Meal } from "../types";
-import { COLOR_SCHEMES, TIME_SLOTS } from "../constants";
+import { TIME_SLOTS } from "../constants";
 import { format, addDays, isSameDay, subDays, startOfDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
@@ -35,7 +35,6 @@ export const MealView: React.FC<MealViewProps> = ({
     targetDate: Date
   ): {
     meals: Meal[];
-    isEmpty: boolean;
   } => {
     // Find the day data that matches the target date
     const dayData = weekData.find((day) =>
@@ -44,7 +43,6 @@ export const MealView: React.FC<MealViewProps> = ({
 
     return {
       meals: dayData?.meals || [],
-      isEmpty: dayData?.isEmpty || false,
     };
   };
 
@@ -129,7 +127,7 @@ export const MealView: React.FC<MealViewProps> = ({
                 <div key={time} className="flex h-[100px]">
                   {threeDayDates.map((date) => {
                     const dayData = getDayData(date);
-                    const isEmpty = dayData?.isEmpty || false;
+                    const isEmpty = dayData?.meals.length === 0 || false;
 
                     return (
                       <div
@@ -147,7 +145,7 @@ export const MealView: React.FC<MealViewProps> = ({
             {/* Regular Meals */}
             <div className="absolute inset-0">
               {threeDayDates.map((date, dayIndex) => {
-                const { meals, isEmpty } = getMealsForDate(date);
+                const { meals } = getMealsForDate(date);
                 return meals.map((meal) => (
                   <motion.div
                     key={`${date.toISOString()}-${meal.id}`}
@@ -225,7 +223,7 @@ export const MealView: React.FC<MealViewProps> = ({
             <div className="absolute inset-0">
               {threeDayDates.map((date, dayIndex) => {
                 const recommendations = getRecommendationsForDate(date);
-                const { isEmpty } = getMealsForDate(date);
+                const isEmpty = recommendations.length === 0;
 
                 return recommendations.map((recommendation) => (
                   <motion.div
@@ -248,7 +246,6 @@ export const MealView: React.FC<MealViewProps> = ({
                         selectedRecommendation?.meal.id ===
                         recommendation.meal.id
                       }
-                      isEmptyDay={isEmpty}
                     />
                   </motion.div>
                 ));
