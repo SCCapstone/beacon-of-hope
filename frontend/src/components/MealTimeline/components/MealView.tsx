@@ -4,10 +4,11 @@ import { DayMeals, Meal } from "../types";
 import { COLOR_SCHEMES, TIME_SLOTS } from "../constants";
 import { format, addDays, isSameDay, subDays, startOfDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
-import { MealRecommendation } from "../types";
+import { MealRecommendation, DayRecommendations } from "../types";
 
 interface MealViewProps {
   weekData: DayMeals[];
+  recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
@@ -17,6 +18,7 @@ interface MealViewProps {
 
 export const MealView: React.FC<MealViewProps> = ({
   weekData,
+  recommendationData,
   selectedDate,
   onMealSelect,
   selectedMeal,
@@ -34,25 +36,15 @@ export const MealView: React.FC<MealViewProps> = ({
   ): {
     meals: Meal[];
     isEmpty: boolean;
-    recommendations: MealRecommendation[];
   } => {
     // Find the day data that matches the target date
     const dayData = weekData.find((day) =>
       isSameDay(new Date(day.date), targetDate)
     );
 
-    if (!dayData) {
-      return {
-        meals: [],
-        isEmpty: false,
-        recommendations: [],
-      };
-    }
-
     return {
-      meals: dayData.meals || [],
-      isEmpty: dayData.isEmpty || false,
-      recommendations: dayData.recommendations || [],
+      meals: dayData?.meals || [],
+      isEmpty: dayData?.isEmpty || false,
     };
   };
 
@@ -60,11 +52,13 @@ export const MealView: React.FC<MealViewProps> = ({
     return weekData.find((day) => isSameDay(new Date(day.date), targetDate));
   };
 
-  const getRecommendationsForDate = (targetDate: Date) => {
-    const dayData = weekData.find((day) =>
+  const getRecommendationsForDate = (
+    targetDate: Date
+  ): MealRecommendation[] => {
+    const dayRecs = recommendationData.find((day) =>
       isSameDay(new Date(day.date), targetDate)
     );
-    return dayData?.recommendations || [];
+    return dayRecs?.recommendations || [];
   };
 
   const getTimePosition = (time: string): string => {
@@ -153,12 +147,10 @@ export const MealView: React.FC<MealViewProps> = ({
             {/* Regular Meals */}
             <div className="absolute inset-0">
               {threeDayDates.map((date, dayIndex) => {
-                const dayData = getDayData(date);
-                if (!dayData || dayData.isEmpty) return null;
-
-                return dayData.meals.map((meal) => (
+                const { meals, isEmpty } = getMealsForDate(date);
+                return meals.map((meal) => (
                   <motion.div
-                    key={`${date.toISOString()}-${meal.id}-${meal.time}`}
+                    key={`${date.toISOString()}-${meal.id}`}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     whileHover={{ scale: 1.02, y: -1 }}
@@ -177,7 +169,9 @@ export const MealView: React.FC<MealViewProps> = ({
                         : "0 2px 4px rgba(0,0,0,0.05)",
                       zIndex: isMealSelected(meal) ? 20 : 15,
                     }}
-                    onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+                    onClick={() =>
+                      onMealSelect(isMealSelected(meal) ? null : meal)
+                    }
                   >
                     {/* Header Section */}
                     <div className="relative h-full flex flex-col justify-between">
@@ -186,7 +180,9 @@ export const MealView: React.FC<MealViewProps> = ({
                           {meal.name}
                         </h3>
                         <div className="flex items-center space-x-2 mt-0.5">
-                          <span className="text-xs text-gray-500">{meal.time}</span>
+                          <span className="text-xs text-gray-500">
+                            {meal.time}
+                          </span>
                           {meal.diabetesFriendly && (
                             <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
                               DF
@@ -226,42 +222,38 @@ export const MealView: React.FC<MealViewProps> = ({
             </div>
 
             {/* Recommendations */}
-            {threeDayDates.map((date, dayIndex) => {
-              const dayData = getDayData(date);
-              if (!dayData?.recommendations?.length) return null;
+            <div className="absolute inset-0">
+              {threeDayDates.map((date, dayIndex) => {
+                const recommendations = getRecommendationsForDate(date);
+                const { isEmpty } = getMealsForDate(date);
 
-              return dayData.recommendations.map((recommendation) => (
-                <motion.div
-                  key={`${date.toISOString()}-${recommendation.meal.id}`}
-                  className="absolute"
-                  style={{
-                    top: getTimePosition(recommendation.meal.time),
-                    left: `${(dayIndex * 100) / 3}%`,
-                    width: `${85 / 3}%`, // Slightly smaller than regular meals
-                    transform: "translateX(7.5%)", // Centered
-                    zIndex: dayData.isEmpty ? 15 : 10,
-                  }}
-                >
-                  <RecommendedMealCard
+                return recommendations.map((recommendation) => (
+                  <motion.div
                     key={`${date.toISOString()}-${recommendation.meal.id}`}
-                    className="recommendation-card"
-                    recommendation={recommendation}
-                    onClick={() => {
-                      onRecommendationSelect(
-                        selectedRecommendation?.meal.id ===
-                          recommendation.meal.id
-                          ? null
-                          : recommendation
-                      );
+                    className="absolute"
+                    style={{
+                      top: getTimePosition(recommendation.meal.time),
+                      left: `${(dayIndex * 100) / 3}%`,
+                      width: `${85 / 3}%`,
+                      transform: "translateX(7.5%)",
+                      zIndex: isEmpty ? 15 : 10,
                     }}
-                    isSelected={
-                      selectedRecommendation?.meal.id === recommendation.meal.id
-                    }
-                    isEmptyDay={dayData.isEmpty}
-                  />
-                </motion.div>
-              ));
-            })}
+                  >
+                    <RecommendedMealCard
+                      key={`${date.toISOString()}-${recommendation.meal.id}`}
+                      className="recommendation-card"
+                      recommendation={recommendation}
+                      onClick={() => onRecommendationSelect(recommendation)}
+                      isSelected={
+                        selectedRecommendation?.meal.id ===
+                        recommendation.meal.id
+                      }
+                      isEmptyDay={isEmpty}
+                    />
+                  </motion.div>
+                ));
+              })}
+            </div>
           </div>
         </div>
       </div>

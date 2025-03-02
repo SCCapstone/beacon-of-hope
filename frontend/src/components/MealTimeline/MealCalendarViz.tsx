@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DayMeals,
+  DayRecommendations,
   Meal,
   Food,
   Ingredient,
   VisualizationLevel,
   MealRecommendation,
 } from "./types";
-import { LevelSelector } from "./components/LevelSelector";
+// import { LevelSelector } from "./components/LevelSelector";
 import { FilterPanel } from "./components/FilterPanel";
 import { MealView } from "./components/MealView";
 import { FoodView } from "./components/FoodView";
@@ -16,8 +17,8 @@ import { IngredientView } from "./components/IngredientView";
 import { WeekSelector } from "./components/WeekSelector";
 import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
-import { usePatternAnalysis } from "./hooks/usePatternAnalysis";
 import { useFilters } from "./hooks/useFilters";
+import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransformer";
 
 interface MealCalendarVizProps {
   initialData: DayMeals[];
@@ -25,30 +26,27 @@ interface MealCalendarVizProps {
     diabetesFriendly: boolean;
     culturalPreferences: string[];
   };
-  managementTips: Array<{
-    mealType: string;
-    tips: string[];
-  }>;
   nutritionalGoals: {
     dailyCalories: number;
     carbohydrates: { min: number; max: number; unit: string };
     protein: { min: number; max: number; unit: string };
     fiber: { daily: number; unit: string };
   };
+  mealPlan?: any;
   onRecommendationSelect?: (recommendation: MealRecommendation) => void;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   initialData,
   userPreferences,
-  managementTips,
   nutritionalGoals,
-  onRecommendationSelect,
+  mealPlan,
 }) => {
   // State declarations
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weekData, setWeekData] = useState<DayMeals[]>(initialData);
+  const [recommendationData, setRecommendationData] = useState<DayRecommendations[]>([]);
   const [currentLevel, setCurrentLevel] =
     useState<VisualizationLevel["type"]>("meal");
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -60,6 +58,32 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MealRecommendation | null>(null);
   const vizRef = React.useRef<HTMLDivElement>(null);
+
+  const [recommendations, setRecommendations] = useState<DayMeals[]>([]);
+  const [combinedData, setCombinedData] = useState<DayMeals[]>([]);
+
+  useEffect(() => {
+    async function loadRecommendations() {
+      try {
+        if (mealPlan) {
+          const transformedData = await transformMealPlanToRecommendations(mealPlan);
+          // Transform the data into DayRecommendations format
+          const recommendations = transformedData.map(day => ({
+            date: day.date,
+            recommendations: day.recommendations || [],
+          }));
+          setRecommendationData(recommendations);
+        }
+      } catch (error) {
+        console.error('Error transforming meal plan:', error);
+        setError('Error loading recommendations');
+      }
+    }
+
+    loadRecommendations();
+  }, [mealPlan]);
+
+  // console.log(recommendationData);
 
   // Add state for nutritional values
   const [currentNutritionalValues, setCurrentNutritionalValues] = useState({
@@ -77,7 +101,41 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   });
 
   const { filters, updateFilters } = useFilters();
-  const { patterns } = usePatternAnalysis(weekData);
+
+  useEffect(() => {
+    const mergeData = () => {
+      const merged = new Map<string, DayMeals>();
+
+      // Add initial data to map
+      initialData.forEach(day => {
+        const dateKey = day.date.toISOString().split('T')[0];
+        merged.set(dateKey, { ...day });
+      });
+
+      // Merge recommendations
+      recommendations.forEach(day => {
+        const dateKey = day.date.toISOString().split('T')[0];
+        if (merged.has(dateKey)) {
+          const existingDay = merged.get(dateKey)!;
+          merged.set(dateKey, {
+            ...existingDay,
+            isEmpty: existingDay.meals.length === 0,
+          });
+        } else {
+          merged.set(dateKey, day);
+        }
+      });
+
+      // Convert map back to array and sort by date
+      const sortedData = Array.from(merged.values()).sort(
+        (a, b) => a.date.getTime() - b.date.getTime()
+      );
+
+      setCombinedData(sortedData);
+    };
+
+    mergeData();
+  }, [initialData, recommendations]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -206,16 +264,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       className="w-screen h-screen flex flex-col overflow-hidden bg-gray-100"
       ref={vizRef}
     >
-      {/* Header/Title Bar */}
-      {/* <div className="h-16 bg-white border-b border-gray-200 shadow-sm z-30 px-6 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-semibold text-gray-800">Meal Calendar</h1>
-          <span className="text-sm text-gray-500">
-            Plan and Track Your Meals With Ease{" "}
-          </span>
-        </div>
-      </div> */}
-
       {/* Main Content */}
       <div className="w-full flex-1 flex overflow-hidden">
         {/* Left Panel Container */}
@@ -299,15 +347,14 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   />
                 </svg>
               </motion.button>
-
               {/* Divider */}
-              <div className="h-8 w-px bg-gray-200 mr-4"></div>
+              {/* <div className="h-8 w-px bg-gray-200 mr-4"></div> */}
 
               {/* Level Selector */}
-              <LevelSelector
+              {/* <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={setCurrentLevel}
-              />
+              />  */}
             </div>
 
             {/* Right side - Week Selector */}
@@ -324,6 +371,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 {currentLevel === "meal" && (
                   <MealView
                     weekData={weekData}
+                    recommendationData={recommendationData}
                     selectedDate={selectedDate}
                     onMealSelect={handleMealSelect}
                     selectedMeal={selectedMeal}
