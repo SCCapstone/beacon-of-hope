@@ -1,4 +1,4 @@
-import { DayMeals, PatternAnalysis, Meal, Food, Ingredient } from "../types";
+import { Meal } from "../types";
 
 export const analyzeTimePatterns = (meals: Meal[]): string[] => {
   const timePatterns: Map<string, number> = new Map();

@@ -1,70 +1,95 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { DayMeals, Meal } from "../types";
-import { COLOR_SCHEMES, TIME_SLOTS } from "../constants";
-import { format, addDays, isSameDay, subDays, startOfDay } from "date-fns";
+import { TIME_SLOTS } from "../constants";
+import { format, addDays, isSameDay, subDays } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
-import { MealRecommendation } from "../types";
+import { MealRecommendation, DayRecommendations } from "../types";
 
 interface MealViewProps {
   weekData: DayMeals[];
+  recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
   selectedRecommendation: MealRecommendation | null;
+  isLoading?: boolean;
 }
 
 export const MealView: React.FC<MealViewProps> = ({
   weekData,
+  recommendationData,
   selectedDate,
   onMealSelect,
   selectedMeal,
   onRecommendationSelect,
   selectedRecommendation,
+  isLoading = false,
 }) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <p className="text-gray-500">Loading your meal data...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Generate 3-day dates centered on selected date
   const threeDayDates = useMemo(() => {
-    const currentDate = startOfDay(selectedDate);
+    const currentDate = new Date(selectedDate);
+    currentDate.setHours(0, 0, 0, 0);
+
     return [subDays(currentDate, 1), currentDate, addDays(currentDate, 1)];
   }, [selectedDate]);
 
-  const getMealsForDate = (
-    targetDate: Date
-  ): {
-    meals: Meal[];
-    isEmpty: boolean;
-    recommendations: MealRecommendation[];
-  } => {
-    // Find the day data that matches the target date
-    const dayData = weekData.find((day) =>
-      isSameDay(new Date(day.date), targetDate)
-    );
+  console.log(
+    "MealView rendering with dates:",
+    threeDayDates.map((d) => format(d, "yyyy-MM-dd")),
+    "and data for dates:",
+    weekData.map((d) => format(new Date(d.date), "yyyy-MM-dd"))
+  );
 
-    if (!dayData) {
+  const getMealsForDate = useCallback(
+    (targetDate: Date): { meals: Meal[] } => {
+      const dayData = weekData.find((day) =>
+        isSameDay(new Date(day.date), targetDate)
+      );
+
       return {
-        meals: [],
-        isEmpty: false,
-        recommendations: [],
+        meals: dayData?.meals || [],
       };
-    }
+    },
+    [weekData]
+  );
 
-    return {
-      meals: dayData.meals || [],
-      isEmpty: dayData.isEmpty || false,
-      recommendations: dayData.recommendations || [],
-    };
+  const renderEmptyDayIndicator = (date: Date) => {
+    const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
+
+    if (!dayData?.meals.length) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-gray-400 text-sm">No meals scheduled</div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const getDayData = (targetDate: Date) => {
     return weekData.find((day) => isSameDay(new Date(day.date), targetDate));
   };
 
-  const getRecommendationsForDate = (targetDate: Date) => {
-    const dayData = weekData.find((day) =>
+  const getRecommendationsForDate = (
+    targetDate: Date
+  ): MealRecommendation[] => {
+    const dayRecs = recommendationData.find((day) =>
       isSameDay(new Date(day.date), targetDate)
     );
-    return dayData?.recommendations || [];
+    return dayRecs?.recommendations || [];
   };
 
   const getTimePosition = (time: string): string => {
@@ -98,10 +123,8 @@ export const MealView: React.FC<MealViewProps> = ({
 
         {/* Days headers */}
         {threeDayDates.map((date) => (
-          <div
-            key={date.toISOString()}
-            className="flex-1 p-4 border-l border-gray-200"
-          >
+          <div key={date.toISOString()} className="relative flex-1">
+            {renderEmptyDayIndicator(date)}
             <div className="text-sm font-medium text-gray-600">
               {format(date, "EEEE")}
             </div>
@@ -135,7 +158,7 @@ export const MealView: React.FC<MealViewProps> = ({
                 <div key={time} className="flex h-[100px]">
                   {threeDayDates.map((date) => {
                     const dayData = getDayData(date);
-                    const isEmpty = dayData?.isEmpty || false;
+                    const isEmpty = dayData?.meals.length === 0 || false;
 
                     return (
                       <div
@@ -153,12 +176,10 @@ export const MealView: React.FC<MealViewProps> = ({
             {/* Regular Meals */}
             <div className="absolute inset-0">
               {threeDayDates.map((date, dayIndex) => {
-                const dayData = getDayData(date);
-                if (!dayData || dayData.isEmpty) return null;
-
-                return dayData.meals.map((meal) => (
+                const { meals } = getMealsForDate(date);
+                return meals.map((meal) => (
                   <motion.div
-                    key={`${date.toISOString()}-${meal.id}-${meal.time}`}
+                    key={`meal-${date.toISOString()}-${meal.id}-${dayIndex}`}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     whileHover={{ scale: 1.02, y: -1 }}
@@ -177,7 +198,9 @@ export const MealView: React.FC<MealViewProps> = ({
                         : "0 2px 4px rgba(0,0,0,0.05)",
                       zIndex: isMealSelected(meal) ? 20 : 15,
                     }}
-                    onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+                    onClick={() =>
+                      onMealSelect(isMealSelected(meal) ? null : meal)
+                    }
                   >
                     {/* Header Section */}
                     <div className="relative h-full flex flex-col justify-between">
@@ -186,7 +209,9 @@ export const MealView: React.FC<MealViewProps> = ({
                           {meal.name}
                         </h3>
                         <div className="flex items-center space-x-2 mt-0.5">
-                          <span className="text-xs text-gray-500">{meal.time}</span>
+                          <span className="text-xs text-gray-500">
+                            {meal.time}
+                          </span>
                           {meal.diabetesFriendly && (
                             <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
                               DF
@@ -226,42 +251,41 @@ export const MealView: React.FC<MealViewProps> = ({
             </div>
 
             {/* Recommendations */}
-            {threeDayDates.map((date, dayIndex) => {
-              const dayData = getDayData(date);
-              if (!dayData?.recommendations?.length) return null;
+            <div className="absolute inset-0">
+              {threeDayDates.map((date, dayIndex) => {
+                const recommendations = getRecommendationsForDate(date);
+                const isEmpty = recommendations.length === 0;
 
-              return dayData.recommendations.map((recommendation) => (
-                <motion.div
-                  key={`${date.toISOString()}-${recommendation.meal.id}`}
-                  className="absolute"
-                  style={{
-                    top: getTimePosition(recommendation.meal.time),
-                    left: `${(dayIndex * 100) / 3}%`,
-                    width: `${85 / 3}%`, // Slightly smaller than regular meals
-                    transform: "translateX(7.5%)", // Centered
-                    zIndex: dayData.isEmpty ? 15 : 10,
-                  }}
-                >
-                  <RecommendedMealCard
-                    key={`${date.toISOString()}-${recommendation.meal.id}`}
-                    className="recommendation-card"
-                    recommendation={recommendation}
-                    onClick={() => {
-                      onRecommendationSelect(
-                        selectedRecommendation?.meal.id ===
-                          recommendation.meal.id
-                          ? null
-                          : recommendation
-                      );
+                return recommendations.map((recommendation, recIndex) => (
+                  <motion.div
+                    key={`rec-${date.toISOString()}-${
+                      recommendation.meal.id
+                    }-${recIndex}`}
+                    className="absolute"
+                    style={{
+                      top: getTimePosition(recommendation.meal.time),
+                      left: `${(dayIndex * 100) / 3}%`,
+                      width: `${85 / 3}%`,
+                      transform: "translateX(7.5%)",
+                      zIndex: isEmpty ? 15 : 10,
                     }}
-                    isSelected={
-                      selectedRecommendation?.meal.id === recommendation.meal.id
-                    }
-                    isEmptyDay={dayData.isEmpty}
-                  />
-                </motion.div>
-              ));
-            })}
+                  >
+                    <RecommendedMealCard
+                      key={`rec-card-${date.toISOString()}-${
+                        recommendation.meal.id
+                      }-${recIndex}`}
+                      className="recommendation-card"
+                      recommendation={recommendation}
+                      onClick={() => onRecommendationSelect(recommendation)}
+                      isSelected={
+                        selectedRecommendation?.meal.id ===
+                        recommendation.meal.id
+                      }
+                    />
+                  </motion.div>
+                ));
+              })}
+            </div>
           </div>
         </div>
       </div>
