@@ -5,7 +5,10 @@ import {
   NutritionalInfo,
 } from "../components/MealTimeline/types";
 import { convertTime12to24 } from "../utils/mealPlanTransformer";
-import { calculateNutritionalInfo, isDiabetesFriendly } from "../utils/mealPlanTransformer";
+import {
+  calculateNutritionalInfo,
+  isDiabetesFriendly,
+} from "../utils/mealPlanTransformer";
 import { ApiError } from "../utils/errorHandling";
 
 const BACKEND_URL = "http://127.0.0.1:8000";
@@ -69,16 +72,19 @@ export async function fetchMealDays(userId: string, dates: string[]) {
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
     );
-    
+
     if (!response.data || !response.data.day_plans) {
       throw new Error("Invalid response format from API");
     }
-    
+
     console.log(`Fetched meal days for ${dates.join(", ")}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error(`Error fetching meal days: ${error.message}`, error.response?.data);
+      console.error(
+        `Error fetching meal days: ${error.message}`,
+        error.response?.data
+      );
       throw new ApiError(
         `Failed to fetch meal data: ${error.message}`,
         error.response?.status,
@@ -103,15 +109,22 @@ export function generateDateRange(startDate: Date, endDate: Date): string[] {
   return dates;
 }
 
+// Helper function to transform food information
 async function transformFoodInfo(
   foodInfo: any,
   mealType: string,
   foodId: string
 ): Promise<Food> {
+  if (!foodInfo) {
+    throw new Error(`No food info provided for ${foodId}`);
+  }
+
   const ingredients =
     foodInfo.ingredients?.map((ing: any) => ({
-      id: (ing.name || ing.ingredient_name).toLowerCase().replace(/\s+/g, "-"),
-      name: ing.name || ing.ingredient_name,
+      id: (ing.name || ing.ingredient_name || "unknown")
+        .toLowerCase()
+        .replace(/\s+/g, "-"),
+      name: ing.name || ing.ingredient_name || "Unknown Ingredient",
       amount: parseFloat(ing.quantity?.measure) || 1,
       unit: ing.quantity?.unit || "unit",
       category: ing.category || "other",
@@ -125,7 +138,7 @@ async function transformFoodInfo(
 
   return {
     id: foodId,
-    name: foodInfo.recipe_name || foodInfo.name,
+    name: foodInfo.recipe_name || foodInfo.name || "Unnamed Food",
     type: mealType as
       | "main_course"
       | "side_dish"
@@ -177,10 +190,15 @@ function calculateCombinedNutritionalInfo(foods: Food[]): NutritionalInfo {
     (sum, food) => sum + food.nutritionalInfo.carbs,
     0
   );
-  const weightedGI = foods.reduce((sum, food) => {
-    const gi = food.nutritionalInfo.glycemicIndex || 0;
-    return sum + (gi * food.nutritionalInfo.carbs) / totalCarbs;
-  }, 0);
+
+  // Avoid division by zero
+  const weightedGI =
+    totalCarbs > 0
+      ? foods.reduce((sum, food) => {
+          const gi = food.nutritionalInfo.glycemicIndex || 0;
+          return sum + (gi * food.nutritionalInfo.carbs) / totalCarbs;
+        }, 0)
+      : 0;
 
   return {
     ...combined,
@@ -189,9 +207,87 @@ function calculateCombinedNutritionalInfo(foods: Food[]): NutritionalInfo {
   };
 }
 
-export async function transformApiResponseToDayMeals(apiResponse: ApiResponse,): Promise<DayMeals[]> {
+export async function transformApiResponseToDayMeals(
+  apiResponse: ApiResponse
+): Promise<DayMeals[]> {
+  if (!apiResponse || !apiResponse.day_plans) {
+    console.error("Invalid API response format:", apiResponse);
+    return [];
+  }
+
   const dayMeals: DayMeals[] = [];
 
+  // Step 1: Collect all food IDs that need to be fetched
+  const foodIdsToFetch = new Map<
+    string,
+    { type: string; mealId: string; date: string }
+  >();
+
+  for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
+    if (!dayData || !dayData.meals || !Array.isArray(dayData.meals)) {
+      continue;
+    }
+
+    for (const meal of dayData.meals) {
+      for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
+        if (typeof foodId === "string") {
+          foodIdsToFetch.set(foodId, {
+            type: mealType,
+            mealId: meal._id,
+            date: dateStr,
+          });
+        }
+      }
+    }
+  }
+
+  // Step 2: Batch fetch all food information
+  const foodInfoMap = new Map<string, any>();
+
+  // Split into beverage and recipe requests
+  const beverageIds = Array.from(foodIdsToFetch.keys()).filter((id) =>
+    id.startsWith("bev_")
+  );
+  const recipeIds = Array.from(foodIdsToFetch.keys()).filter(
+    (id) => !id.startsWith("bev_")
+  );
+
+  // Fetch in parallel with chunking for large datasets
+  const chunkSize = 10; // Adjust based on API limitations
+
+  try {
+    // Process beverages
+    for (let i = 0; i < beverageIds.length; i += chunkSize) {
+      const chunk = beverageIds.slice(i, i + chunkSize);
+      const promises = chunk.map(async (id) => {
+        try {
+          const info = await fetchBeverageInfo(id);
+          foodInfoMap.set(id, info);
+        } catch (error) {
+          console.error(`Error fetching beverage info for ID ${id}:`, error);
+        }
+      });
+      await Promise.all(promises);
+    }
+
+    // Process recipes
+    for (let i = 0; i < recipeIds.length; i += chunkSize) {
+      const chunk = recipeIds.slice(i, i + chunkSize);
+      const promises = chunk.map(async (id) => {
+        try {
+          const info = await fetchRecipeInfo(id);
+          foodInfoMap.set(id, info);
+        } catch (error) {
+          console.error(`Error fetching recipe info for ID ${id}:`, error);
+        }
+      });
+      await Promise.all(promises);
+    }
+  } catch (error) {
+    console.error("Error during batch fetching of food information:", error);
+  }
+
+  // Step 3: Transform the data using the pre-fetched food information
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
     const dayMeal: DayMeals = {
       date: new Date(dateStr),
@@ -213,14 +309,15 @@ export async function transformApiResponseToDayMeals(apiResponse: ApiResponse,):
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
           if (typeof foodId !== "string") continue;
 
-          try {
-            let foodInfo;
-            if (mealType === "beverage") {
-              foodInfo = await fetchBeverageInfo(foodId);
-            } else {
-              foodInfo = await fetchRecipeInfo(foodId);
-            }
+          // Use the pre-fetched food info
+          const foodInfo = foodInfoMap.get(foodId);
 
+          if (!foodInfo) {
+            console.warn(`No food info found for ${foodId} in ${mealType}`);
+            continue;
+          }
+
+          try {
             const transformedFood = await transformFoodInfo(
               foodInfo,
               mealType,
@@ -228,7 +325,10 @@ export async function transformApiResponseToDayMeals(apiResponse: ApiResponse,):
             );
             mealFoods.push(transformedFood);
           } catch (error) {
-            console.error(`Error fetching food info for ${mealType}:`, error);
+            console.error(
+              `Error transforming food info for ${mealType}:`,
+              error
+            );
           }
         }
 
