@@ -225,10 +225,10 @@ const FoodPreferencesPage: React.FC = () => {
       title="Food Preferences"
       subtitle="Customize Your Dietary Preferences"
     >
-      <div className="w-screen h-screen overflow-hidden bg-gray-50">
-
-        {/* Content */}
-        <div className="px-6">
+      {/* Changed from overflow-hidden to overflow-y-auto to enable vertical scrolling */}
+      <div className="w-screen h-screen overflow-y-auto bg-gray-50">
+        {/* Content container with padding bottom for spacing at the end */}
+        <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* User Information Card */}
             <UserInformation
@@ -326,8 +326,8 @@ const FoodPreferencesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Generate Button */}
-        <div className="mt-6 flex justify-center px-6">
+        {/* Generate Button - removed sticky positioning and added more bottom padding */}
+        <div className="mt-6 mb-16 flex justify-center px-6 py-4">
           <button
             onClick={handleSubmit}
             className="px-12 bg-orange-400 hover:bg-orange-500 text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out transform hover:-translate-y-1"
