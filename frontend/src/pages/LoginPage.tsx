@@ -240,7 +240,7 @@ const LoginPage: React.FC = () => {
             Want to try before commiting?{" "}
             <a
               onClick={() => {
-                navigate("/");
+                navigate("/food-preferences");
               }}
               style={{
                 color: "#7f265b",
