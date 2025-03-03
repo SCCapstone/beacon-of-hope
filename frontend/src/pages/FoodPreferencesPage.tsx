@@ -30,9 +30,9 @@ const FoodPreferencesPage: React.FC = () => {
   const [selectedPersona, setSelectedPersona] = useState<keyof typeof personas | null>(null);
 
   // Dietary Pref Card
-  const [dairy, setDairy] = useState<number>(0);
-  const [meat, setMeat] = useState<number>(0);
-  const [nuts, setNuts] = useState<number>(0);
+  const [dairy, setDairy] = useState<number>(1);
+  const [meat, setMeat] = useState<number>(1);
+  const [nuts, setNuts] = useState<number>(1);
   const [glutenFree, setGlutenFree] = useState<boolean>(false);
   const [diabetes, setDiabetes] = useState<boolean>(false);
   const [vegetarian, setVegetarian] = useState<boolean>(false);
