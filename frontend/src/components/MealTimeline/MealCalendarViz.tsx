@@ -21,6 +21,19 @@ import { useFilters } from "./hooks/useFilters";
 import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransformer";
 import { subDays, addDays, isSameDay, format } from "date-fns";
 
+// Normalize date handling function
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const isSameNormalizedDay = (date1: Date, date2: Date): boolean => {
+  const d1 = normalizeDate(date1);
+  const d2 = normalizeDate(date2);
+  return d1.getTime() === d2.getTime();
+};
+
 interface MealCalendarVizProps {
   initialData: DayMeals[];
   userPreferences: {
@@ -78,19 +91,51 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     async function loadRecommendations() {
       try {
         if (mealPlan) {
-          const transformedData = await transformMealPlanToRecommendations(
-            mealPlan
+          setLoading(true); // Show loading state while transforming
+
+          // Use a memoized version of the meal plan to prevent unnecessary transformations
+          const mealPlanKey = JSON.stringify(mealPlan);
+          const cachedRecommendations = sessionStorage.getItem(
+            `recommendations-${mealPlanKey}`
           );
-          // Transform the data into DayRecommendations format
-          const recommendations = transformedData.map((day) => ({
-            date: day.date,
-            recommendations: day.recommendations || [],
-          }));
+
+          let recommendations;
+          if (cachedRecommendations) {
+            // Use cached recommendations if available
+            recommendations = (
+              JSON.parse(cachedRecommendations) as Array<{
+                date: string;
+                recommendations: MealRecommendation[];
+              }>
+            ).map(
+              (day): DayRecommendations => ({
+                ...day,
+                date: new Date(day.date), // Convert date strings back to Date objects
+              })
+            );
+          } else {
+            // Transform the data if not cached
+            const transformedData = await transformMealPlanToRecommendations(
+              mealPlan
+            );
+            recommendations = transformedData.map((day) => ({
+              date: day.date,
+              recommendations: day.recommendations || [],
+            }));
+
+            // Cache the result
+            sessionStorage.setItem(
+              `recommendations-${mealPlanKey}`,
+              JSON.stringify(recommendations)
+            );
+          }
           setRecommendationData(recommendations);
         }
       } catch (error) {
         console.error("Error transforming meal plan:", error);
         setError("Error loading recommendations");
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -257,15 +302,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const visibleData = useMemo(() => {
     // Ensure we have entries for all three days
     const threeDayDates = [
-      subDays(selectedDate, 1),
-      selectedDate,
-      addDays(selectedDate, 1),
+      normalizeDate(subDays(selectedDate, 1)),
+      normalizeDate(selectedDate),
+      normalizeDate(addDays(selectedDate, 1)),
     ];
 
     return threeDayDates.map((date) => {
       // Find existing day data or create empty placeholder
       const existingDay = weekData.find((day) =>
-        isSameDay(new Date(day.date), date)
+        isSameNormalizedDay(new Date(day.date), date)
       );
 
       return (

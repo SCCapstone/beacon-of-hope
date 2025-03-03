@@ -12,6 +12,7 @@ import {
 import { ApiError } from "../utils/errorHandling";
 
 const BACKEND_URL = "http://127.0.0.1:8000";
+const mealDataCache = new Map<string, any>();
 
 // Define types for API response
 // TODO: Might be duplicates
@@ -215,6 +216,14 @@ export async function transformApiResponseToDayMeals(
     return [];
   }
 
+  // Generate a cache key based on the response
+  const cacheKey = JSON.stringify(Object.keys(apiResponse.day_plans).sort());
+
+  // Check if we have cached results
+  if (mealDataCache.has(cacheKey)) {
+    return mealDataCache.get(cacheKey);
+  }
+
   const dayMeals: DayMeals[] = [];
 
   // Step 1: Collect all food IDs that need to be fetched
@@ -355,5 +364,6 @@ export async function transformApiResponseToDayMeals(
     dayMeals.push(dayMeal);
   }
 
+  mealDataCache.set(cacheKey, dayMeals);
   return dayMeals;
 }

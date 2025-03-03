@@ -30,7 +30,10 @@ export const MealView: React.FC<MealViewProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <p className="text-gray-500">Loading your meal data...</p>
+        </div>
       </div>
     );
   }
@@ -39,29 +42,29 @@ export const MealView: React.FC<MealViewProps> = ({
   const threeDayDates = useMemo(() => {
     const currentDate = new Date(selectedDate);
     currentDate.setHours(0, 0, 0, 0);
-    
-    return [
-      subDays(currentDate, 1),
-      currentDate,
-      addDays(currentDate, 1)
-    ];
+
+    return [subDays(currentDate, 1), currentDate, addDays(currentDate, 1)];
   }, [selectedDate]);
 
-  console.log("MealView rendering with dates:", 
-    threeDayDates.map(d => format(d, "yyyy-MM-dd")),
+  console.log(
+    "MealView rendering with dates:",
+    threeDayDates.map((d) => format(d, "yyyy-MM-dd")),
     "and data for dates:",
-    weekData.map(d => format(new Date(d.date), "yyyy-MM-dd"))
+    weekData.map((d) => format(new Date(d.date), "yyyy-MM-dd"))
   );
 
-  const getMealsForDate = useCallback((targetDate: Date): { meals: Meal[] } => {
-    const dayData = weekData.find((day) =>
-      isSameDay(new Date(day.date), targetDate)
-    );
-  
-    return {
-      meals: dayData?.meals || [],
-    };
-  }, [weekData]);
+  const getMealsForDate = useCallback(
+    (targetDate: Date): { meals: Meal[] } => {
+      const dayData = weekData.find((day) =>
+        isSameDay(new Date(day.date), targetDate)
+      );
+
+      return {
+        meals: dayData?.meals || [],
+      };
+    },
+    [weekData]
+  );
 
   const renderEmptyDayIndicator = (date: Date) => {
     const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
@@ -176,7 +179,7 @@ export const MealView: React.FC<MealViewProps> = ({
                 const { meals } = getMealsForDate(date);
                 return meals.map((meal) => (
                   <motion.div
-                    key={`${date.toISOString()}-${meal.id}`}
+                    key={`meal-${date.toISOString()}-${meal.id}-${dayIndex}`}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     whileHover={{ scale: 1.02, y: -1 }}
@@ -253,9 +256,11 @@ export const MealView: React.FC<MealViewProps> = ({
                 const recommendations = getRecommendationsForDate(date);
                 const isEmpty = recommendations.length === 0;
 
-                return recommendations.map((recommendation) => (
+                return recommendations.map((recommendation, recIndex) => (
                   <motion.div
-                    key={`${date.toISOString()}-${recommendation.meal.id}`}
+                    key={`rec-${date.toISOString()}-${
+                      recommendation.meal.id
+                    }-${recIndex}`}
                     className="absolute"
                     style={{
                       top: getTimePosition(recommendation.meal.time),
@@ -266,7 +271,9 @@ export const MealView: React.FC<MealViewProps> = ({
                     }}
                   >
                     <RecommendedMealCard
-                      key={`${date.toISOString()}-${recommendation.meal.id}`}
+                      key={`rec-card-${date.toISOString()}-${
+                        recommendation.meal.id
+                      }-${recIndex}`}
                       className="recommendation-card"
                       recommendation={recommendation}
                       onClick={() => onRecommendationSelect(recommendation)}

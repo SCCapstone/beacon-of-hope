@@ -43,9 +43,9 @@ export interface Persona {
         gender: "Male",
       },
       dietaryPreferences: {
-        dairy: 2, // Like
-        meat: 2,  // Like
-        nuts: 1,  // No Preference
+        dairy: 1, // Like
+        meat: 1,  // Like
+        nuts: 0,  // No Preference
         glutenFree: false,
         diabetes: false,
         vegetarian: false,
@@ -99,9 +99,9 @@ export interface Persona {
         gender: "Female",
       },
       dietaryPreferences: {
-        dairy: 1, // No Preference
-        meat: 0, // Dislike
-        nuts: 2,  // Like
+        dairy: 0, // No Preference
+        meat: -1, // Dislike
+        nuts: 1,  // Like
         glutenFree: false,
         diabetes: true,
         vegetarian: false,
