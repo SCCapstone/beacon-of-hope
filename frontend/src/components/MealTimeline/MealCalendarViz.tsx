@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DayMeals,
@@ -19,6 +19,7 @@ import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
 import { useFilters } from "./hooks/useFilters";
 import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransformer";
+import { subDays, addDays, isSameDay, format } from "date-fns";
 
 interface MealCalendarVizProps {
   initialData: DayMeals[];
@@ -34,6 +35,8 @@ interface MealCalendarVizProps {
   };
   mealPlan?: any;
   onRecommendationSelect?: (recommendation: MealRecommendation) => void;
+  onDateRangeChange?: (start: Date, end: Date, selectedDate?: Date) => void;
+  initialSelectedDate?: Date;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -41,49 +44,58 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   userPreferences,
   nutritionalGoals,
   mealPlan,
+  onDateRangeChange,
+  initialSelectedDate,
 }) => {
   // State declarations
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weekData, setWeekData] = useState<DayMeals[]>(initialData);
-  const [recommendationData, setRecommendationData] = useState<DayRecommendations[]>([]);
+  const [recommendationData, setRecommendationData] = useState<
+    DayRecommendations[]
+  >([]);
   const [currentLevel, setCurrentLevel] =
     useState<VisualizationLevel["type"]>("meal");
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   const [selectedIngredient, setSelectedIngredient] =
     useState<Ingredient | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    initialSelectedDate || new Date()
+  );
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MealRecommendation | null>(null);
   const vizRef = React.useRef<HTMLDivElement>(null);
-
   const [recommendations, setRecommendations] = useState<DayMeals[]>([]);
   const [combinedData, setCombinedData] = useState<DayMeals[]>([]);
+
+  useEffect(() => {
+    console.log("selectedDate changed to:", format(selectedDate, "yyyy-MM-dd"));
+  }, [selectedDate]);
 
   useEffect(() => {
     async function loadRecommendations() {
       try {
         if (mealPlan) {
-          const transformedData = await transformMealPlanToRecommendations(mealPlan);
+          const transformedData = await transformMealPlanToRecommendations(
+            mealPlan
+          );
           // Transform the data into DayRecommendations format
-          const recommendations = transformedData.map(day => ({
+          const recommendations = transformedData.map((day) => ({
             date: day.date,
             recommendations: day.recommendations || [],
           }));
           setRecommendationData(recommendations);
         }
       } catch (error) {
-        console.error('Error transforming meal plan:', error);
-        setError('Error loading recommendations');
+        console.error("Error transforming meal plan:", error);
+        setError("Error loading recommendations");
       }
     }
 
     loadRecommendations();
   }, [mealPlan]);
-
-  // console.log(recommendationData);
 
   // Add state for nutritional values
   const [currentNutritionalValues, setCurrentNutritionalValues] = useState({
@@ -107,14 +119,14 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const merged = new Map<string, DayMeals>();
 
       // Add initial data to map
-      initialData.forEach(day => {
-        const dateKey = day.date.toISOString().split('T')[0];
+      initialData.forEach((day) => {
+        const dateKey = day.date.toISOString().split("T")[0];
         merged.set(dateKey, { ...day });
       });
 
       // Merge recommendations
-      recommendations.forEach(day => {
-        const dateKey = day.date.toISOString().split('T')[0];
+      recommendations.forEach((day) => {
+        const dateKey = day.date.toISOString().split("T")[0];
         if (merged.has(dateKey)) {
           const existingDay = merged.get(dateKey)!;
           merged.set(dateKey, {
@@ -241,6 +253,85 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     setSelectedMeal(null);
   };
 
+  // Filter data for visible range
+  const visibleData = useMemo(() => {
+    // Ensure we have entries for all three days
+    const threeDayDates = [
+      subDays(selectedDate, 1),
+      selectedDate,
+      addDays(selectedDate, 1),
+    ];
+
+    return threeDayDates.map((date) => {
+      // Find existing day data or create empty placeholder
+      const existingDay = weekData.find((day) =>
+        isSameDay(new Date(day.date), date)
+      );
+
+      return (
+        existingDay || {
+          date,
+          meals: [],
+        }
+      );
+    });
+  }, [weekData, selectedDate]);
+
+  // Handle date change with proper logging
+  const handleDateChange = useCallback(
+    (newDate: Date) => {
+      console.log("Date changed to:", format(newDate, "yyyy-MM-dd"));
+
+      // Update selected date
+      setSelectedDate(newDate);
+
+      // Calculate new visible date range
+      const newStart = subDays(newDate, 1);
+      const newEnd = addDays(newDate, 1);
+
+      console.log(
+        "New date range:",
+        format(newStart, "yyyy-MM-dd"),
+        "to",
+        format(newEnd, "yyyy-MM-dd")
+      );
+
+      // Check if we need to fetch new data by checking if any date is missing
+      const missingDates = [newStart, newDate, newEnd].filter(
+        (date) => !weekData.some((day) => isSameDay(new Date(day.date), date))
+      );
+
+      if (missingDates.length > 0) {
+        console.log(
+          "Missing dates:",
+          missingDates.map((d) => format(d, "yyyy-MM-dd"))
+        );
+
+        // Notify parent component to fetch new data only for missing dates
+        if (onDateRangeChange) {
+          onDateRangeChange(newStart, newEnd, newDate); // Pass the selected date
+        }
+      } else {
+        console.log("All dates already loaded, no need to fetch new data");
+      }
+
+      // Reset selections when changing dates
+      setSelectedMeal(null);
+      setSelectedRecommendation(null);
+    },
+    [weekData, onDateRangeChange]
+  );
+
+  useEffect(() => {
+    if (initialSelectedDate && !isSameDay(initialSelectedDate, selectedDate)) {
+      console.log(
+        "Syncing with parent's selected date:",
+        format(initialSelectedDate, "yyyy-MM-dd")
+      );
+      setSelectedDate(initialSelectedDate);
+    }
+  }, [initialSelectedDate]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -358,7 +449,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             {/* Right side - Week Selector */}
             <WeekSelector
               selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
+              onDateChange={handleDateChange}
             />
           </div>
           {/* Main Visualization Area */}
@@ -368,7 +459,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               <div className="bg-white rounded-lg shadow-sm h-full overflow-hidden border border-gray-200">
                 {currentLevel === "meal" && (
                   <MealView
-                    weekData={weekData}
+                    weekData={visibleData}
                     recommendationData={recommendationData}
                     selectedDate={selectedDate}
                     onMealSelect={handleMealSelect}

@@ -14,6 +14,7 @@ interface MealViewProps {
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
   selectedRecommendation: MealRecommendation | null;
+  isLoading?: boolean;
 }
 
 export const MealView: React.FC<MealViewProps> = ({
@@ -24,19 +25,35 @@ export const MealView: React.FC<MealViewProps> = ({
   selectedMeal,
   onRecommendationSelect,
   selectedRecommendation,
+  isLoading = false,
 }) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
   // Generate 3-day dates centered on selected date
   const threeDayDates = useMemo(() => {
-    const currentDate = startOfDay(selectedDate);
-    return [subDays(currentDate, 1), currentDate, addDays(currentDate, 1)];
+    const currentDate = new Date(selectedDate);
+    currentDate.setHours(0, 0, 0, 0);
+    
+    return [
+      subDays(currentDate, 1),
+      currentDate,
+      addDays(currentDate, 1)
+    ];
   }, [selectedDate]);
 
-  const getMealsForDate = (
-    targetDate: Date
-  ): {
-    meals: Meal[];
-  } => {
-    // Find the day data that matches the target date
+  console.log("MealView rendering with dates:", 
+    threeDayDates.map(d => format(d, "yyyy-MM-dd")),
+    "and data for dates:",
+    weekData.map(d => format(new Date(d.date), "yyyy-MM-dd"))
+  );
+
+  const getMealsForDate = (targetDate: Date): { meals: Meal[] } => {
     const dayData = weekData.find((day) =>
       isSameDay(new Date(day.date), targetDate)
     );
@@ -44,6 +61,19 @@ export const MealView: React.FC<MealViewProps> = ({
     return {
       meals: dayData?.meals || [],
     };
+  };
+
+  const renderEmptyDayIndicator = (date: Date) => {
+    const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
+
+    if (!dayData?.meals.length) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-gray-400 text-sm">No meals scheduled</div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const getDayData = (targetDate: Date) => {
@@ -90,10 +120,8 @@ export const MealView: React.FC<MealViewProps> = ({
 
         {/* Days headers */}
         {threeDayDates.map((date) => (
-          <div
-            key={date.toISOString()}
-            className="flex-1 p-4 border-l border-gray-200"
-          >
+          <div key={date.toISOString()} className="relative flex-1">
+            {renderEmptyDayIndicator(date)}
             <div className="text-sm font-medium text-gray-600">
               {format(date, "EEEE")}
             </div>

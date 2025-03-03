@@ -62,7 +62,7 @@ export function convertTime24to12(time24h: string): string {
   return `${hour}:${minutes} ${period}`;
 }
 
-function convertTime12to24(time12h: string): string {
+export function convertTime12to24(time12h: string): string {
   const [time, modifier] = time12h.split(/([AaPp][Mm])/);
   let [hours, minutes] = time.split(":");
 
@@ -114,7 +114,7 @@ function extractAllergensFromR3(r3Data: any): string[] {
 //   "name": "ground beef"
 // }
 
-function calculateNutritionalInfo(r3Data: {
+export function calculateNutritionalInfo(r3Data: {
   macronutrients?: R3Macronutrients;
 }): NutritionalInfo {
   const macros = r3Data.macronutrients || {};
@@ -173,8 +173,7 @@ function calculateNutritionalInfo(r3Data: {
   };
 }
 
-// Update the diabetes-friendly determination based on nutritional values
-function isDiabetesFriendly(nutritionalInfo: NutritionalInfo): boolean {
+export function isDiabetesFriendly(nutritionalInfo: NutritionalInfo): boolean {
   // These thresholds should be adjusted based on medical guidelines
   const CARB_THRESHOLD = 45; // grams per meal
   const GI_THRESHOLD = 55; // medium GI threshold

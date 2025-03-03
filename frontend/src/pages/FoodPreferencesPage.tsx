@@ -25,7 +25,9 @@ const FoodPreferencesPage: React.FC = () => {
   const [mealPlanLength, setMealPlanLength] = useState<number>(1);
   const [mealsPerDay, setMealsPerDay] = useState<number>(1);
   const [mealPlanName, setMealPlanName] = useState<string>("Your Meal Plan...");
-  const [mealPlanStartDate, setMealPlanStartDate] = useState<string>("");
+  const [mealPlanStartDate, setMealPlanStartDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
 
   // Personas
   const [selectedPersona, setSelectedPersona] = useState<keyof typeof personas | null>(null);
@@ -136,12 +138,11 @@ const FoodPreferencesPage: React.FC = () => {
         for (let i = prev.length; i < newMealsPerDay; i++) {
           newConfigs.push({
             mealName: "New Meal",
-            mealTime: new Date()
-              .toLocaleTimeString("en-US", {
-                hour: "numeric",
-                hour12: true,
-                minute: "numeric",
-              }),  // Current Time
+            mealTime: new Date().toLocaleTimeString("en-US", {
+              hour: "numeric",
+              hour12: true,
+              minute: "numeric",
+            }), // Current Time
             mealTypes: {
               mainCourse: true,
               side: true,
@@ -232,11 +233,11 @@ const FoodPreferencesPage: React.FC = () => {
     try {
       console.log(
         "Sending request to:",
-        "http://localhost:8000/beacon/recommendation/random"
+        "http://localhost:8000/beacon/recommendation/bandit"
       );
       console.log("Request body:", JSON.stringify(requestBody, null, 2));
       const response = await fetch(
-        "http://localhost:8000/beacon/recommendation/random",
+        "http://localhost:8000/beacon/recommendation/bandit",
         requestOptions
       );
       console.log("Response status:", response.status);

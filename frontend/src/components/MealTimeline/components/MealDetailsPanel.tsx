@@ -21,7 +21,6 @@ interface MealDetailsPanelProps {
     fiber: number;
   };
   baseNutritionalValues: {
-    // Add this to store original values
     calories: number;
     carbs: number;
     protein: number;
