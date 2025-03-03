@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "../app/store";
+import { useSelector } from 'react-redux';
+import { RootState } from '../app/store';
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
@@ -13,7 +13,7 @@ import { convertTime24to12 } from "../utils/mealPlanTransformer";
 
 const FoodPreferencesPage: React.FC = () => {
   const navigate = useNavigate();
-  const userState = useSelector((state: RootState) => state.user);
+  const userState = useSelector((state: RootState) => (state.user));
 
   // User Info
   const [height, setHeight] = useState<string>(`5'8"`);
@@ -33,9 +33,9 @@ const FoodPreferencesPage: React.FC = () => {
   const [selectedPersona, setSelectedPersona] = useState<keyof typeof personas | null>(null);
 
   // Dietary Pref Card
-  const [dairy, setDairy] = useState<number>(1);
-  const [meat, setMeat] = useState<number>(1);
-  const [nuts, setNuts] = useState<number>(1);
+  const [dairy, setDairy] = useState<number>(0);
+  const [meat, setMeat] = useState<number>(0);
+  const [nuts, setNuts] = useState<number>(0);
   const [glutenFree, setGlutenFree] = useState<boolean>(false);
   const [diabetes, setDiabetes] = useState<boolean>(false);
   const [vegetarian, setVegetarian] = useState<boolean>(false);
@@ -264,10 +264,45 @@ const FoodPreferencesPage: React.FC = () => {
       title="Food Preferences"
       subtitle="Customize Your Dietary Preferences"
     >
-      <div className="w-screen h-screen overflow-hidden bg-gray-50">
+      {/* Enable vertical scrolling */}
+      <div className="w-screen h-screen overflow-y-auto bg-gray-50">
+        {/* Persona Selection Section */}
+        <div className="flex justify-center items-center gap-4 mt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-large text-gray-700">
+              Select Our Recommended Personas
+            </span>
+            <div className="relative group">
+              <button
+                onClick={() => applyPersona("earlJones")}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200"
+              >
+                Earl Jones
+              </button>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
+                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
+                Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
+              </div>
+            </div>
+          </div>
 
-        {/* Content */}
-        <div className="px-6">
+          <div className="relative group">
+            <button
+              onClick={() => applyPersona("jessicaSmith")}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200"
+            >
+              Jessica Smith
+            </button>
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
+                            px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
+              A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
+              low-glycemic, diabetic-friendly meals.
+            </div>
+          </div>
+        </div>
+
+        {/* Content Section with Grid Layout */}
+        <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* User Information Card */}
             <UserInformation

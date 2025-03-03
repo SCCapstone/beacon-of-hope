@@ -54,8 +54,8 @@ const DietaryPreferences: React.FC<{
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
+              min="-1"
+              max="1"
               value={dairy}
               onChange={(e) =>
                 handleSliderChange(setDairy, Number(e.target.value))
@@ -75,8 +75,8 @@ const DietaryPreferences: React.FC<{
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
+              min="-1"
+              max="1"
               value={meat}
               onChange={(e) =>
                 handleSliderChange(setMeat, Number(e.target.value))
@@ -96,8 +96,8 @@ const DietaryPreferences: React.FC<{
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
+              min="-1"
+              max="1"
               value={nuts}
               onChange={(e) =>
                 handleSliderChange(setNuts, Number(e.target.value))
