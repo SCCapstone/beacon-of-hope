@@ -91,8 +91,82 @@ poetry run coverage report
 - [Poetry Documentation](https://python-poetry.org/docs/)
 
 
-## API Documentation
-TODO (Zach and Vansh put API endpoints for generating recommendations)
+## API Endpoints
+
+- #### `<backend_ip/beacon/recommendation/bandit>`
+   - HTTP Method: `POST`
+   - Description: Generates a tailored meal plan based on the provided meal configuration for a specified number of days using the boosted bandit reinforcement learning algorithm.
+   - Request body:
+      - Content-type: application/json
+
+   - JSON Schema:
+   ```json
+   {
+      "starting_date": "2025-03-08",
+      "meal_plan_config": {
+        "num_days": 3,
+        "num_meals": 3,
+        "meal_configs": [
+            {
+                "meal_name": "breakfast",
+                "meal_time": "8:00am",
+                "beverage": true,
+                "main_course": true,
+                "side": false,
+                "dessert": false
+            },
+            {
+                "meal_name": "lunch",
+                "meal_time": "12:00pm",
+                "beverage": true,
+                "main_course": true,
+                "side": true,
+                "dessert": false
+            }
+        ]
+    },
+    "user_preferences":{
+        "dairyPreference": 1,
+        "meatPreference": 0,
+        "nutsPreference": -1
+    },
+    "user_id": "674f7d4c5b4425639bef8cd6"
+  }
+  ```
+   - Response:
+      - (200) returns a generated meal plan in JSON
+   ```json
+   {
+    "_id": "507f191e810c19729de860ea",
+    "user_id": "674f7d4c5b4425639bef8cd6",
+    "name": "Generated Meal Plan",
+    "start_date": "2024-12-04T08:00:00Z",
+    "end_date": "2024-12-07T08:00:00Z",
+    "days": [
+        {
+            "day": 0,
+            "meals": [
+                {
+                    "_id": "5a934e000102030405000000",
+                    "meal_time": "8:00am",
+                    "beverage": "10", // this is a meal id, use <backend_ip>/beacon/get-beverage-info/<str:bev_id>
+                    "main_course": "25", // use <backend_ip>/beacon/get-recipe-info/<str:food_id>
+                    "side_dish": null,
+                    "dessert": null
+                }
+            ]
+        }
+    ],
+    "status": "active",
+    "tags": ["random", "generated"],
+    "created_at": "2024-12-04T12:00:00Z",
+    "updated_at": "2024-12-04T12:00:00Z"
+    }
+    ```
+      - (400) Missing or invalid input
+      - (500) Internal Server error
+
+
 
 - #### `<backend_ip/beacon/recommendation/random>`
    - HTTP Method: `POST`
@@ -103,9 +177,12 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
    - JSON Schema:
    ```json
    {
+      "starting_date": "2025-03-08",
       "meal_plan_config": {
         "num_days": 3,
         "num_meals": 3,
+        "starting_date":"2025-02-08",
+        "meal_plan_name": "Diabetes + Weight Loss Management",
         "meal_configs": [
             {
                 "meal_name": "breakfast",
@@ -130,41 +207,50 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
   ```
    - Response:
       - (200) returns a generated meal plan in JSON
+      - Note that the numbers that are the values of keys `beverage`, `main_course`, etc are item ids. For more information about beverages, use the `get-beverage-info` endpoint and for all other items' information use the `get-recipe-info` endpoint
    ```json
    {
-    "_id": "507f191e810c19729de860ea",
-    "user_id": "674f7d4c5b4425639bef8cd6",
-    "name": "Generated Meal Plan",
-    "start_date": "2024-12-04T08:00:00Z",
-    "end_date": "2024-12-07T08:00:00Z",
-    "days": [
-        {
-            "day": 0,
-            "meals": [
-                {
-                    "_id": "5a934e000102030405000000",
-                    "meal_time": "8:00am",
-                    "beverage": "bev123",
-                    "main_course": "food456",
-                    "side_dish": null,
-                    "dessert": null
-                }
-            ]
-        }
-    ],
-    "status": "active",
-    "tags": ["random", "generated"],
-    "created_at": "2024-12-04T12:00:00Z",
-    "updated_at": "2024-12-04T12:00:00Z"
-    }
+    "_id": "67c231ba88fa8471eed74c30",
+    "user_id": "67c149e417717376a4ab1dff",
+    "name": "User Meal Plan",
+    "days":
+      {
+        "2025-02-28": [
+          {"_id": "67c231ba88fa8471eed74c2e",
+            "meal_time": "8:00am",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "beverage": "18",
+              "main_course": "27",
+              "side_dish": "1",
+              "dessert": "21"
+            }
+          }
+        ],
+        "2025-03-01": [
+          {
+            "_id": "67c231ba88fa8471eed74c2f",
+            "meal_time": "8:00am",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "beverage": "5",
+              "main_course": "50",
+              "side_dish": "33",
+              "dessert": "34"
+            }
+          }
+        ]
+      }
+  }
     ```
       - (400) Missing or invalid input
       - (500) Internal Server error
 
 
 - #### `<backend_ip>/beacon/recommendation/retrieve-latest/<str:user_id>`
+   - **Deprecated**
    - HTTP Method: `GET`
-   - Description: Retrieve atest meal plan recommendation for a particular user
+   - Description: Retrieve latest meal plan recommendation for a particular user
    - Parameters:
     - `user_id`: str
    - Returns:
@@ -193,6 +279,86 @@ TODO (Zach and Vansh put API endpoints for generating recommendations)
     "tags": [str],
     "created_at": DateTime,
     "updated_at": DateTime
+    }
+    ```
+
+- #### `<backend_ip>/beacon/recommendation/retrieve-all/<str:user_id>`
+   - **Deprecated**
+   - HTTP Method: `GET`
+   - Description: Retrieve all meal plans for a particular user
+   - Parameters:
+    - `user_id`: str
+   - Returns:
+    ```json
+   {"meal_plans":[
+    {
+    "_id": PyMongo ObjectId,
+    "name": "Generated Meal Plan",
+    "start_date": DateTime,
+    "end_date": DateTime,
+    "days": [
+        {
+            "day": int,
+            "meals": [
+                {
+                    "_id": PyMongo ObjectId,
+                    "meal_time": str,
+                    "beverage": str,
+                    "main_course": str,
+                    "side_dish": str,
+                    "dessert": str
+                }
+            ]
+        }
+    ],
+    "status": str,
+    "tags": [str],
+    "created_at": DateTime,
+    "updated_at": DateTime
+    }
+    ]
+    }
+    ```
+
+- #### `<backend_ip>/beacon/recommendation/retrieve-days/<str:user_id>`
+   - HTTP Method: `POST`
+   - Description: Retrieve specific meal plans for a particular user based on a list of dates
+   - Parameters:
+    - `user_id`: str
+    - Request body:
+      - Content-type: application/json
+
+      - JSON Schema:
+        ```json
+        {
+            "dates": ["2025-03-08", "2025-04-01"]
+        }
+        ```
+
+   - Returns:
+    ```json
+      {
+        "day_plans": {
+        "2025-03-02": {
+          "user_id": "67c149e417717376a4ab1dff",
+          "meal_plan_id": "67c39f266c4433c982d7c3c2",
+          "meals": [
+            {
+              "meal_types": {
+                "beverage": "25",
+                "dessert": "4",
+                "main_course": "41",
+                "side": "41"
+              },
+              "meal_time": "8:00am",
+              "meal_name": "breakfast",
+              "_id": "67c39f266c4433c982d7c3be"
+            }
+          ],
+          "_id": "67c39f266c4433c982d7c3c1"
+        },
+        "2025-03-03": {}
+      }
     }
     ```
 

@@ -8,7 +8,7 @@ urlpatterns = [
         name="random_recommendation",
     ),
     path(
-        "recommendation/bandit/<int:num_days>/",
+        "recommendation/bandit",
         views.bandit_recommendation,
         name="bandit_recommendation",
     ),
@@ -16,6 +16,16 @@ urlpatterns = [
         "recommendation/retrieve-latest/<str:user_id>",
         views.retrieve_meal_plan,
         name="retrieve_meal_plan",
+    ),
+    path(
+        "recommendation/retrieve-all/<str:user_id>",
+        views.retrieve_all_meal_plans,
+        name="retrieve_all_meal_plans",
+    ),
+    path(
+        "recommendation/retrieve-days/<str:user_id>",
+        views.retrieve_day_plans,
+        name="retrieve_day_plans",
     ),
     path(
         "get-recipe-info/<str:recipe_id>", views.get_recipe_info, name="get_recipe_info"

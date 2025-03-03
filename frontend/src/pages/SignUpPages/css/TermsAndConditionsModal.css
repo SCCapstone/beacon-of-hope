@@ -1,0 +1,58 @@
+/* General Modal Styles */
+.modal-content {
+    color: #374151;
+    padding: 1rem;
+}
+
+.modal-title {
+    padding-left: 38%;
+    font-weight: bold;
+}
+
+/* Animation Effects */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.terms-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.terms-part h1 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.terms-section p, ul {
+    margin-bottom: 3px;
+}
+
+.terms-intro {
+    font-size: 1.07em;
+}
+
+.terms-intro p {
+    margin-bottom: 10px;
+}
+
+.terms-part {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.terms-part li {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.terms-foot {
+    font-size: .85em;
+}

@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await dispatch(loginUser({email, password, rememberMe})).unwrap();
-      navigate("/home");
+      navigate("/meal-plan");
     } catch(err: any) {
       setError(err.response?.data?.message);
     }
@@ -240,7 +240,7 @@ const LoginPage: React.FC = () => {
             Want to try before commiting?{" "}
             <a
               onClick={() => {
-                navigate("/");
+                navigate("/food-preferences");
               }}
               style={{
                 color: "#7f265b",

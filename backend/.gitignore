@@ -99,3 +99,10 @@ schema.yml
 Thumbs.db
 
 firebase_key.json
+
+boosted_bandit/*
+!boosted_bandit/trial0/
+
+user_input_data/*
+!user_input_data/trial0/
+!user_input_data/user_0.json

@@ -1,7 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./css/SettingsModals.css";
 
-const LoginSecurityModal: React.FC = () => {
+
+
+// Assume the current user's ID is passed as a prop
+const LoginSecurityModal: React.FC<{ userId: string }> = ({ userId }) => {
   const [password, setPassword] = useState({
     current: "",
     new: "",
@@ -9,6 +13,8 @@ const LoginSecurityModal: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const navigate = useNavigate();
 
   const calculatePasswordStrength = (
     password: string
@@ -21,7 +27,6 @@ const LoginSecurityModal: React.FC = () => {
     if (/[^A-Za-z0-9]/.test(password)) score++;
 
     const feedback = ["Very weak", "Weak", "Fair", "Good", "Strong"][score];
-
     return { score, feedback };
   };
 
@@ -35,17 +40,14 @@ const LoginSecurityModal: React.FC = () => {
 
   const validatePassword = (field: string, value: string) => {
     const newErrors: Record<string, string> = {};
-
     if (field === "new") {
       if (value.length < 8) {
         newErrors.new = "Password must be at least 8 characters long";
       }
     }
-
     if (field === "confirm" && value !== password.new) {
       newErrors.confirm = "Passwords do not match";
     }
-
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
@@ -53,6 +55,37 @@ const LoginSecurityModal: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Add password update logic here
+  };
+
+  const storedUserId = userId || sessionStorage.getItem("user_id") || "";
+
+  // Delete Account Feature
+  const handleDeleteAccount = async () => {
+    if (!storedUserId) {
+      setDeleteError("User not authenticated. Please log in again.");
+      return;
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/beacon/user/delete/${storedUserId}`, {
+        method: "DELETE",
+      });
+      if (response.status === 204) {
+        alert("Your account has been deleted successfully.");
+        navigate("/"); // Redirect to homepage after deletion
+      } else {
+        let data = {};
+        try {
+          data = await response.json();
+        } catch (err) {
+          console.error("Error parsing JSON:", err);
+        }
+       setDeleteError(data.Error || 'An error occurred.');
+
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setDeleteError("An error occurred while deleting your account.");
+    }
   };
 
   const strength = calculatePasswordStrength(password.new);
@@ -69,17 +102,20 @@ const LoginSecurityModal: React.FC = () => {
             <input
               type="password"
               value={password.current}
-              onChange={(e) => handlePasswordChange("current", e.target.value)}
+              onChange={(e) =>
+                handlePasswordChange("current", e.target.value)
+              }
               className="form-input"
             />
           </div>
-
           <div className="form-group">
             <label className="form-label">New Password</label>
             <input
               type="password"
               value={password.new}
-              onChange={(e) => handlePasswordChange("new", e.target.value)}
+              onChange={(e) =>
+                handlePasswordChange("new", e.target.value)
+              }
               className="form-input"
             />
             {password.new && (
@@ -97,22 +133,24 @@ const LoginSecurityModal: React.FC = () => {
                 <span className="strength-text">{strength.feedback}</span>
               </div>
             )}
-            {errors.new && <span className="error-message">{errors.new}</span>}
+            {errors.new && (
+              <span className="error-message">{errors.new}</span>
+            )}
           </div>
-
           <div className="form-group">
             <label className="form-label">Confirm New Password</label>
             <input
               type="password"
               value={password.confirm}
-              onChange={(e) => handlePasswordChange("confirm", e.target.value)}
+              onChange={(e) =>
+                handlePasswordChange("confirm", e.target.value)
+              }
               className="form-input"
             />
             {errors.confirm && (
               <span className="error-message">{errors.confirm}</span>
             )}
           </div>
-
           <button type="submit" className="btn-primary">
             Update Password
           </button>
@@ -149,12 +187,13 @@ const LoginSecurityModal: React.FC = () => {
               Are you sure you want to delete your account? This action cannot
               be undone.
             </p>
+            {deleteError && (
+              <p className="error-message">{deleteError}</p>
+            )}
             <div className="confirmation-actions">
               <button
                 className="btn-danger"
-                onClick={() => {
-                  /* Add delete account logic */
-                }}
+                onClick={handleDeleteAccount}
               >
                 Yes, Delete My Account
               </button>

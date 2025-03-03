@@ -1,7 +1,7 @@
 const DietaryPreferences: React.FC<{
   dairy: number;
   meat: number;
-  vegetables: number;
+  nuts: number;
   glutenFree: boolean;
   diabetes: boolean;
   vegetarian: boolean;
@@ -15,7 +15,7 @@ const DietaryPreferences: React.FC<{
   ) => void;
   setDairy: React.Dispatch<React.SetStateAction<number>>;
   setMeat: React.Dispatch<React.SetStateAction<number>>;
-  setVegetables: React.Dispatch<React.SetStateAction<number>>;
+  setNuts: React.Dispatch<React.SetStateAction<number>>;
   setGlutenFree: React.Dispatch<React.SetStateAction<boolean>>;
   setDiabetes: React.Dispatch<React.SetStateAction<boolean>>;
   setVegetarian: React.Dispatch<React.SetStateAction<boolean>>;
@@ -23,7 +23,7 @@ const DietaryPreferences: React.FC<{
 }> = ({
   dairy,
   meat,
-  vegetables,
+  nuts,
   glutenFree,
   diabetes,
   vegetarian,
@@ -32,7 +32,7 @@ const DietaryPreferences: React.FC<{
   handleCheckboxChange,
   setDairy,
   setMeat,
-  setVegetables,
+  setNuts,
   setGlutenFree,
   setDiabetes,
   setVegetarian,
@@ -54,8 +54,8 @@ const DietaryPreferences: React.FC<{
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
+              min="-1"
+              max="1"
               value={dairy}
               onChange={(e) =>
                 handleSliderChange(setDairy, Number(e.target.value))
@@ -75,8 +75,8 @@ const DietaryPreferences: React.FC<{
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
+              min="-1"
+              max="1"
               value={meat}
               onChange={(e) =>
                 handleSliderChange(setMeat, Number(e.target.value))
@@ -92,15 +92,15 @@ const DietaryPreferences: React.FC<{
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
-              Vegetable Preference
+              Nut Preference
             </label>
             <input
               type="range"
-              min="0"
-              max="2"
-              value={vegetables}
+              min="-1"
+              max="1"
+              value={nuts}
               onChange={(e) =>
-                handleSliderChange(setVegetables, Number(e.target.value))
+                handleSliderChange(setNuts, Number(e.target.value))
               }
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
             />
