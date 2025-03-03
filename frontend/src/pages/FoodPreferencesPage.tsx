@@ -253,38 +253,47 @@ const FoodPreferencesPage: React.FC = () => {
 
   return (
     <MainLayout
-    title="Food Preferences"
-    subtitle="Customize Your Dietary Preferences"
-  >
-    {/* Enable vertical scrolling */}
-    <div className="w-screen h-screen overflow-y-auto bg-gray-50">
-      {/* Persona Selection Section */}
-      <div className="flex justify-center items-center gap-4 mt-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-large text-gray-700">
-            Select Our Recommended Personas
-          </span>
+      title="Food Preferences"
+      subtitle="Customize Your Dietary Preferences"
+    >
+      {/* Enable vertical scrolling */}
+      <div className="w-screen h-screen overflow-y-auto bg-gray-50">
+        {/* Persona Selection Section */}
+        <div className="flex justify-center items-center gap-4 mt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-large text-gray-700">
+              Select Our Recommended Personas
+            </span>
+            <div className="relative group">
+              <button
+                onClick={() => applyPersona("earlJones")}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200"
+              >
+                Earl Jones
+              </button>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
+                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
+                Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
+              </div>
+            </div>
+          </div>
+
           <div className="relative group">
             <button
-              onClick={() => applyPersona("earlJones")}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200"
+              onClick={() => applyPersona("jessicaSmith")}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200"
             >
-              Earl Jones
+              Jessica Smith
             </button>
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
                             px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
-              Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
+              A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
+              low-glycemic, diabetic-friendly meals.
             </div>
           </div>
         </div>
 
-        <div className="relative group">
-      title="Food Preferences"
-      subtitle="Customize Your Dietary Preferences"
-    >
-      {/* Changed from overflow-hidden to overflow-y-auto to enable vertical scrolling */}
-      <div className="w-screen h-screen overflow-y-auto bg-gray-50">
-        {/* Content container with padding bottom for spacing at the end */}
+        {/* Content Section with Grid Layout */}
         <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* User Information Card */}
@@ -383,137 +392,19 @@ const FoodPreferencesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Generate Button - removed sticky positioning and added more bottom padding */}
-        <div className="mt-6 mb-16 flex justify-center px-6 py-4">
+        {/* Generate Button */}
+        <div className="mt-6 mb-20 flex justify-center px-6">
           <button
-            onClick={() => applyPersona("jessicaSmith")}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200"
+            onClick={handleSubmit}
+            className="px-12 bg-orange-400 hover:bg-orange-500 text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out transform hover:-translate-y-1"
           >
-            Jessica Smith
+            GENERATE MEAL PLAN
           </button>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                          px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal">
-            A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
-            low-glycemic, diabetic-friendly meals.
-          </div>
         </div>
       </div>
-
-      {/* Content Section with Grid Layout */}
-      <div className="px-6 pb-16">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* User Information Card */}
-          <UserInformation
-            height={height}
-            age={age}
-            weight={weight}
-            gender={gender}
-            handleChange={handleChange}
-            setHeight={setHeight}
-            setAge={setAge}
-            setWeight={setWeight}
-            setGender={setGender}
-          />
-
-          {/* Dietary Preferences Card */}
-          <DietaryPreferences
-            dairy={dairy}
-            meat={meat}
-            nuts={nuts}
-            glutenFree={glutenFree}
-            diabetes={diabetes}
-            vegetarian={vegetarian}
-            vegan={vegan}
-            handleSliderChange={handleSliderChange}
-            handleCheckboxChange={handleCheckboxChange}
-            setDairy={setDairy}
-            setMeat={setMeat}
-            setNuts={setNuts}
-            setGlutenFree={setGlutenFree}
-            setDiabetes={setDiabetes}
-            setVegetarian={setVegetarian}
-            setVegan={setVegan}
-          />
-
-          {/* Meal Plan Configuration Card */}
-          <MealPlanConfigCard
-            mealPlanLength={mealPlanLength}
-            mealsPerDay={mealsPerDay}
-            mealPlanName={mealPlanName}
-            mealPlanStartDate={mealPlanStartDate}
-            handleDropdownChange={handleDropdownChange}
-            handleMealsPerDayChange={handleMealsPerDayChange}
-            handleMealPlanNameChange={handleMealPlanNameChange}
-            setMealPlanLength={setMealPlanLength}
-            setMealsPerDay={setMealsPerDay}
-            setMealPlanStartDate={setMealPlanStartDate}
-          />
-
-          {/* Meal Specific Options Card */}
-          <MealSpecificOptionsCard
-            mealIndex={currentMealIndex}
-            totalMeals={mealsPerDay}
-            mealName={mealConfigs[currentMealIndex].mealName}
-            mealTime={mealConfigs[currentMealIndex].mealTime}
-            mealTypes={mealConfigs[currentMealIndex].mealTypes}
-            onMealNameChange={(value) => {
-              setMealConfigs((prev) => {
-                const newConfigs = [...prev];
-                newConfigs[currentMealIndex] = {
-                  ...newConfigs[currentMealIndex],
-                  mealName: value,
-                };
-                return newConfigs;
-              });
-            }}
-            onMealTimeChange={(value) => {
-              setMealConfigs((prev) => {
-                const newConfigs = [...prev];
-                newConfigs[currentMealIndex] = {
-                  ...newConfigs[currentMealIndex],
-                  mealTime: value,
-                };
-                return newConfigs;
-              });
-            }}
-            onMealCheckboxChange={(type) => {
-              setMealConfigs((prev) => {
-                const newConfigs = [...prev];
-                newConfigs[currentMealIndex] = {
-                  ...newConfigs[currentMealIndex],
-                  mealTypes: {
-                    ...newConfigs[currentMealIndex].mealTypes,
-                    [type]:
-                      !newConfigs[currentMealIndex].mealTypes[
-                        type as keyof (typeof newConfigs)[typeof currentMealIndex]["mealTypes"]
-                      ],
-                  },
-                };
-                return newConfigs;
-              });
-            }}
-            onPreviousMeal={handlePreviousMeal}
-            onNextMeal={handleNextMeal}
-          />
-        </div>
-      </div>
-
-      {/* Generate Button */}
-      <div className="mt-6 mb-16 flex justify-center px-6">
-        <button
-          onClick={handleSubmit}
-          className="px-12 bg-orange-400 hover:bg-orange-500 text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out transform hover:-translate-y-1"
-        >
-          GENERATE MEAL PLAN
-        </button>
-      </div>
-    </div>
-  </MainLayout>
-
-
-
-
+    </MainLayout>
   );
+
  }
 
 export default FoodPreferencesPage;
