@@ -6,6 +6,7 @@ import {
 } from "../components/MealTimeline/types";
 import { convertTime12to24 } from "../utils/mealPlanTransformer";
 import { calculateNutritionalInfo, isDiabetesFriendly } from "../utils/mealPlanTransformer";
+import { ApiError } from "../utils/errorHandling";
 
 const BACKEND_URL = "http://127.0.0.1:8000";
 
@@ -68,10 +69,22 @@ export async function fetchMealDays(userId: string, dates: string[]) {
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
     );
-    console.log(`\nFetched meal days for ` + dates);
-    console.log(response.data);
+    
+    if (!response.data || !response.data.day_plans) {
+      throw new Error("Invalid response format from API");
+    }
+    
+    console.log(`Fetched meal days for ${dates.join(", ")}`);
     return response.data;
   } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(`Error fetching meal days: ${error.message}`, error.response?.data);
+      throw new ApiError(
+        `Failed to fetch meal data: ${error.message}`,
+        error.response?.status,
+        error.response?.data
+      );
+    }
     console.error("Error fetching meal days:", error);
     throw error;
   }
@@ -176,9 +189,7 @@ function calculateCombinedNutritionalInfo(foods: Food[]): NutritionalInfo {
   };
 }
 
-export async function transformApiResponseToDayMeals(
-  apiResponse: ApiResponse,
-): Promise<DayMeals[]> {
+export async function transformApiResponseToDayMeals(apiResponse: ApiResponse,): Promise<DayMeals[]> {
   const dayMeals: DayMeals[] = [];
 
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {

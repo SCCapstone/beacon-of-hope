@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { DayMeals, Meal } from "../types";
 import { TIME_SLOTS } from "../constants";
-import { format, addDays, isSameDay, subDays, startOfDay } from "date-fns";
+import { format, addDays, isSameDay, subDays } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 
@@ -53,15 +53,15 @@ export const MealView: React.FC<MealViewProps> = ({
     weekData.map(d => format(new Date(d.date), "yyyy-MM-dd"))
   );
 
-  const getMealsForDate = (targetDate: Date): { meals: Meal[] } => {
+  const getMealsForDate = useCallback((targetDate: Date): { meals: Meal[] } => {
     const dayData = weekData.find((day) =>
       isSameDay(new Date(day.date), targetDate)
     );
-
+  
     return {
       meals: dayData?.meals || [],
     };
-  };
+  }, [weekData]);
 
   const renderEmptyDayIndicator = (date: Date) => {
     const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
