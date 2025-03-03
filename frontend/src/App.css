@@ -215,7 +215,7 @@ input[type="checkbox"]:checked {
   box-shadow: 10px 2px 32px rgba(0, 0, 0, 0.25);
   border-radius: 20px;
   border: 0px;
-  width: 450px;
+  width: 400px;
   height: 17%;
   padding: 20px; /* Add padding to create buffer space */
 }
