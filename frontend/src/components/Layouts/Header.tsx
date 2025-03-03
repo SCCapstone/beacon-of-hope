@@ -136,13 +136,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     Settings
                   </Link>
                   <button
-                    onClick={() => {
-                      console.log("Logout clicked");
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
-                  >
-                    Logout
-                  </button>
+  onClick={() => {
+    console.log("Logout clicked");
+    window.location.href = "/"; // Redirect to the default home page
+  }}
+  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+>
+  Logout
+</button>
                 </motion.div>
               )}
             </AnimatePresence>

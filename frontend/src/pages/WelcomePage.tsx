@@ -17,8 +17,8 @@ const WelcomePage: React.FC = () => {
                     </p>
                 </div>
                 <WelcomeCard id='button--one' header='Login' desc='Access your saved preferences for a tailored experience.' to='login' data-testid="welcome-card"></WelcomeCard>
-                <WelcomeCard id='button--two' header='Default' desc='Start with our recommended settings for ease and simplicity.' to='meal-plan'></WelcomeCard>
-                <WelcomeCard id='button--three' header='Personas' desc='Explore different meal styles and explore one that suits your goals.' to='personas'></WelcomeCard>
+                <WelcomeCard id='button--two' header='Default' desc='Start with default settings for ease and simplicity.' to='food-preferences'></WelcomeCard>
+                {/* <WelcomeCard id='button--three' header='Personas' desc='Explore different meal styles and explore one that suits your goals.' to='personas'></WelcomeCard> */}
             </div>
         </div>
     );
