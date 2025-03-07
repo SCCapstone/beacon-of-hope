@@ -66,7 +66,7 @@ const LoginSecurityModal: React.FC<{ userId: string }> = ({ userId }) => {
       return;
     }
     try {
-      const response = await fetch(`http://127.0.0.1:8000/beacon/user/delete/${storedUserId}`, {
+      const response = await fetch(`http://x.0.1:8000/beacon/user/delete/${storedUserId}`, {
         method: "DELETE",
       });
       if (response.status === 204) {

@@ -542,6 +542,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 nutritionalGoals={nutritionalGoals}
                 currentNutritionalValues={currentNutritionalValues}
                 baseNutritionalValues={baseNutritionalValues}
+                selectedDate={selectedDate}
               />
             </div>
           </div>
