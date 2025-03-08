@@ -6,7 +6,7 @@ import { MealRecommendation } from "../types";
 
 interface MealDetailsPanelProps {
   meal: Meal | null;
-  recommendation: MealRecommendation | null; // Add this
+  recommendation: MealRecommendation | null;
   onClose: () => void;
   nutritionalGoals: {
     dailyCalories: number;
@@ -26,6 +26,7 @@ interface MealDetailsPanelProps {
     protein: number;
     fiber: number;
   };
+  selectedDate: Date;
 }
 
 const formatNutritionalValue = (key: string, value: number): string => {
@@ -64,6 +65,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   nutritionalGoals,
   currentNutritionalValues,
   baseNutritionalValues,
+  selectedDate,
 }) => {
   return (
     <div className="h-full flex flex-col">
@@ -550,7 +552,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               Daily Nutrition Goals
             </h3>
             <span className="text-xs text-gray-500">
-              {new Date().toLocaleDateString(undefined, {
+              {selectedDate.toLocaleDateString(undefined, {
                 weekday: "long",
                 month: "short",
                 day: "numeric",
