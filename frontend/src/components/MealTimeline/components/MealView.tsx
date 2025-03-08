@@ -66,19 +66,6 @@ export const MealView: React.FC<MealViewProps> = ({
     [weekData]
   );
 
-  const renderEmptyDayIndicator = (date: Date) => {
-    const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
-
-    if (!dayData?.meals.length) {
-      return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-400 text-sm">No meals scheduled</div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const getDayData = (targetDate: Date) => {
     return weekData.find((day) => isSameDay(new Date(day.date), targetDate));
   };
@@ -117,18 +104,21 @@ export const MealView: React.FC<MealViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col">
       {/* Fixed header for days */}
-      <div className="flex border-b bg-white z-20">
+      <div className="flex border-b bg-white z-20 pl-4">
         {/* Time column header */}
         <div className="w-20 flex-shrink-0" />
 
         {/* Days headers */}
         {threeDayDates.map((date) => (
           <div key={date.toISOString()} className="relative flex-1">
-            {renderEmptyDayIndicator(date)}
-            <div className="text-sm font-medium text-gray-600">
-              {format(date, "EEEE")}
+            <div className="flex justify-between items-center">
+              <div className="text-sm font-medium text-gray-600 pl-4">
+                {format(date, "EEEE")}
+              </div>
+              <div className="text-xs text-gray-500 pr-4">
+                {format(date, "MMM d")}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">{format(date, "MMM d")}</div>
           </div>
         ))}
       </div>
@@ -157,15 +147,10 @@ export const MealView: React.FC<MealViewProps> = ({
               {TIME_SLOTS.map((time) => (
                 <div key={time} className="flex h-[100px]">
                   {threeDayDates.map((date) => {
-                    const dayData = getDayData(date);
-                    const isEmpty = dayData?.meals.length === 0 || false;
-
                     return (
                       <div
                         key={`${date.toISOString()}-${time}`}
-                        className={`flex-1 border-b border-l ${
-                          isEmpty ? "bg-gray-50" : "border-gray-100"
-                        }`}
+                        className={`flex-1 border-b border-l bg-gray-50`}
                       />
                     );
                   })}
