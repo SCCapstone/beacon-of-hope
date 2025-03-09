@@ -11,14 +11,6 @@ export const WeekSelector: React.FC<WeekSelectorProps> = ({
   selectedDate,
   onDateChange,
 }) => {
-  // Get the 3-day range (previous day, selected day, next day)
-  const startDate = subDays(selectedDate, 1);
-  const endDate = addDays(selectedDate, 1);
-
-  const formatDateRange = () => {
-    return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
-  };
-
   // Move by a single day in either direction
   const moveDay = useCallback((direction: "prev" | "next", e: React.MouseEvent) => {
     // Prevent default behavior and stop propagation
@@ -70,13 +62,15 @@ export const WeekSelector: React.FC<WeekSelectorProps> = ({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M15 19l-7-7 7-7"
+            d="M5 10l7-7m0 0l7 7m-7-7v18"
           />
         </svg>
       </motion.button>
 
       <div className="flex items-center space-x-2">
-        <span className="text-gray-600">{formatDateRange()}</span>
+        <span className="text-gray-600 font-medium">
+          {format(selectedDate, "MMMM d, yyyy")}
+        </span>
         <input
           type="date"
           value={format(selectedDate, "yyyy-MM-dd")}
@@ -104,7 +98,7 @@ export const WeekSelector: React.FC<WeekSelectorProps> = ({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M9 5l7 7-7 7"
+            d="M19 14l-7 7m0 0l-7-7m7 7V3"
           />
         </svg>
       </motion.button>

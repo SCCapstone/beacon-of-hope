@@ -82,6 +82,31 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const vizRef = React.useRef<HTMLDivElement>(null);
   const [recommendations, setRecommendations] = useState<DayMeals[]>([]);
   const [combinedData, setCombinedData] = useState<DayMeals[]>([]);
+  const [mealBinNames, setMealBinNames] = useState<string[]>([
+    "Meal 1",
+    "Meal 2",
+    "Meal 3",
+  ]);
+
+  const handleMealBinNamesUpdate = (newNames: string[]) => {
+    setMealBinNames(newNames);
+    // Optionally save to localStorage for persistence
+    localStorage.setItem("mealBinNames", JSON.stringify(newNames));
+  };
+
+  useEffect(() => {
+    const savedNames = localStorage.getItem("mealBinNames");
+    if (savedNames) {
+      try {
+        const parsedNames = JSON.parse(savedNames);
+        if (Array.isArray(parsedNames) && parsedNames.length > 0) {
+          setMealBinNames(parsedNames);
+        }
+      } catch (e) {
+        console.error("Error parsing saved meal bin names:", e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     console.log("selectedDate changed to:", format(selectedDate, "yyyy-MM-dd"));
@@ -439,6 +464,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                             filters={filters}
                             userPreferences={userPreferences}
                             onFilterChange={updateFilters}
+                            mealBinNames={mealBinNames}
+                            onMealBinNamesUpdate={handleMealBinNamesUpdate}
                           />
                         </div>
                       </div>
@@ -452,7 +479,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
         {/* Center Calendar View */}
         <div
-          className="flex-1 flex flex-col min-w-0 bg-gray-50"
+          className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden"
           onClick={handleMainAreaClick}
         >
           {/* Level Selector Bar */}
@@ -500,9 +527,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           {/* Main Visualization Area */}
           <div className="flex-1 flex overflow-hidden">
             {/* Calendar View */}
-            <div className="flex-1 min-w-0 p-4">
-              <div className="bg-white rounded-lg shadow-sm h-full overflow-hidden border border-gray-200">
-                {currentLevel === "meal" && (
+            <div className="flex-1 min-w-0 p-4 flex flex-col">
+            <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col">
+            {currentLevel === "meal" && (
                   <MealView
                     weekData={visibleData}
                     recommendationData={recommendationData}
@@ -511,6 +538,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     selectedMeal={selectedMeal}
                     onRecommendationSelect={handleRecommendationSelect}
                     selectedRecommendation={selectedRecommendation}
+                    onDateChange={handleDateChange}
+                    mealBinNames={mealBinNames}
                   />
                 )}
                 {currentLevel === "food" && (
