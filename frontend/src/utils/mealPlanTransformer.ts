@@ -161,20 +161,11 @@ export function calculateNutritionalInfo(r3Data: {
     glycemicIndex,
     glycemicLoad,
     sugarContent: sugar,
-    // Additional optional properties:
-    // saturatedFat: parseNutrientValue(macros["Saturated Fat"]),
-    // cholesterol: parseNutrientValue(macros.Cholesterol),
-    // sodium: parseNutrientValue(macros.Sodium),
-    // potassium: parseNutrientValue(macros.Potassium),
-    // vitaminA: parseNutrientValue(macros["Vitamin A"]),
-    // vitaminC: parseNutrientValue(macros["Vitamin C"]),
-    // calcium: parseNutrientValue(macros.Calcium),
-    // iron: parseNutrientValue(macros.Iron),
   };
 }
 
 export function isDiabetesFriendly(nutritionalInfo: NutritionalInfo): boolean {
-  // These thresholds should be adjusted based on medical guidelines
+  // TODO: These thresholds should be adjusted based on user input or medical guidelines
   const CARB_THRESHOLD = 45; // grams per meal
   const GI_THRESHOLD = 55; // medium GI threshold
   const FIBER_MINIMUM = 3; // grams per meal
@@ -273,7 +264,7 @@ export async function transformMealPlanToRecommendations(
               healthBenefits: [],
             },
             score: 85, //  TODO: To be calculated based on user preferences
-            reasons: [
+            reasons: [  // TODO: Add more and confirm
               "Matches your dietary preferences",
               "Good nutritional balance",
               "Diabetes-friendly option",
@@ -284,7 +275,7 @@ export async function transformMealPlanToRecommendations(
               protein: food.nutritionalInfo.protein,
               fiber: food.nutritionalInfo.fiber,
             },
-            healthBenefits: [
+            healthBenefits: [  // TODO: Add more and confirm
               "Good source of protein",
               "Contains fiber for better blood sugar control",
               "Balanced macronutrients",

@@ -1,50 +1,4 @@
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
-export const FOOD_TYPES = [
-  "main_course",
-  "side_dish",
-  "beverage",
-  "dessert",
-  "snack",
-] as const;
-export const INGREDIENT_CATEGORIES = [
-  "protein",
-  "carbs",
-  "vegetable",
-  "fruit",
-  "dairy",
-  "fat",
-  "spice",
-  "sauce",
-] as const;
-
-export const CULTURAL_CUISINES = [
-  "african_american",
-  "southern",
-  "cajun",
-  "creole",
-  "soul_food",
-  "caribbean",
-  "west_african",
-] as const;
-
-export const HEALTH_CONDITIONS = [
-  "diabetes_type_1",
-  "diabetes_type_2",
-  "prediabetes",
-  "hypertension",
-  "heart_disease",
-] as const;
-
-export const ALLERGENS = [
-  "peanuts",
-  "tree_nuts",
-  "milk",
-  "eggs",
-  "soy",
-  "wheat",
-  "fish",
-  "shellfish",
-] as const;
 
 export const NUTRITIONAL_RANGES = {
   calories: { min: 0, max: 1000 },
@@ -108,20 +62,4 @@ export const COLOR_SCHEMES = {
     spice: "#9B5DE5",
     sauce: "#00BBF9",
   },
-} as const;
-
-export const THEME_COLORS = {
-  primary: "#FFE6C9",
-  secondary: "#FF9F1C",
-  accent: "#2EC4B6",
-  background: {
-    light: "#FFF5E9",
-    dark: "#FFE6C9",
-  },
-  text: {
-    primary: "#1A1A1A",
-    secondary: "#4A5568",
-    accent: "#FF9F1C",
-  },
-  border: "#FFE6C9",
 } as const;
