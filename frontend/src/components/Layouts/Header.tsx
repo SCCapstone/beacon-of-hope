@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
   return (
     <header
-      className="sticky top-0 z-50 w-full"
+      className="fixed top-0 left-0 right-0 z-30"
       style={
         {
           "--thickness": "4px",
@@ -136,14 +136,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     Settings
                   </Link>
                   <button
-  onClick={() => {
-    console.log("Logout clicked");
-    window.location.href = "/"; // Redirect to the default home page
-  }}
-  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
->
-  Logout
-</button>
+                    onClick={() => {
+                      console.log("Logout clicked");
+                      window.location.href = "/"; // Redirect to the default home page
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                  >
+                    Logout
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

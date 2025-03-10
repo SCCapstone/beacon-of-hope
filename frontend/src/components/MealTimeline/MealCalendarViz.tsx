@@ -420,8 +420,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   return (
     <div
-      className="w-screen h-screen flex flex-col overflow-hidden bg-gray-100"
+      className="w-screen flex flex-col overflow-hidden bg-gray-100"
       ref={vizRef}
+      style={{ height: "calc(100vh - 64px)" }} // subtract header height
     >
       {/* Main Content */}
       <div className="w-full flex-1 flex overflow-hidden">
@@ -528,8 +529,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           <div className="flex-1 flex overflow-hidden">
             {/* Calendar View */}
             <div className="flex-1 min-w-0 p-4 flex flex-col">
-            <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col">
-            {currentLevel === "meal" && (
+              <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col">
+                {currentLevel === "meal" && (
                   <MealView
                     weekData={visibleData}
                     recommendationData={recommendationData}

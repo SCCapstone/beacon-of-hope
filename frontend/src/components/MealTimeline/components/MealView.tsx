@@ -239,16 +239,16 @@ export const MealView: React.FC<MealViewProps> = ({
         ))}
       </div>
 
-      {/* Scrollable container for all three days */}
-      <div className="flex-1 overflow-auto">
-        <div className="min-h-full flex flex-col">
-          {/* Previous day - collapsed row */}
-          <div className="flex-shrink-0">
-            {renderCollapsedDateRow(previousDate, "top")}
-          </div>
+      {/* Previous day - collapsed row */}
+      <div className="flex-shrink-0">
+        {renderCollapsedDateRow(previousDate, "top")}
+      </div>
 
+      {/* Scrollable container for all three days */}
+      <div className="flex-1 overflow-auto bg-white">
+        <div className="min-h-full flex flex-col h-full">
           {/* Main content area - current selected date */}
-          <div className="flex-grow bg-white" ref={mainAreaRef}>
+          <div className="flex-grow overflow-auto bg-white" ref={mainAreaRef}>
             <div className="h-full flex flex-col">
               {/* Date header */}
               <div className="bg-blue-50 p-4 border-b border-blue-200">
@@ -388,12 +388,12 @@ export const MealView: React.FC<MealViewProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Next day - collapsed row */}
-          <div className="flex-shrink-0 mt-auto">
-            {renderCollapsedDateRow(nextDate, "bottom")}
-          </div>
         </div>
+      </div>
+
+      {/* Next day - collapsed row */}
+      <div className="flex-shrink-0">
+        {renderCollapsedDateRow(nextDate, "bottom")}
       </div>
     </div>
   );
