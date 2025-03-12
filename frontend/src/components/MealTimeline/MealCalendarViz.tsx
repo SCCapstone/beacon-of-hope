@@ -541,6 +541,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     selectedRecommendation={selectedRecommendation}
                     onDateChange={handleDateChange}
                     mealBinNames={mealBinNames}
+                    onMealBinUpdate={handleMealBinNamesUpdate}
                   />
                 )}
                 {currentLevel === "food" && (

@@ -15,6 +15,7 @@ interface MealViewProps {
   selectedRecommendation: MealRecommendation | null;
   onDateChange: (date: Date) => void;
   mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
   isLoading?: boolean;
 }
 
@@ -28,6 +29,7 @@ export const MealView: React.FC<MealViewProps> = ({
   selectedRecommendation,
   onDateChange,
   mealBinNames,
+  onMealBinUpdate,
   isLoading = false,
 }) => {
   const mainAreaRef = useRef<HTMLDivElement>(null);
@@ -70,62 +72,75 @@ export const MealView: React.FC<MealViewProps> = ({
   );
 
   // Organize meals into bins for each date
-  const organizeMealsIntoBins = useCallback(
-    (date: Date) => {
-      const meals = getMealsForDate(date);
-      const recommendations = getRecommendationsForDate(date);
+const organizeMealsIntoBins = useCallback(
+  (date: Date) => {
+    const meals = getMealsForDate(date);
+    const recommendations = getRecommendationsForDate(date);
 
-      // Create bins based on meal times
-      const bins: Record<
-        string,
-        { meals: Meal[]; recommendations: MealRecommendation[] }
-      > = {};
+    // Sort all meals by time
+    const sortedMeals = [...meals].sort((a, b) => {
+      const timeA = a.time.split(":").map(Number);
+      const timeB = b.time.split(":").map(Number);
+      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+    });
 
-      // Initialize bins with empty arrays
-      mealBinNames.forEach((name) => {
-        bins[name] = { meals: [], recommendations: [] };
-      });
+    // Sort all recommendations by time
+    const sortedRecommendations = [...recommendations].sort((a, b) => {
+      const timeA = a.meal.time.split(":").map(Number);
+      const timeB = b.meal.time.split(":").map(Number);
+      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+    });
 
-      // Sort meals by time
-      const sortedMeals = [...meals].sort((a, b) => {
-        const timeA = a.time.split(":").map(Number);
-        const timeB = b.time.split(":").map(Number);
-        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-      });
+    // Create time slots for all items (meals and recommendations)
+    const allItems = [
+      ...sortedMeals.map(meal => ({ type: 'meal', item: meal, time: meal.time })),
+      ...sortedRecommendations.map(rec => ({ type: 'recommendation', item: rec, time: rec.meal.time }))
+    ].sort((a, b) => {
+      const timeA = a.time.split(":").map(Number);
+      const timeB = b.time.split(":").map(Number);
+      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+    });
 
-      // Distribute meals into bins
-      sortedMeals.forEach((meal, index) => {
-        const binIndex = Math.min(index, mealBinNames.length - 1);
-        bins[mealBinNames[binIndex]].meals.push(meal);
-      });
+    // Check if we need more bins than currently available
+    if (allItems.length > mealBinNames.length) {
+      // Request parent component to update bin names
+      const newBinNames = [...mealBinNames];
+      while (newBinNames.length < allItems.length) {
+        newBinNames.push(`Meal ${newBinNames.length + 1}`);
+      }
+      // This will trigger a re-render with the updated bin names
+      onMealBinUpdate(newBinNames);
+    }
 
-      // Distribute recommendations into bins
-      recommendations.forEach((rec) => {
-        // Find appropriate bin based on time
-        const recTime = rec.meal.time.split(":").map(Number);
-        const recTimeMinutes = recTime[0] * 60 + recTime[1];
+    // Create bins based on meal times
+    const bins: Record<
+      string,
+      { meals: Meal[]; recommendations: MealRecommendation[] }
+    > = {};
 
-        // Find the right bin based on time ranges
-        let binIndex = 0;
-        for (let i = 0; i < sortedMeals.length; i++) {
-          const mealTime = sortedMeals[i].time.split(":").map(Number);
-          const mealTimeMinutes = mealTime[0] * 60 + mealTime[1];
+    // Initialize bins with empty arrays
+    mealBinNames.forEach((name) => {
+      bins[name] = { meals: [], recommendations: [] };
+    });
 
-          if (recTimeMinutes <= mealTimeMinutes) {
-            binIndex = i;
-            break;
-          }
-          binIndex = i + 1;
-        }
+    // Distribute items to bins, ensuring one item per bin
+    allItems.forEach((item, index) => {
+      // Skip if we've run out of bins (this shouldn't happen after the fix)
+      if (index >= mealBinNames.length) return;
+      
+      const binName = mealBinNames[index];
+      
+      if (item.type === 'meal') {
+        bins[binName].meals = [item.item as Meal];
+      } else {
+        bins[binName].recommendations = [item.item as MealRecommendation];
+      }
+    });
 
-        binIndex = Math.min(binIndex, mealBinNames.length - 1);
-        bins[mealBinNames[binIndex]].recommendations.push(rec);
-      });
-
-      return bins;
-    },
-    [getMealsForDate, getRecommendationsForDate, mealBinNames]
-  );
+    return bins;
+  },
+  [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
+);
 
   const isMealSelected = (meal: Meal) => {
     return selectedMeal?.id === meal.id;
@@ -276,7 +291,7 @@ export const MealView: React.FC<MealViewProps> = ({
                     return (
                       <div
                         key={`${selectedDate.toISOString()}-${binName}`}
-                        className="flex-1 p-4 border-l overflow-y-auto"
+                        className="flex-1 p-4 border-l overflow-y-auto flex flex-col"
                       >
                         {/* Meals in this bin */}
                         <AnimatePresence>
@@ -287,12 +302,13 @@ export const MealView: React.FC<MealViewProps> = ({
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
                               className={`meal-card p-4 mb-4 rounded-lg cursor-pointer
-                            bg-white shadow-sm hover:shadow transition-all duration-300
-                            ${
-                              isMealSelected(meal)
-                                ? "ring-2 ring-blue-500"
-                                : "border border-gray-200"
-                            }`}
+                                bg-white shadow-sm hover:shadow transition-all duration-300
+                                ${
+                                  isMealSelected(meal)
+                                    ? "ring-2 ring-blue-500"
+                                    : "border border-gray-200"
+                                }
+                                flex-grow flex flex-col`}
                               onClick={() =>
                                 onMealSelect(isMealSelected(meal) ? null : meal)
                               }
@@ -330,6 +346,43 @@ export const MealView: React.FC<MealViewProps> = ({
                                   <span>Fat: {meal.nutritionalInfo.fat}g</span>
                                 </div>
                               </div>
+                              
+                              {/* Food items in the meal - new section */}
+                              {meal.foods.length > 0 && (
+                                <div className="mt-3 pt-2 border-t border-gray-100">
+                                  <h4 className="text-xs font-medium text-gray-700 mb-2">Includes:</h4>
+                                  <div className="space-y-1.5">
+                                    {meal.foods.map((food) => (
+                                      <div 
+                                        key={food.id}
+                                        className="flex items-center justify-between text-xs"
+                                      >
+                                        <span className="text-gray-800">{food.name}</span>
+                                        <span className="text-gray-500 text-xs">{food.type.replace('_', ' ')}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Health indicators - new section */}
+                              {meal.nutritionalInfo.glycemicIndex !== undefined && (
+                                <div className="mt-3 pt-2 border-t border-gray-100">
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-gray-600">
+                                      GI: {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
+                                    </span>
+                                    <span className="text-gray-600">
+                                      GL: {meal.nutritionalInfo.glycemicLoad || 0}
+                                    </span>
+                                    {meal.nutritionalInfo.fiber > 0 && (
+                                      <span className="text-gray-600">
+                                        Fiber: {meal.nutritionalInfo.fiber}g
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </motion.div>
                           ))}
                         </AnimatePresence>
@@ -339,7 +392,7 @@ export const MealView: React.FC<MealViewProps> = ({
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
                               key={`rec-${recommendation.meal.id}`}
-                              className="mb-4"
+                              className="my-5 flex-grow"
                               recommendation={recommendation}
                               onClick={() =>
                                 onRecommendationSelect(recommendation)

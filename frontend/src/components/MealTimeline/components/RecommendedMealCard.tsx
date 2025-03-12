@@ -50,16 +50,16 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         e.stopPropagation();
         onClick();
       }}
-      className={`${className} relative p-3 rounded-lg cursor-pointer
+      className={`${className} relative p-4 rounded-lg cursor-pointer
         transform transition-all duration-300
         ${isSelected ? "ring-2 ring-green-500" : ""}
         ${"bg-white/75"}
-        backdrop-blur-sm`}
+        backdrop-blur-sm flex flex-col`}
       style={{
         boxShadow: isSelected
           ? "0 0 15px rgba(16, 185, 129, 0.2)"
           : "0 2px 4px rgba(0,0,0,0.05)",
-        height: "90px",
+        minHeight: "120px",
       }}
     >
       {/* Simulation Indicator */}
@@ -124,8 +124,26 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </div>
         </div>
 
+        {/* Food items in the meal */}
+        {meal.foods.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-gray-100 flex-grow">
+            <h4 className="text-xs font-medium text-gray-700 mb-1.5">Includes:</h4>
+            <div className="space-y-1">
+              {meal.foods.map((food) => (
+                <div 
+                  key={food.id}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="text-gray-800">{food.name}</span>
+                  <span className="text-gray-500 text-xs">{food.type.replace('_', ' ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Footer Section */}
-        <div className="relative">
+        <div className="relative mt-3 pt-2 border-t border-gray-100">
           {/* Nutritional Values */}
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-600">
@@ -158,10 +176,27 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             </span>
           </div>
 
+          {/* Health indicators - new section */}
+          {meal.nutritionalInfo.glycemicIndex !== undefined && (
+            <div className="mt-2 flex justify-between text-xs">
+              <span className="text-gray-600">
+                GI: {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
+              </span>
+              <span className="text-gray-600">
+                GL: {meal.nutritionalInfo.glycemicLoad || 0}
+              </span>
+              {meal.nutritionalInfo.fiber > 0 && (
+                <span className="text-gray-600">
+                  Fiber: {meal.nutritionalInfo.fiber}g
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Optional Health Benefits Preview */}
           {recommendation.healthBenefits &&
             recommendation.healthBenefits.length > 0 && (
-              <div className="mt-1 text-xs text-gray-500 truncate">
+              <div className="mt-2 text-xs text-gray-500 truncate">
                 {recommendation.healthBenefits[0]}
               </div>
             )}
