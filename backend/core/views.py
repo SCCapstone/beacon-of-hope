@@ -12,11 +12,12 @@ import logging
 
 import json
 
-from .bandit_helpers import (
+from .recommendation_helpers import (
     configure_bandit,
     train_bandit,
     test_bandit,
     gen_bandit_rec,
+    calculate_goodness,
 )
 from .firebase import (
     get_beverages,
@@ -146,14 +147,19 @@ def random_recommendation(request: HttpRequest):
         }
 
         # save meal plan to firebase
+
         try:
             for date, day_plan in meal_plan["days"].items():
                 day_plan["user_id"] = user_id
                 day_plan["meal_plan_id"] = meal_plan["_id"]
-                add_dayplan(user_id, date, day_plan)
 
-            add_meal_plan(user_id, meal_plan)
+                msg, status = add_dayplan(user_id, date, day_plan)
+                if status != 200:
+                    print(msg)
 
+            msg, status = add_meal_plan(user_id, meal_plan)
+            if status != 200:
+                print(msg)
             return JsonResponse(meal_plan, status=200)
         except Exception as e:
             print(
@@ -253,12 +259,18 @@ def bandit_recommendation(request: HttpRequest):
                 status=500,
             )
 
+        # import pdb
+        # pdb.set_trace()
+        scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
+        meal_plan["scores"] = scores
         try:
             # save day plans to firebase
             for date, day_plan in meal_plan["days"].items():
                 day_plan["user_id"] = user_id
                 day_plan["meal_plan_id"] = meal_plan["_id"]
-                add_dayplan(user_id, date, day_plan)
+                msg, status = add_dayplan(user_id, date, day_plan)
+                if status != 200:
+                    print(msg)
 
             # save meal plan to firebase
             add_meal_plan(user_id, meal_plan)

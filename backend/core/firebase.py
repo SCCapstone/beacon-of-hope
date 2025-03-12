@@ -2,6 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from functools import cache
 from typing import List
+import traceback
 
 # Path to  service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
@@ -376,15 +377,15 @@ def add_dayplan(user_id, date, day_plan):
             return (update_res, update_status)
 
         # save the user's dayplan
+        # print(day_plan)
         add_res, add_status = add_document("day_plans", day_plan["_id"], day_plan)
         if add_status != 200:
             return (add_res, add_status)
 
         return ("Day Plan saved successfully", 200)
     except Exception as e:
-        print("Oh no")
+        print(f"oh:{e}")
         return (f"There was an issue saving the day plan: {e}", 500)
-        ...
 
 
 """Object deletion functions"""
