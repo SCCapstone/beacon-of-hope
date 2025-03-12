@@ -9,7 +9,7 @@ import {
   VisualizationLevel,
   MealRecommendation,
 } from "./types";
-// import { LevelSelector } from "./components/LevelSelector";
+import { LevelSelector } from "./components/LevelSelector";
 import { FilterPanel } from "./components/FilterPanel";
 import { MealView } from "./components/MealView";
 import { FoodView } from "./components/FoodView";
@@ -510,13 +510,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 </svg>
               </motion.button>
               {/* Divider */}
-              {/* <div className="h-8 w-px bg-gray-200 mr-4"></div> */}
+              <div className="h-8 w-px bg-gray-200 mr-4"></div>
 
               {/* Level Selector */}
-              {/* <LevelSelector
+              <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={setCurrentLevel}
-              />  */}
+              /> 
             </div>
 
             {/* Right side - Week Selector */}
