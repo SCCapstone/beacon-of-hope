@@ -4,6 +4,7 @@ import { DayMeals, Meal } from "../types";
 import { format, isSameDay, addDays, subDays } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
+import { FoodTypeIcon } from "./FoodTypeIcon";
 
 interface MealViewProps {
   weekData: DayMeals[];
@@ -347,7 +348,7 @@ const organizeMealsIntoBins = useCallback(
                                 </div>
                               </div>
                               
-                              {/* Food items in the meal - new section */}
+                              {/* Food items in the meal with icons */}
                               {meal.foods.length > 0 && (
                                 <div className="mt-3 pt-2 border-t border-gray-100">
                                   <h4 className="text-xs font-medium text-gray-700 mb-2">Includes:</h4>
@@ -357,7 +358,13 @@ const organizeMealsIntoBins = useCallback(
                                         key={food.id}
                                         className="flex items-center justify-between text-xs"
                                       >
-                                        <span className="text-gray-800">{food.name}</span>
+                                        <div className="flex items-center">
+                                          <FoodTypeIcon 
+                                            type={food.type} 
+                                            className="w-4 h-4 mr-1.5 text-gray-600" 
+                                          />
+                                          <span className="text-gray-800">{food.name}</span>
+                                        </div>
                                         <span className="text-gray-500 text-xs">{food.type.replace('_', ' ')}</span>
                                       </div>
                                     ))}

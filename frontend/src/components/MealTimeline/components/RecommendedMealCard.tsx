@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { MealRecommendation } from "../types";
+import { FoodTypeIcon } from "./FoodTypeIcon";
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
@@ -124,7 +125,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </div>
         </div>
 
-        {/* Food items in the meal */}
+        {/* Food items in the meal with icons*/}
         {meal.foods.length > 0 && (
           <div className="mt-3 pt-2 border-t border-gray-100 flex-grow">
             <h4 className="text-xs font-medium text-gray-700 mb-1.5">Includes:</h4>
@@ -134,7 +135,13 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
                   key={food.id}
                   className="flex items-center justify-between text-xs"
                 >
-                  <span className="text-gray-800">{food.name}</span>
+                  <div className="flex items-center">
+                    <FoodTypeIcon 
+                      type={food.type} 
+                      className="w-4 h-4 mr-1.5 text-gray-600" 
+                    />
+                    <span className="text-gray-800">{food.name}</span>
+                  </div>
                   <span className="text-gray-500 text-xs">{food.type.replace('_', ' ')}</span>
                 </div>
               ))}
