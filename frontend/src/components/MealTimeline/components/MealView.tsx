@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from "react";
+import React, { useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
 import { format, isSameDay, addDays, subDays } from "date-fns";
@@ -73,75 +73,83 @@ export const MealView: React.FC<MealViewProps> = ({
   );
 
   // Organize meals into bins for each date
-const organizeMealsIntoBins = useCallback(
-  (date: Date) => {
-    const meals = getMealsForDate(date);
-    const recommendations = getRecommendationsForDate(date);
+  const organizeMealsIntoBins = useCallback(
+    (date: Date) => {
+      const meals = getMealsForDate(date);
+      const recommendations = getRecommendationsForDate(date);
 
-    // Sort all meals by time
-    const sortedMeals = [...meals].sort((a, b) => {
-      const timeA = a.time.split(":").map(Number);
-      const timeB = b.time.split(":").map(Number);
-      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-    });
+      // Sort all meals by time
+      const sortedMeals = [...meals].sort((a, b) => {
+        const timeA = a.time.split(":").map(Number);
+        const timeB = b.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-    // Sort all recommendations by time
-    const sortedRecommendations = [...recommendations].sort((a, b) => {
-      const timeA = a.meal.time.split(":").map(Number);
-      const timeB = b.meal.time.split(":").map(Number);
-      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-    });
+      // Sort all recommendations by time
+      const sortedRecommendations = [...recommendations].sort((a, b) => {
+        const timeA = a.meal.time.split(":").map(Number);
+        const timeB = b.meal.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-    // Create time slots for all items (meals and recommendations)
-    const allItems = [
-      ...sortedMeals.map(meal => ({ type: 'meal', item: meal, time: meal.time })),
-      ...sortedRecommendations.map(rec => ({ type: 'recommendation', item: rec, time: rec.meal.time }))
-    ].sort((a, b) => {
-      const timeA = a.time.split(":").map(Number);
-      const timeB = b.time.split(":").map(Number);
-      return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-    });
+      // Create time slots for all items (meals and recommendations)
+      const allItems = [
+        ...sortedMeals.map((meal) => ({
+          type: "meal",
+          item: meal,
+          time: meal.time,
+        })),
+        ...sortedRecommendations.map((rec) => ({
+          type: "recommendation",
+          item: rec,
+          time: rec.meal.time,
+        })),
+      ].sort((a, b) => {
+        const timeA = a.time.split(":").map(Number);
+        const timeB = b.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-    // Check if we need more bins than currently available
-    if (allItems.length > mealBinNames.length) {
-      // Request parent component to update bin names
-      const newBinNames = [...mealBinNames];
-      while (newBinNames.length < allItems.length) {
-        newBinNames.push(`Meal ${newBinNames.length + 1}`);
+      // Check if we need more bins than currently available
+      if (allItems.length > mealBinNames.length) {
+        // Request parent component to update bin names
+        const newBinNames = [...mealBinNames];
+        while (newBinNames.length < allItems.length) {
+          newBinNames.push(`Meal ${newBinNames.length + 1}`);
+        }
+        // This will trigger a re-render with the updated bin names
+        onMealBinUpdate(newBinNames);
       }
-      // This will trigger a re-render with the updated bin names
-      onMealBinUpdate(newBinNames);
-    }
 
-    // Create bins based on meal times
-    const bins: Record<
-      string,
-      { meals: Meal[]; recommendations: MealRecommendation[] }
-    > = {};
+      // Create bins based on meal times
+      const bins: Record<
+        string,
+        { meals: Meal[]; recommendations: MealRecommendation[] }
+      > = {};
 
-    // Initialize bins with empty arrays
-    mealBinNames.forEach((name) => {
-      bins[name] = { meals: [], recommendations: [] };
-    });
+      // Initialize bins with empty arrays
+      mealBinNames.forEach((name) => {
+        bins[name] = { meals: [], recommendations: [] };
+      });
 
-    // Distribute items to bins, ensuring one item per bin
-    allItems.forEach((item, index) => {
-      // Skip if we've run out of bins (this shouldn't happen after the fix)
-      if (index >= mealBinNames.length) return;
-      
-      const binName = mealBinNames[index];
-      
-      if (item.type === 'meal') {
-        bins[binName].meals = [item.item as Meal];
-      } else {
-        bins[binName].recommendations = [item.item as MealRecommendation];
-      }
-    });
+      // Distribute items to bins, ensuring one item per bin
+      allItems.forEach((item, index) => {
+        // Skip if we've run out of bins (this shouldn't happen after the fix)
+        if (index >= mealBinNames.length) return;
 
-    return bins;
-  },
-  [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
-);
+        const binName = mealBinNames[index];
+
+        if (item.type === "meal") {
+          bins[binName].meals = [item.item as Meal];
+        } else {
+          bins[binName].recommendations = [item.item as MealRecommendation];
+        }
+      });
+
+      return bins;
+    },
+    [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
+  );
 
   const isMealSelected = (meal: Meal) => {
     return selectedMeal?.id === meal.id;
@@ -235,6 +243,164 @@ const organizeMealsIntoBins = useCallback(
     );
   };
 
+  // Function to render a meal card
+  const renderMealCard = (meal: Meal) => {
+    return (
+      <motion.div
+        key={`meal-${meal.id}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className={`meal-card p-4 mb-4 rounded-lg cursor-pointer
+          bg-white shadow-sm hover:shadow transition-all duration-300
+          ${
+            isMealSelected(meal)
+              ? "ring-2 ring-blue-500"
+              : "border border-gray-200"
+          }
+          flex flex-col h-full`}
+        onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+      >
+        {/* Header with meal name and time */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
+              {meal.name}
+            </h3>
+            <div className="flex items-center mt-1 space-x-2">
+              <span className="text-xs text-gray-500">{meal.time}</span>
+              {meal.diabetesFriendly && (
+                <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                  DF
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+            {meal.nutritionalInfo.calories} cal
+          </div>
+        </div>
+
+        {/* Macronutrient bars - visual representation */}
+        <div className="mt-3 space-y-2">
+          {/* Carbs bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Carbs</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.carbs}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.carbs, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Protein bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Protein</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.protein}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-purple-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.protein * 2, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Fat bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Fat</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.fat}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.fat * 2, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Food items in the meal */}
+        {meal.foods.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100 flex-grow">
+            <h4 className="text-xs font-medium text-gray-700 mb-2">
+              Includes:
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {meal.foods.map((food) => (
+                <div
+                  key={food.id}
+                  className="flex items-center justify-between bg-gray-50 px-2 py-1.5 rounded text-xs"
+                >
+                  <div className="flex items-center">
+                    <FoodTypeIcon
+                      type={food.type}
+                      className="w-4 h-4 mr-1.5 text-gray-600"
+                    />
+                    <span className="text-gray-800">{food.name}</span>
+                  </div>{" "}
+                  <span className="text-gray-500 capitalize">
+                    {food.type.replace("_", " ")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Health indicators */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="grid grid-cols-3 gap-2">
+            {meal.nutritionalInfo.glycemicIndex !== undefined && (
+              <div className="bg-blue-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">GI</div>
+                <div className="text-sm font-medium text-blue-700">
+                  {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
+                </div>
+              </div>
+            )}
+
+            {meal.nutritionalInfo.glycemicLoad !== undefined && (
+              <div className="bg-green-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">GL</div>
+                <div className="text-sm font-medium text-green-700">
+                  {meal.nutritionalInfo.glycemicLoad}
+                </div>
+              </div>
+            )}
+
+            {meal.nutritionalInfo.fiber > 0 && (
+              <div className="bg-purple-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">Fiber</div>
+                <div className="text-sm font-medium text-purple-700">
+                  {meal.nutritionalInfo.fiber}g
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {/* Fixed header for meal bins */}
@@ -296,102 +462,7 @@ const organizeMealsIntoBins = useCallback(
                       >
                         {/* Meals in this bin */}
                         <AnimatePresence>
-                          {bin.meals.map((meal) => (
-                            <motion.div
-                              key={`meal-${meal.id}`}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              className={`meal-card p-4 mb-4 rounded-lg cursor-pointer
-                                bg-white shadow-sm hover:shadow transition-all duration-300
-                                ${
-                                  isMealSelected(meal)
-                                    ? "ring-2 ring-blue-500"
-                                    : "border border-gray-200"
-                                }
-                                flex-grow flex flex-col`}
-                              onClick={() =>
-                                onMealSelect(isMealSelected(meal) ? null : meal)
-                              }
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
-                                    {meal.name}
-                                  </h3>
-                                  <div className="flex items-center mt-1 space-x-2">
-                                    <span className="text-xs text-gray-500">
-                                      {meal.time}
-                                    </span>
-                                    {meal.diabetesFriendly && (
-                                      <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
-                                        DF
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {meal.nutritionalInfo.calories} cal
-                                </div>
-                              </div>
-
-                              {/* Additional meal details */}
-                              <div className="mt-2 pt-2 border-t border-gray-100">
-                                <div className="flex justify-between text-xs text-gray-600">
-                                  <span>
-                                    Carbs: {meal.nutritionalInfo.carbs}g
-                                  </span>
-                                  <span>
-                                    Protein: {meal.nutritionalInfo.protein}g
-                                  </span>
-                                  <span>Fat: {meal.nutritionalInfo.fat}g</span>
-                                </div>
-                              </div>
-                              
-                              {/* Food items in the meal with icons */}
-                              {meal.foods.length > 0 && (
-                                <div className="mt-3 pt-2 border-t border-gray-100">
-                                  <h4 className="text-xs font-medium text-gray-700 mb-2">Includes:</h4>
-                                  <div className="space-y-1.5">
-                                    {meal.foods.map((food) => (
-                                      <div 
-                                        key={food.id}
-                                        className="flex items-center justify-between text-xs"
-                                      >
-                                        <div className="flex items-center">
-                                          <FoodTypeIcon 
-                                            type={food.type} 
-                                            className="w-4 h-4 mr-1.5 text-gray-600" 
-                                          />
-                                          <span className="text-gray-800">{food.name}</span>
-                                        </div>
-                                        <span className="text-gray-500 text-xs">{food.type.replace('_', ' ')}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Health indicators - new section */}
-                              {meal.nutritionalInfo.glycemicIndex !== undefined && (
-                                <div className="mt-3 pt-2 border-t border-gray-100">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-gray-600">
-                                      GI: {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
-                                    </span>
-                                    <span className="text-gray-600">
-                                      GL: {meal.nutritionalInfo.glycemicLoad || 0}
-                                    </span>
-                                    {meal.nutritionalInfo.fiber > 0 && (
-                                      <span className="text-gray-600">
-                                        Fiber: {meal.nutritionalInfo.fiber}g
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </motion.div>
-                          ))}
+                          {bin.meals.map((meal) => renderMealCard(meal))}
                         </AnimatePresence>
 
                         {/* Recommendations in this bin */}

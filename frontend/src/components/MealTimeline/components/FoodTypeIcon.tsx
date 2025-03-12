@@ -1,22 +1,25 @@
 import React from "react";
 
 interface FoodTypeIconProps {
-  type: 'main_course' | 'side_dish' | 'beverage' | 'dessert' | 'snack';
+  type: "main_course" | "side_dish" | "beverage" | "dessert" | "snack";
   className?: string;
 }
 
-export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({ type, className = "" }) => {
+export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({
+  type,
+  className = "",
+}) => {
   // Return the appropriate icon based on food type
   switch (type) {
-    case 'main_course':
+    case "main_course":
       return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
           {/* Fork and knife icon */}
           <path d="M11 3H13V21H11V3ZM5 3C5.55 3 6 3.45 6 4V11C6 12.1 5.1 13 4 13H3V21H1V13H0V4C0 3.45 0.45 3 1 3H5ZM3 11V5H2V11H3ZM5 5H4V11H5V5ZM18 3V7H20C21.1 7 22 7.9 22 9V13C22 14.1 21.1 15 20 15H18V21H16V3H18ZM20 13V9H18V13H20Z" />
         </svg>
       );
-    
-    case 'side_dish':
+
+    case "side_dish":
       return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
           {/* Bowl icon */}
@@ -24,7 +27,7 @@ export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({ type, className = ""
         </svg>
       );
 
-    case 'beverage':
+    case "beverage":
       return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
           {/* Glass/cup icon */}
@@ -32,7 +35,7 @@ export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({ type, className = ""
         </svg>
       );
 
-    case 'dessert':
+    case "dessert":
       return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
           {/* Cake/dessert icon */}
@@ -40,7 +43,7 @@ export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({ type, className = ""
         </svg>
       );
 
-    case 'snack':
+    case "snack":
       return (
         <svg className={className} viewBox="0 0 24 24" fill="currentColor">
           {/* Snack/cookie icon */}
@@ -49,6 +52,21 @@ export const FoodTypeIcon: React.FC<FoodTypeIconProps> = ({ type, className = ""
       );
 
     default:
-      return null;
+      return (
+        <svg
+          className={className}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+          />
+        </svg>
+      );
   }
 };
