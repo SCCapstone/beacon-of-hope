@@ -109,7 +109,6 @@ poetry run coverage report
         "meal_configs": [
             {
                 "meal_name": "breakfast",
-                "meal_time": "8:00am",
                 "beverage": true,
                 "main_course": true,
                 "side": false,
@@ -117,7 +116,6 @@ poetry run coverage report
             },
             {
                 "meal_name": "lunch",
-                "meal_time": "12:00pm",
                 "beverage": true,
                 "main_course": true,
                 "side": true,
@@ -136,32 +134,95 @@ poetry run coverage report
    - Response:
       - (200) returns a generated meal plan in JSON
    ```json
-   {
-    "_id": "507f191e810c19729de860ea",
-    "user_id": "674f7d4c5b4425639bef8cd6",
-    "name": "Generated Meal Plan",
-    "start_date": "2024-12-04T08:00:00Z",
-    "end_date": "2024-12-07T08:00:00Z",
-    "days": [
-        {
-            "day": 0,
-            "meals": [
-                {
-                    "_id": "5a934e000102030405000000",
-                    "meal_time": "8:00am",
-                    "beverage": "10", // this is a meal id, use <backend_ip>/beacon/get-beverage-info/<str:bev_id>
-                    "main_course": "25", // use <backend_ip>/beacon/get-recipe-info/<str:food_id>
-                    "side_dish": null,
-                    "dessert": null
-                }
-            ]
-        }
-    ],
-    "status": "active",
-    "tags": ["random", "generated"],
-    "created_at": "2024-12-04T12:00:00Z",
-    "updated_at": "2024-12-04T12:00:00Z"
+    {
+    "_id": "67d242226d9fb9f7510444fc",
+    "user_id": "67c149e417717376a4ab1dff",
+    "name": "User Meal Plan",
+    "days": {
+      "2025-03-12": {
+        "_id": "67d242226d9fb9f7510444fa",
+        "meals": [
+          {
+            "_id": "67d242226d9fb9f7510444f8",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "main_course": "26",
+              "side": "28",
+              "dessert": "22",
+              "beverage": "15"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          },
+          {
+            "_id": "67d242226d9fb9f7510444f9",
+            "meal_name": "lunch",
+            "meal_types": {
+              "main_course": "26",
+              "dessert": "22"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          }
+        ],
+        "user_id": "67c149e417717376a4ab1dff",
+        "meal_plan_id": "67d242226d9fb9f7510444fc"
+      },
+      "2025-03-13": {
+        "_id": "67d242226d9fb9f7510444fb",
+        "meals": [
+          {
+            "_id": "67d242226d9fb9f7510444f8",
+            "meal_name": "breakfast",
+            "meal_types": {
+              "main_course": "26",
+              "side": "28",
+              "dessert": "22",
+              "beverage": "15"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          },
+          {
+            "_id": "67d242226d9fb9f7510444f9",
+            "meal_name": "lunch",
+            "meal_types": {
+              "main_course": "26",
+              "dessert": "22"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          }
+        ],
+        "user_id": "67c149e417717376a4ab1dff",
+        "meal_plan_id": "67d242226d9fb9f7510444fc"
+      }
+    },
+    "scores": {
+      "variety_scores": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "coverage_scores": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "constraint_scores": [
+        0.6666666666666667,
+        0.6666666666666667,
+        0.6666666666666667,
+        0.6666666666666667
+      ]
     }
+  }
     ```
       - (400) Missing or invalid input
       - (500) Internal Server error
@@ -186,7 +247,6 @@ poetry run coverage report
         "meal_configs": [
             {
                 "meal_name": "breakfast",
-                "meal_time": "8:00am",
                 "beverage": true,
                 "main_course": true,
                 "side": false,
@@ -194,7 +254,6 @@ poetry run coverage report
             },
             {
                 "meal_name": "lunch",
-                "meal_time": "12:00pm",
                 "beverage": true,
                 "main_course": true,
                 "side": true,
@@ -209,38 +268,94 @@ poetry run coverage report
       - (200) returns a generated meal plan in JSON
       - Note that the numbers that are the values of keys `beverage`, `main_course`, etc are item ids. For more information about beverages, use the `get-beverage-info` endpoint and for all other items' information use the `get-recipe-info` endpoint
    ```json
-   {
-    "_id": "67c231ba88fa8471eed74c30",
+    {
+    "_id": "67d242226d9fb9f7510444fc",
     "user_id": "67c149e417717376a4ab1dff",
     "name": "User Meal Plan",
-    "days":
-      {
-        "2025-02-28": [
-          {"_id": "67c231ba88fa8471eed74c2e",
-            "meal_time": "8:00am",
+    "days": {
+      "2025-03-12": {
+        "_id": "67d242226d9fb9f7510444fa",
+        "meals": [
+          {
+            "_id": "67d242226d9fb9f7510444f8",
             "meal_name": "breakfast",
             "meal_types": {
-              "beverage": "18",
-              "main_course": "27",
-              "side_dish": "1",
-              "dessert": "21"
-            }
+              "main_course": "26",
+              "side": "28",
+              "dessert": "22",
+              "beverage": "15"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          },
+          {
+            "_id": "67d242226d9fb9f7510444f9",
+            "meal_name": "lunch",
+            "meal_types": {
+              "main_course": "26",
+              "dessert": "22"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
           }
         ],
-        "2025-03-01": [
+        "user_id": "67c149e417717376a4ab1dff",
+        "meal_plan_id": "67d242226d9fb9f7510444fc"
+      },
+      "2025-03-13": {
+        "_id": "67d242226d9fb9f7510444fb",
+        "meals": [
           {
-            "_id": "67c231ba88fa8471eed74c2f",
-            "meal_time": "8:00am",
+            "_id": "67d242226d9fb9f7510444f8",
             "meal_name": "breakfast",
             "meal_types": {
-              "beverage": "5",
-              "main_course": "50",
-              "side_dish": "33",
-              "dessert": "34"
-            }
+              "main_course": "26",
+              "side": "28",
+              "dessert": "22",
+              "beverage": "15"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
+          },
+          {
+            "_id": "67d242226d9fb9f7510444f9",
+            "meal_name": "lunch",
+            "meal_types": {
+              "main_course": "26",
+              "dessert": "22"
+            },
+            "variety_score": 1.0,
+            "item_coverage_score": 0.5,
+            "nutritional_constraint_score": 0.6666666666666667
           }
-        ]
+        ],
+        "user_id": "67c149e417717376a4ab1dff",
+        "meal_plan_id": "67d242226d9fb9f7510444fc"
       }
+    },
+    "scores": {
+      "variety_scores": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "coverage_scores": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "constraint_scores": [
+        0.6666666666666667,
+        0.6666666666666667,
+        0.6666666666666667,
+        0.6666666666666667
+      ]
+    }
   }
     ```
       - (400) Missing or invalid input
@@ -266,7 +381,6 @@ poetry run coverage report
             "meals": [
                 {
                     "_id": PyMongo ObjectId,
-                    "meal_time": str,
                     "beverage": str,
                     "main_course": str,
                     "side_dish": str,
@@ -302,7 +416,6 @@ poetry run coverage report
             "meals": [
                 {
                     "_id": PyMongo ObjectId,
-                    "meal_time": str,
                     "beverage": str,
                     "main_course": str,
                     "side_dish": str,
@@ -350,7 +463,6 @@ poetry run coverage report
                 "main_course": "41",
                 "side": "41"
               },
-              "meal_time": "8:00am",
               "meal_name": "breakfast",
               "_id": "67c39f266c4433c982d7c3be"
             }
@@ -422,7 +534,6 @@ poetry run coverage report
               "meal_configs": [
                   {
                       "meal_name": str,
-                      "meal_time": str,
                       "beverage": bool,
                       "main_course": bool,
                       "side": bool,
@@ -480,7 +591,6 @@ poetry run coverage report
               "meal_configs": [
                   {
                       "meal_name": str,
-                      "meal_time": str,
                       "beverage": bool,
                       "main_course": bool,
                       "side": bool,
