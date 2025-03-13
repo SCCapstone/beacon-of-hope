@@ -1,5 +1,4 @@
 # TODO Fix to not use csrf_exempt for safety purposes
-# TODO ensure all status codes are accurate
 from django.shortcuts import render
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import UserPreference, MenuItem
