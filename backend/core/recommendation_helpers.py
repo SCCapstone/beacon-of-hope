@@ -569,7 +569,7 @@ def gen_bandit_rec(
         meal = {
             "_id": str(ObjectId()),  # Unique ID for the meal
             "meal_name": meal_config["meal_name"],
-            "meal_time": meal_config.get("meal_time", ""),
+            # "meal_time": meal_config.get("meal_time", ""),
             "meal_types": meal_components,
         }
         meal_list.append(meal)

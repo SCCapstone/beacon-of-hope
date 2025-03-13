@@ -124,7 +124,7 @@ def random_recommendation(request: HttpRequest):
                     meal_types["dessert"] = random.choice(list(food_items.keys()))
                 meal = {
                     "_id": str(ObjectId()),  # Unique ID for the meal
-                    "meal_time": meal_config.get("meal_time", ""),
+                    # "meal_time": meal_config.get("meal_time", ""),
                     "meal_name": meal_config.get("meal_name", ""),
                     "meal_types": meal_types,
                 }
@@ -376,7 +376,7 @@ def create_user(request: HttpRequest):
                 "meal_configs": [
                     {
                         "meal_name": "breakfast",
-                        "meal_time": "8:00am",
+                        # "meal_time": "8:00am",
                         "beverage": True,
                         "main_course": True,
                         "side": True,
