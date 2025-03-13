@@ -8,7 +8,11 @@ import subprocess
 from bson import ObjectId
 from django.conf import settings
 from datetime import datetime, timedelta
-
+from .metrics import (
+    food_variety_score,
+    food_item_coverage_score,
+    nutritional_constraint_score,
+)
 from typing import Dict, List
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
@@ -542,7 +546,6 @@ def gen_bandit_rec(
     ]
 
     # get dairy, meat, and nut opinions for the particular user
-    print(user_preferences)
     user_opinions = list(user_preferences.values())
     user = all_users_opinions.index(user_opinions)
 
@@ -566,7 +569,7 @@ def gen_bandit_rec(
         meal = {
             "_id": str(ObjectId()),  # Unique ID for the meal
             "meal_name": meal_config["meal_name"],
-            "meal_time": meal_config.get("meal_time", ""),
+            # "meal_time": meal_config.get("meal_time", ""),
             "meal_types": meal_components,
         }
         meal_list.append(meal)
@@ -607,3 +610,42 @@ def gen_bandit_rec(
                 ]
 
     return days
+
+
+def calculate_goodness(
+    meal_plan: Dict, meal_configs: List[Dict], user_preferences: Dict[str, int]
+):
+    """Given meal plan calculates 3 scores for each meal: variety, item coverage, and nutritional constraints (see metrics.py for more details)
+    Edits meal_plan dictionary parameter by reference, inserting 3 new keys for 3 scores for each meal
+    Also edits 3 lists of 3 scores, which can be used for further statistical analysis
+    """
+
+    meal_plan: Dict = meal_plan["days"]
+
+    variety_scores = []
+    coverage_scores = []
+    constraint_scores = []
+
+    for day_meals in meal_plan.values():
+        day_meals = day_meals["meals"]
+        for meal, meal_config in zip(day_meals, meal_configs):
+            # meal = meal["meal_types"]
+
+            meal_dup_score = food_variety_score(meal["meal_types"])
+            meal["variety_score"] = meal_dup_score
+            variety_scores.append(meal_dup_score)
+
+            meal_item_coverage_score = food_item_coverage_score(meal, meal_config)
+            meal["item_coverage_score"] = meal_item_coverage_score
+            coverage_scores.append(meal_item_coverage_score)
+
+            meal_nutritional_constraint_score = nutritional_constraint_score(
+                meal, user_preferences
+            )
+            meal["nutritional_constraint_score"] = meal_nutritional_constraint_score
+            constraint_scores.append(meal_nutritional_constraint_score)
+    return {
+        "variety_scores": variety_scores,
+        "coverage_scores": coverage_scores,
+        "constraint_scores": constraint_scores,
+    }
