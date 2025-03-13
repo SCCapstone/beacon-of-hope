@@ -3,17 +3,22 @@ import { motion } from "framer-motion";
 import { FilterOptions, UserPreferences } from "../types";
 import { MEAL_TYPES, COLOR_SCHEMES, NUTRITIONAL_RANGES } from "../constants";
 import { Slider } from "./Slider";
+import { MealBinConfigurator } from "./MealBinConfigurator";
 
 interface FilterPanelProps {
   filters: FilterOptions;
   userPreferences: UserPreferences;
   onFilterChange: (filters: FilterOptions) => void;
+  mealBinNames: string[];
+  onMealBinNamesUpdate: (newNames: string[]) => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   userPreferences,
   onFilterChange,
+  mealBinNames,
+  onMealBinNamesUpdate,
 }) => {
   const handleFilterChange = (key: keyof FilterOptions, value: any) => {
     onFilterChange({
@@ -44,6 +49,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
   return (
     <div className="p-4 space-y-6">
+      <MealBinConfigurator
+        mealBinNames={mealBinNames}
+        onUpdate={onMealBinNamesUpdate}
+      />
+
       {/* Section: Meal Types */}
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Meal Types</h3>

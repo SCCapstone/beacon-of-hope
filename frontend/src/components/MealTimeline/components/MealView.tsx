@@ -1,10 +1,10 @@
-import React, { useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
+import React, { useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
-import { TIME_SLOTS } from "../constants";
-import { format, addDays, isSameDay, subDays } from "date-fns";
+import { format, isSameDay, addDays, subDays } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
+import { FoodTypeIcon } from "./FoodTypeIcon";
 
 interface MealViewProps {
   weekData: DayMeals[];
@@ -14,6 +14,9 @@ interface MealViewProps {
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
   selectedRecommendation: MealRecommendation | null;
+  onDateChange: (date: Date) => void;
+  mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
   isLoading?: boolean;
 }
 
@@ -25,8 +28,13 @@ export const MealView: React.FC<MealViewProps> = ({
   selectedMeal,
   onRecommendationSelect,
   selectedRecommendation,
+  onDateChange,
+  mealBinNames,
+  onMealBinUpdate,
   isLoading = false,
 }) => {
+  const mainAreaRef = useRef<HTMLDivElement>(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -38,256 +46,485 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   }
 
-  // Generate 3-day dates centered on selected date
-  const threeDayDates = useMemo(() => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setHours(0, 0, 0, 0);
+  // Get adjacent dates
+  const previousDate = subDays(selectedDate, 1);
+  const nextDate = addDays(selectedDate, 1);
 
-    return [subDays(currentDate, 1), currentDate, addDays(currentDate, 1)];
-  }, [selectedDate]);
-
-  console.log(
-    "MealView rendering with dates:",
-    threeDayDates.map((d) => format(d, "yyyy-MM-dd")),
-    "and data for dates:",
-    weekData.map((d) => format(new Date(d.date), "yyyy-MM-dd"))
-  );
-
+  // Get meals for a specific date
   const getMealsForDate = useCallback(
-    (targetDate: Date): { meals: Meal[] } => {
+    (targetDate: Date): Meal[] => {
       const dayData = weekData.find((day) =>
         isSameDay(new Date(day.date), targetDate)
       );
-
-      return {
-        meals: dayData?.meals || [],
-      };
+      return dayData?.meals || [];
     },
     [weekData]
   );
 
-  const renderEmptyDayIndicator = (date: Date) => {
-    const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
-
-    if (!dayData?.meals.length) {
-      return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-400 text-sm">No meals scheduled</div>
-        </div>
+  // Get recommendations for a specific date
+  const getRecommendationsForDate = useCallback(
+    (targetDate: Date): MealRecommendation[] => {
+      const dayRecs = recommendationData.find((day) =>
+        isSameDay(new Date(day.date), targetDate)
       );
-    }
-    return null;
-  };
+      return dayRecs?.recommendations || [];
+    },
+    [recommendationData]
+  );
 
-  const getDayData = (targetDate: Date) => {
-    return weekData.find((day) => isSameDay(new Date(day.date), targetDate));
-  };
+  // Organize meals into bins for each date
+  const organizeMealsIntoBins = useCallback(
+    (date: Date) => {
+      const meals = getMealsForDate(date);
+      const recommendations = getRecommendationsForDate(date);
 
-  const getRecommendationsForDate = (
-    targetDate: Date
-  ): MealRecommendation[] => {
-    const dayRecs = recommendationData.find((day) =>
-      isSameDay(new Date(day.date), targetDate)
-    );
-    return dayRecs?.recommendations || [];
-  };
+      // Sort all meals by time
+      const sortedMeals = [...meals].sort((a, b) => {
+        const timeA = a.time.split(":").map(Number);
+        const timeB = b.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-  const getTimePosition = (time: string): string => {
-    const [hours, minutes] = time.split(":").map(Number);
-    const slotsFromStart = hours - 6;
-    const slotHeight = 100;
+      // Sort all recommendations by time
+      const sortedRecommendations = [...recommendations].sort((a, b) => {
+        const timeA = a.meal.time.split(":").map(Number);
+        const timeB = b.meal.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-    // Calculate base position from hours
-    const basePosition = slotsFromStart * slotHeight;
+      // Create time slots for all items (meals and recommendations)
+      const allItems = [
+        ...sortedMeals.map((meal) => ({
+          type: "meal",
+          item: meal,
+          time: meal.time,
+        })),
+        ...sortedRecommendations.map((rec) => ({
+          type: "recommendation",
+          item: rec,
+          time: rec.meal.time,
+        })),
+      ].sort((a, b) => {
+        const timeA = a.time.split(":").map(Number);
+        const timeB = b.time.split(":").map(Number);
+        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+      });
 
-    // Add partial position from minutes (80px per hour = 1.333... px per minute)
-    const minutePosition = (minutes / 60) * slotHeight;
+      // Check if we need more bins than currently available
+      if (allItems.length > mealBinNames.length) {
+        // Request parent component to update bin names
+        const newBinNames = [...mealBinNames];
+        while (newBinNames.length < allItems.length) {
+          newBinNames.push(`Meal ${newBinNames.length + 1}`);
+        }
+        // This will trigger a re-render with the updated bin names
+        onMealBinUpdate(newBinNames);
+      }
 
-    return `${basePosition + minutePosition}px`;
-  };
+      // Create bins based on meal times
+      const bins: Record<
+        string,
+        { meals: Meal[]; recommendations: MealRecommendation[] }
+      > = {};
+
+      // Initialize bins with empty arrays
+      mealBinNames.forEach((name) => {
+        bins[name] = { meals: [], recommendations: [] };
+      });
+
+      // Distribute items to bins, ensuring one item per bin
+      allItems.forEach((item, index) => {
+        // Skip if we've run out of bins (this shouldn't happen after the fix)
+        if (index >= mealBinNames.length) return;
+
+        const binName = mealBinNames[index];
+
+        if (item.type === "meal") {
+          bins[binName].meals = [item.item as Meal];
+        } else {
+          bins[binName].recommendations = [item.item as MealRecommendation];
+        }
+      });
+
+      return bins;
+    },
+    [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
+  );
 
   const isMealSelected = (meal: Meal) => {
+    return selectedMeal?.id === meal.id;
+  };
+
+  // Render a collapsed date row
+  const renderCollapsedDateRow = (date: Date, position: "top" | "bottom") => {
+    const bins = organizeMealsIntoBins(date);
+
     return (
-      selectedMeal?.id === meal.id &&
-      selectedMeal?.name === meal.name &&
-      selectedMeal?.time === meal.time
+      <div
+        className={`
+          flex h-16 cursor-pointer transition-all duration-300
+          ${
+            position === "top"
+              ? "border-b-2 border-gray-300 bg-gray-100"
+              : "border-t-2 border-gray-300 bg-gray-100"
+          }
+          hover:bg-gray-200 relative
+        `}
+        onClick={() => onDateChange(date)}
+      >
+        {/* Navigation indicator */}
+        <div className="absolute inset-y-0 left-0 w-1 bg-blue-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+        {/* Date cell with navigation icon */}
+        <div className="w-32 flex-shrink-0 p-2 font-medium text-gray-700 flex items-center">
+          <div className="mr-2">
+            {position === "top" ? (
+              <svg
+                className="w-4 h-4 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 10l7-7m0 0l7 7m-7-7v18"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-4 h-4 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            )}
+          </div>
+          <div>
+            <div className="text-sm">{format(date, "EEE, MMM d")}</div>
+            <div className="text-xs text-gray-500">{format(date, "yyyy")}</div>
+          </div>
+        </div>
+
+        {/* Meal bins - simplified view */}
+        {mealBinNames.map((binName) => {
+          const bin = bins[binName];
+          const totalItems = bin.meals.length + bin.recommendations.length;
+
+          return (
+            <div
+              key={`${date.toISOString()}-${binName}`}
+              className="flex-1 p-2 border-l flex items-center justify-center"
+            >
+              {totalItems > 0 ? (
+                <div className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  {totalItems} item{totalItems !== 1 ? "s" : ""}
+                </div>
+              ) : (
+                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Navigation hint text */}
+        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {position === "top" ? "Previous day" : "Next day"}
+        </div>
+      </div>
+    );
+  };
+
+  // Function to render a meal card
+  const renderMealCard = (meal: Meal) => {
+    return (
+      <motion.div
+        key={`meal-${meal.id}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className={`meal-card p-4 mb-4 rounded-lg cursor-pointer
+          bg-white shadow-sm hover:shadow transition-all duration-300
+          ${
+            isMealSelected(meal)
+              ? "ring-2 ring-blue-500"
+              : "border border-gray-200"
+          }
+          flex flex-col h-full`}
+        onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+      >
+        {/* Header with meal name and time */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
+              {meal.name}
+            </h3>
+            <div className="flex items-center mt-1 space-x-2">
+              <span className="text-xs text-gray-500">{meal.time}</span>
+              {meal.diabetesFriendly && (
+                <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                  DF
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
+            {meal.nutritionalInfo.calories} cal
+          </div>
+        </div>
+
+        {/* Macronutrient bars - visual representation */}
+        <div className="mt-3 space-y-2">
+          {/* Carbs bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Carbs</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.carbs}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.carbs, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Protein bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Protein</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.protein}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-purple-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.protein * 2, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Fat bar */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Fat</span>
+              <span className="text-gray-700 font-medium">
+                {meal.nutritionalInfo.fat}g
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-400 rounded-full"
+                style={{
+                  width: `${Math.min(meal.nutritionalInfo.fat * 2, 100)}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Food items in the meal */}
+        {meal.foods.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100 flex-grow">
+            <h4 className="text-xs font-medium text-gray-700 mb-2">
+              Includes:
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {meal.foods.map((food) => (
+                <div
+                  key={food.id}
+                  className="flex items-center justify-between bg-gray-50 px-2 py-1.5 rounded text-xs"
+                >
+                  <div className="flex items-center">
+                    <FoodTypeIcon
+                      type={food.type}
+                      className="w-4 h-4 mr-1.5 text-gray-600"
+                    />
+                    <span className="text-gray-800">{food.name}</span>
+                  </div>{" "}
+                  <span className="text-gray-500 capitalize">
+                    {food.type.replace("_", " ")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Health indicators */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="grid grid-cols-3 gap-2">
+            {meal.nutritionalInfo.glycemicIndex !== undefined && (
+              <div className="bg-blue-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">GI</div>
+                <div className="text-sm font-medium text-blue-700">
+                  {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
+                </div>
+              </div>
+            )}
+
+            {meal.nutritionalInfo.glycemicLoad !== undefined && (
+              <div className="bg-green-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">GL</div>
+                <div className="text-sm font-medium text-green-700">
+                  {meal.nutritionalInfo.glycemicLoad}
+                </div>
+              </div>
+            )}
+
+            {meal.nutritionalInfo.fiber > 0 && (
+              <div className="bg-purple-50 rounded p-1.5 text-center">
+                <div className="text-xs text-gray-500">Fiber</div>
+                <div className="text-sm font-medium text-purple-700">
+                  {meal.nutritionalInfo.fiber}g
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
     );
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* Fixed header for days */}
-      <div className="flex border-b bg-white z-20">
-        {/* Time column header */}
-        <div className="w-20 flex-shrink-0" />
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {/* Fixed header for meal bins */}
+      <div className="flex border-b bg-white z-20 sticky top-0">
+        {/* Date column header */}
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700">
+          Date
+        </div>
 
-        {/* Days headers */}
-        {threeDayDates.map((date) => (
-          <div key={date.toISOString()} className="relative flex-1">
-            {renderEmptyDayIndicator(date)}
-            <div className="text-sm font-medium text-gray-600">
-              {format(date, "EEEE")}
-            </div>
-            <div className="text-xs text-gray-500">{format(date, "MMM d")}</div>
+        {/* Meal bin headers */}
+        {mealBinNames.map((binName) => (
+          <div
+            key={binName}
+            className="flex-1 p-4 text-center font-medium text-gray-700 border-l"
+          >
+            {binName}
           </div>
         ))}
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="flex h-full">
-          {/* Time slots column */}
-          <div className="w-20 flex-shrink-0 bg-white z-10 border-r">
-            {TIME_SLOTS.map((time) => (
-              <div
-                key={time}
-                className="h-[100px] border-b border-gray-200 flex items-center justify-end pr-2"
-              >
-                <span className="text-sm text-gray-500">
-                  {format(new Date(`2000-01-01T${time}`), "h:mm a")}
-                </span>
-              </div>
-            ))}
-          </div>
+      {/* Previous day - collapsed row */}
+      <div className="flex-shrink-0">
+        {renderCollapsedDateRow(previousDate, "top")}
+      </div>
 
-          {/* Main grid area */}
-          <div className="flex-1 relative">
-            {/* Background grid */}
-            <div className="absolute inset-0">
-              {TIME_SLOTS.map((time) => (
-                <div key={time} className="flex h-[100px]">
-                  {threeDayDates.map((date) => {
-                    const dayData = getDayData(date);
-                    const isEmpty = dayData?.meals.length === 0 || false;
+      {/* Scrollable container for all three days */}
+      <div className="flex-1 overflow-auto bg-white">
+        <div className="min-h-full flex flex-col h-full">
+          {/* Main content area - current selected date */}
+          <div className="flex-grow overflow-auto bg-white" ref={mainAreaRef}>
+            <div className="h-full flex flex-col">
+              {/* Date header */}
+              <div className="bg-blue-50 p-4 border-b border-blue-200">
+                <div className="flex items-baseline">
+                  <h2 className="text-2xl font-bold text-blue-800">
+                    {format(selectedDate, "EEEE")}
+                  </h2>
+                  <span className="ml-2 text-lg text-blue-600">
+                    {format(selectedDate, "MMMM d, yyyy")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Meal bins for selected date */}
+              <div className="flex flex-1 min-h-0">
+                {/* Left sidebar with time indicators */}
+                <div className="w-32 flex-shrink-0 border-r bg-gray-50 p-4"></div>
+
+                {/* Meal bins */}
+                <div className="flex flex-1">
+                  {mealBinNames.map((binName) => {
+                    const bins = organizeMealsIntoBins(selectedDate);
+                    const bin = bins[binName];
 
                     return (
                       <div
-                        key={`${date.toISOString()}-${time}`}
-                        className={`flex-1 border-b border-l ${
-                          isEmpty ? "bg-gray-50" : "border-gray-100"
-                        }`}
-                      />
+                        key={`${selectedDate.toISOString()}-${binName}`}
+                        className="flex-1 p-4 border-l overflow-y-auto flex flex-col"
+                      >
+                        {/* Meals in this bin */}
+                        <AnimatePresence>
+                          {bin.meals.map((meal) => renderMealCard(meal))}
+                        </AnimatePresence>
+
+                        {/* Recommendations in this bin */}
+                        <AnimatePresence>
+                          {bin.recommendations.map((recommendation) => (
+                            <RecommendedMealCard
+                              key={`rec-${recommendation.meal.id}`}
+                              className="my-5 flex-grow"
+                              recommendation={recommendation}
+                              onClick={() =>
+                                onRecommendationSelect(recommendation)
+                              }
+                              isSelected={
+                                selectedRecommendation?.meal.id ===
+                                recommendation.meal.id
+                              }
+                            />
+                          ))}
+                        </AnimatePresence>
+
+                        {/* Empty state */}
+                        {bin.meals.length === 0 &&
+                          bin.recommendations.length === 0 && (
+                            <div className="h-full flex items-center justify-center">
+                              <div className="text-center p-6">
+                                <div className="text-gray-400 mb-2">
+                                  <svg
+                                    className="w-12 h-12 mx-auto"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={1.5}
+                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                    />
+                                  </svg>
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                  No meals planned
+                                </p>
+                                <button className="mt-2 px-3 py-1 text-xs text-blue-600 hover:text-blue-800">
+                                  Add meal
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                      </div>
                     );
                   })}
                 </div>
-              ))}
-            </div>
-
-            {/* Regular Meals */}
-            <div className="absolute inset-0">
-              {threeDayDates.map((date, dayIndex) => {
-                const { meals } = getMealsForDate(date);
-                return meals.map((meal) => (
-                  <motion.div
-                    key={`meal-${date.toISOString()}-${meal.id}-${dayIndex}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    className={`meal-card absolute p-3 rounded-lg cursor-pointer
-                      transform transition-all duration-300
-                      ${isMealSelected(meal) ? "ring-2 ring-blue-500" : ""}
-                      bg-white/90 backdrop-blur-sm`}
-                    style={{
-                      top: getTimePosition(meal.time),
-                      left: `${(dayIndex * 100) / 3}%`,
-                      width: `${85 / 3}%`, // Match recommendation width
-                      transform: "translateX(7.5%)", // Match recommendation centering
-                      height: "80px", // Match recommendation height
-                      boxShadow: isMealSelected(meal)
-                        ? "0 0 15px rgba(16, 185, 129, 0.2)"
-                        : "0 2px 4px rgba(0,0,0,0.05)",
-                      zIndex: isMealSelected(meal) ? 20 : 15,
-                    }}
-                    onClick={() =>
-                      onMealSelect(isMealSelected(meal) ? null : meal)
-                    }
-                  >
-                    {/* Header Section */}
-                    <div className="relative h-full flex flex-col justify-between">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-800 truncate pr-10">
-                          {meal.name}
-                        </h3>
-                        <div className="flex items-center space-x-2 mt-0.5">
-                          <span className="text-xs text-gray-500">
-                            {meal.time}
-                          </span>
-                          {meal.diabetesFriendly && (
-                            <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
-                              DF
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Footer Section */}
-                      <div className="flex items-center justify-between text-xs text-gray-600">
-                        <span>{meal.nutritionalInfo.calories} cal</span>
-                        <span>{meal.nutritionalInfo.carbs}g carbs</span>
-                      </div>
-                    </div>
-
-                    {/* Selection Effect */}
-                    {isMealSelected(meal) && (
-                      <motion.div
-                        className="absolute inset-0 rounded-lg pointer-events-none"
-                        animate={{
-                          boxShadow: [
-                            "0 0 0 rgba(59, 130, 246, 0)",
-                            "0 0 20px rgba(59, 130, 246, 0.3)",
-                            "0 0 0 rgba(59, 130, 246, 0)",
-                          ],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatType: "reverse",
-                        }}
-                      />
-                    )}
-                  </motion.div>
-                ));
-              })}
-            </div>
-
-            {/* Recommendations */}
-            <div className="absolute inset-0">
-              {threeDayDates.map((date, dayIndex) => {
-                const recommendations = getRecommendationsForDate(date);
-                const isEmpty = recommendations.length === 0;
-
-                return recommendations.map((recommendation, recIndex) => (
-                  <motion.div
-                    key={`rec-${date.toISOString()}-${
-                      recommendation.meal.id
-                    }-${recIndex}`}
-                    className="absolute"
-                    style={{
-                      top: getTimePosition(recommendation.meal.time),
-                      left: `${(dayIndex * 100) / 3}%`,
-                      width: `${85 / 3}%`,
-                      transform: "translateX(7.5%)",
-                      zIndex: isEmpty ? 15 : 10,
-                    }}
-                  >
-                    <RecommendedMealCard
-                      key={`rec-card-${date.toISOString()}-${
-                        recommendation.meal.id
-                      }-${recIndex}`}
-                      className="recommendation-card"
-                      recommendation={recommendation}
-                      onClick={() => onRecommendationSelect(recommendation)}
-                      isSelected={
-                        selectedRecommendation?.meal.id ===
-                        recommendation.meal.id
-                      }
-                    />
-                  </motion.div>
-                ));
-              })}
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Next day - collapsed row */}
+      <div className="flex-shrink-0">
+        {renderCollapsedDateRow(nextDate, "bottom")}
       </div>
     </div>
   );

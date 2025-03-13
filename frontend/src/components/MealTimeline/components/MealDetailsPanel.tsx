@@ -29,35 +29,6 @@ interface MealDetailsPanelProps {
   selectedDate: Date;
 }
 
-const formatNutritionalValue = (key: string, value: number): string => {
-  switch (key) {
-    case "calories":
-      return `${value} kcal`;
-    case "glycemicIndex":
-      return value.toString();
-    case "glycemicLoad":
-      return value.toString();
-    default:
-      return `${value}g`;
-  }
-};
-
-const isDiabetesFriendly = (meal: Meal): boolean => {
-  // Check if meal is explicitly marked as diabetes friendly
-  if (meal.diabetesFriendly !== undefined) return meal.diabetesFriendly;
-
-  // If not explicitly marked, check if all foods are diabetes friendly
-  if (meal.foods.every((food) => food.diabetesFriendly)) return true;
-
-  // Check glycemic index if available
-  const avgGI =
-    meal.foods.reduce((sum, food) => {
-      return sum + (food.nutritionalInfo.glycemicIndex || 0);
-    }, 0) / meal.foods.length;
-
-  return avgGI < 55; // Low glycemic index threshold
-};
-
 export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   meal,
   recommendation,

@@ -24,7 +24,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     <div className="w-screen h-screen overflow-hidden bg-gray-50 flex flex-col">
       {/* Header with bottom decoration */}
       <div className="relative">
-        <Header title={title} subtitle={subtitle} />
+        <Header title={title} subtitle={subtitle}/>
         
         {/* Decorative elements */}
         <div className="absolute bottom-0 left-0 right-0">
@@ -45,7 +45,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Main Content Area with top decoration */}
       <div className="flex-1 flex relative">
-        {/* Optional: Top highlight */}
+        {/* Top highlight */}
         <div 
           className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-white/50 to-transparent pointer-events-none"
           style={{
@@ -62,7 +62,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         )}
 
         {/* Main Content */}
-        <div className="flex-1 overflow-hidden">{children}</div>
+        {/* Add top margin equal to the header’s height (e.g., 16 equals 4rem or 64px) */}
+        <div className="flex-1 mt-16 overflow-hidden z-10">{children}</div>
 
         {/* Right Panel */}
         {showRightPanel && (
