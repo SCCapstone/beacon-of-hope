@@ -36,12 +36,6 @@ from .firebase import (
     add_dayplan,
 )
 
-# TODO, make sure that starting date recieved for bandit and random
-# Should be a REQUIRED parameter in request body
-# TODO, related to above, standardize error checking for parameters
-# (in some sections we use try catch and in some we use if-block)
-
-
 logger = logging.getLogger(__name__)  # neccesary to generate meal plan
 
 
