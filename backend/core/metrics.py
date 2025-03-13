@@ -26,8 +26,6 @@ def food_item_coverage_score(meal: Dict, meal_config: Dict):
     meal = meal.copy()
     meal = meal["meal_types"]
 
-    print(meal)
-
     # meal_name = meal.pop("meal_name")
     # del meal["meal_time"]
 
@@ -63,7 +61,6 @@ def food_item_coverage_score(meal: Dict, meal_config: Dict):
     # calculate coverage for recommended meal
     coverage_calculator.calc_coverage(meal)
     coverage_score = coverage_calculator.get_coverage()
-    print(coverage_score)
     return coverage_score if coverage_score >= 0 else 0
 
 
@@ -93,6 +90,5 @@ def nutritional_constraint_score(meal: Dict, user_preferences: Dict[str, int]):
     meal = meal.copy()
 
     score, _ = constraint_calculator.calc_config(meal["meal_types"])
-    print(f"Nutritional score: {score}")
 
     return score

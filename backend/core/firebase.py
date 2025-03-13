@@ -304,19 +304,15 @@ def get_day_plans(user_id: str, dates: List[str]):
     Returns a tuple: (meal plan data or error message, status code)
     """
     try:
-        print("hello here")
         user, status = get_document("users", user_id)
         if status != 200:
             return (user, status)
-        print("1")
         dates = set(dates)  # convert to set for checking inclusion in constant time
         day_plans = {}
         if not user["day_plans"]:
             return ("No day plans found for user.", 404)
 
-        print("2")
         for date, day_plan_id in user["day_plans"].items():
-            print("x")
             if date in dates:
                 # retrieve the day_plan using its id
                 day_plan, status = get_document("day_plans", day_plan_id)
@@ -325,7 +321,6 @@ def get_day_plans(user_id: str, dates: List[str]):
                 day_plans[date] = day_plan
 
         # return the day_plans
-        print("3")
         return (day_plans, status)
     except Exception as e:
         return (f"Error retrieving meal plans for user {user_id}: {e}", 500)
@@ -377,14 +372,12 @@ def add_dayplan(user_id, date, day_plan):
             return (update_res, update_status)
 
         # save the user's dayplan
-        # print(day_plan)
         add_res, add_status = add_document("day_plans", day_plan["_id"], day_plan)
         if add_status != 200:
             return (add_res, add_status)
 
         return ("Day Plan saved successfully", 200)
     except Exception as e:
-        print(f"oh:{e}")
         return (f"There was an issue saving the day plan: {e}", 500)
 
 

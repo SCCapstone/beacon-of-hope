@@ -12,8 +12,7 @@ class Coverage:
     coverage = 0
 
     def __init__(self):
-        ...
-        # print("Class initiated")
+        print("Constraint Coverage Calculator Locked and Loaded")
 
     def set_meal_config(self, meal_config: list):
         """Define the meal configuration.

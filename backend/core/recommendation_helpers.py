@@ -13,7 +13,6 @@ from .metrics import (
     food_item_coverage_score,
     nutritional_constraint_score,
 )
-
 from typing import Dict, List
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
@@ -547,7 +546,6 @@ def gen_bandit_rec(
     ]
 
     # get dairy, meat, and nut opinions for the particular user
-    print(user_preferences)
     user_opinions = list(user_preferences.values())
     user = all_users_opinions.index(user_opinions)
 
@@ -631,7 +629,6 @@ def calculate_goodness(
     for day_meals in meal_plan.values():
         day_meals = day_meals["meals"]
         for meal, meal_config in zip(day_meals, meal_configs):
-            print(meal_config)
             # meal = meal["meal_types"]
 
             meal_dup_score = food_variety_score(meal["meal_types"])

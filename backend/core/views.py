@@ -12,6 +12,8 @@ import logging
 
 import json
 
+import time
+
 from .recommendation_helpers import (
     configure_bandit,
     train_bandit,
@@ -48,45 +50,51 @@ def random_recommendation(request: HttpRequest):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
     try:
-        data = json.loads(request.body)
-        meal_plan_config = data.get("meal_plan_config")
-        user_id = data.get("user_id")
-        meal_plan_name = data.get("meal_plan_name")
+        data: dict = json.loads(request.body)
+        meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
 
-        # TODO, propogate exception if parameters are not in request body
         if "starting_date" not in data:
             starting_date = datetime.now()
         else:
             starting_date = datetime.strptime(data["starting_date"], "%Y-%m-%d")
 
-        if not meal_plan_config:
+        if "meal_plan_config" not in data:
             return JsonResponse(
-                {"error": "Meal plan configuration is required."}, status=400
+                {"error": "Request body is missing key 'meal_plan_config'"},
+                status=403,
             )
 
-        if not meal_plan_name:
-            meal_plan_name = "User Meal Plan"
-
-        # Validate required fields
-        num_days = meal_plan_config.get("num_days")
-        num_meals = meal_plan_config.get("num_meals")
-        meal_configs = meal_plan_config.get("meal_configs")
-
-        # sanity check
-        assert num_meals == len(meal_configs)
+        meal_plan_config = data["meal_plan_config"]
 
         if (
-            not isinstance(num_days, int)
-            or not isinstance(num_meals, int)
-            or not isinstance(meal_configs, list)
+            "num_meals" not in meal_plan_config
+            or "num_days" not in meal_plan_config
+            or "meal_configs" not in meal_plan_config
         ):
             return JsonResponse(
-                {"error": "Invalid meal plan configuration."}, status=400
+                {
+                    "error": "meal_plan_config key is missing key 'meal_configs' or 'num_days'"
+                },
+                status=403,
             )
 
+        num_days = meal_plan_config["num_days"]
+        num_meals = meal_plan_config["num_meals"]
+        meal_configs = meal_plan_config["meal_configs"]
+
+        if "user_preferences" not in data or "user_id" not in data:
+            return JsonResponse(
+                {
+                    "error": "Request body is missing key 'user_preferences' or 'user_id'"
+                },
+                status=403,
+            )
+        user_preferences = data["user_preferences"]
+        user_id = data["user_id"]
+
         # Retrieve food and beverage data
-        food_items = get_r3()[0]
-        beverages = get_beverages()[0]
+        food_items, _ = get_r3()
+        beverages, _ = get_beverages()
 
         if isinstance(food_items, Exception):
             logger.error(f"Error retrieving food items: {food_items}")
@@ -95,13 +103,6 @@ def random_recommendation(request: HttpRequest):
         if isinstance(beverages, Exception):
             logger.error(f"Error retrieving beverages: {beverages}")
             return JsonResponse({"error": "Error retrieving beverages."}, status=500)
-
-        # TODO need to fix
-        # # Get user ID
-        # user_id = request.GET.get("user_id") or request.POST.get("user_id")
-        # if not user_id:
-        #     logger.error("User ID is missing.")
-        #     return JsonResponse({"error": "User ID is required."}, status=400)
 
         # Generate meal plan
         logger.info("Generating meal plan...")
@@ -146,6 +147,8 @@ def random_recommendation(request: HttpRequest):
             "days": days,
         }
 
+        scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
+        meal_plan["scores"] = scores
         # save meal plan to firebase
 
         try:
@@ -176,7 +179,6 @@ def bandit_recommendation(request: HttpRequest):
     """
     Generate bandit-based meal recommendations for the specified number of days based on user opinions and constraints.
     """
-    # TODO, clean directory of previous configurations
     if request.method != "POST":
         return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
     try:
@@ -188,31 +190,42 @@ def bandit_recommendation(request: HttpRequest):
         else:
             starting_date = datetime.strptime(data["starting_date"], "%Y-%m-%d")
 
-        try:
-            meal_plan_config = data["meal_plan_config"]
-            num_days = meal_plan_config["num_days"]
-            num_meals = meal_plan_config["num_meals"]
-            meal_configs = meal_plan_config["meal_configs"]
-        except:
+        if "meal_plan_config" not in data:
+            return JsonResponse(
+                {"error": "Request body is missing key 'meal_plan_config'"},
+                status=403,
+            )
+
+        meal_plan_config = data["meal_plan_config"]
+
+        if (
+            "num_meals" not in meal_plan_config
+            or "num_days" not in meal_plan_config
+            or "meal_configs" not in meal_plan_config
+        ):
             return JsonResponse(
                 {
-                    "error": "Request body is missing meal_plan_config partially or completely."
+                    "error": "meal_plan_config key is missing key 'meal_configs' or 'num_days'"
                 },
                 status=403,
             )
 
-        try:
-            user_preferences = data["user_preferences"]
-            user_id = data["user_id"]
-        except:
+        num_days = meal_plan_config["num_days"]
+        num_meals = meal_plan_config["num_meals"]
+        meal_configs = meal_plan_config["meal_configs"]
+
+        if "user_preferences" not in data or "user_id" not in data:
             return JsonResponse(
                 {
-                    "error": "Request body is missing user_preferences or user_id partially or completely."
+                    "error": "Request body is missing key 'user_preferences' or 'user_id'"
                 },
                 status=403,
             )
+        user_preferences = data["user_preferences"]
+        user_id = data["user_id"]
 
         # Configure bandit
+        start = time.time()
         try:
             bandit_trial_path, trial_num = configure_bandit(num_days)
         except:
@@ -220,24 +233,36 @@ def bandit_recommendation(request: HttpRequest):
                 {"error": "There was an error in configuring the bandit setup"},
                 status=500,
             )
+        end = time.time()
+        execution_time = end - start
+        print(f"Configuring bandit: {execution_time:.4f} seconds")
 
         # Train Bandit
+        start = time.time()
         success = train_bandit(bandit_trial_path)
         if not success:
             return JsonResponse(
                 {"error": "There was an error in training the boosted bandit"},
                 status=500,
             )
+        end = time.time()
+        execution_time = end - start
+        print(f"Training bandit: {execution_time:.4f} seconds")
 
         # Test Bandit
+        start = time.time()
         success = test_bandit(bandit_trial_path)
         if not success:
             return JsonResponse(
                 {"error": "There was an error in testing the boosted bandit"},
                 status=500,
             )
+        end = time.time()
+        execution_time = end - start
+        print(f"Testing bandit: {execution_time:.4f} seconds")
 
         # Generate Bandit Recommendation
+        start = time.time()
         try:
             days = gen_bandit_rec(
                 trial_num,
@@ -258,11 +283,19 @@ def bandit_recommendation(request: HttpRequest):
                 {"error": "There was an error in generating the meal plan"},
                 status=500,
             )
+        end = time.time()
+        execution_time = end - start
+        print(f"Generating Rec: {execution_time:.4f} seconds")
 
         # import pdb
         # pdb.set_trace()
+        start = time.time()
         scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
         meal_plan["scores"] = scores
+        end = time.time()
+        execution_time = end - start
+        print(f"Evaluating Rec: {execution_time:.4f} seconds")
+
         try:
             # save day plans to firebase
             for date, day_plan in meal_plan["days"].items():
