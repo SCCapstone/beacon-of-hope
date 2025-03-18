@@ -2,7 +2,6 @@ interface Props {
   mealIndex: number;
   totalMeals: number;
   mealName: string;
-  mealTime: string;
   mealTypes: {
     mainCourse: boolean;
     side: boolean;
@@ -10,7 +9,6 @@ interface Props {
     beverage: boolean;
   };
   onMealNameChange: (value: string) => void;
-  onMealTimeChange: (value: string) => void;
   onMealCheckboxChange: (type: string) => void;
   onPreviousMeal: () => void;
   onNextMeal: () => void;
@@ -20,10 +18,8 @@ const MealSpecificOptionsCard: React.FC<Props> = ({
   mealIndex,
   totalMeals,
   mealName,
-  mealTime,
   mealTypes,
   onMealNameChange,
-  onMealTimeChange,
   onMealCheckboxChange,
   onPreviousMeal,
   onNextMeal,
@@ -82,39 +78,21 @@ const MealSpecificOptionsCard: React.FC<Props> = ({
       </div>
 
       <form className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col">
-            <label
-              htmlFor="mealName"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Meal Name
-            </label>
-            <input
-              type="text"
-              id="mealName"
-              value={mealName}
-              onChange={(e) => onMealNameChange(e.target.value)}
-              placeholder="Enter meal name"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label
-              htmlFor="mealTime"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Meal Time
-            </label>
-            <input
-              type="time"
-              id="mealTime"
-              value={mealTime}
-              onChange={(e) => onMealTimeChange(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
-            />
-          </div>
+        <div className="flex flex-col">
+          <label
+            htmlFor="mealName"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Meal Name
+          </label>
+          <input
+            type="text"
+            id="mealName"
+            value={mealName}
+            onChange={(e) => onMealNameChange(e.target.value)}
+            placeholder="Enter meal name"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

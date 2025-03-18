@@ -4,10 +4,10 @@ import {
   Food,
   NutritionalInfo,
 } from "../components/MealTimeline/types";
-import { convertTime12to24 } from "../utils/mealPlanTransformer";
 import {
   calculateNutritionalInfo,
   isDiabetesFriendly,
+  getDefaultMealTime,
 } from "../utils/mealPlanTransformer";
 import { ApiError } from "../utils/errorHandling";
 
@@ -25,7 +25,7 @@ interface MealType {
 
 interface MealData {
   _id: string;
-  meal_time: string;
+  meal_time?: string;
   meal_name: string;
   meal_types: MealType;
 }
@@ -314,6 +314,9 @@ export async function transformApiResponseToDayMeals(
       try {
         const mealFoods: Food[] = [];
 
+        // Get default meal time based on meal name
+        const mealTime = getDefaultMealTime(meal.meal_name);
+
         // Process each meal type (main course, side dish, etc.)
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
           if (typeof foodId !== "string") continue;
@@ -350,7 +353,7 @@ export async function transformApiResponseToDayMeals(
           name: `${
             meal.meal_name.charAt(0).toUpperCase() + meal.meal_name.slice(1)
           } Meal`,
-          time: convertTime12to24(meal.meal_time),
+          time: mealTime, // Use the default meal time
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
           foods: mealFoods,
           nutritionalInfo: mealNutritionalInfo,

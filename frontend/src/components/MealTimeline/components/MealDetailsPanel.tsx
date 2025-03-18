@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Meal } from "../types";
 import { COLOR_SCHEMES } from "../constants";
 import { MealRecommendation } from "../types";
+import { getDefaultMealTime } from "../../../utils/mealPlanTransformer";
 
 interface MealDetailsPanelProps {
   meal: Meal | null;
@@ -62,7 +63,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                       </h2>
                       <p className="text-sm text-gray-500">
                         {meal.type.charAt(0).toUpperCase() + meal.type.slice(1)}{" "}
-                        - {meal.time}
+                        {meal.time || getDefaultMealTime(meal.type)}
                       </p>
                     </div>
                     <button
@@ -314,9 +315,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   {/* Score and Time */}
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-sm text-gray-500">
-                        Recommended for {recommendation.meal.time}
-                      </p>
                       {recommendation.meal.diabetesFriendly && (
                         <span className="inline-flex items-center px-2 py-1 mt-2 bg-green-100 text-green-800 text-xs rounded-full">
                           Diabetes-Friendly

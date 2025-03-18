@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSelector } from 'react-redux';
-import { RootState } from '../app/store';
+import { useSelector } from "react-redux";
+import { RootState } from "../app/store";
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
@@ -246,7 +246,7 @@ const FoodPreferencesPage: React.FC = () => {
         "http://localhost:8000/beacon/recommendation/bandit"
       );
       console.log("Request body:", JSON.stringify(requestBody, null, 2));
-      
+
       // Simulate different loading stages with timeouts
       setTimeout(() => {
         setLoadingStage("Analyzing dietary needs...");
@@ -303,13 +303,13 @@ const FoodPreferencesPage: React.FC = () => {
         {/* Loading Overlay */}
         <AnimatePresence>
           {isLoading && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black bg-opacity-70 z-50 flex flex-col items-center justify-center"
             >
-              <motion.div 
+              <motion.div
                 className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -323,38 +323,44 @@ const FoodPreferencesPage: React.FC = () => {
                     className="flex flex-col items-center"
                   >
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                      <motion.svg 
-                        className="w-10 h-10 text-green-500" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <motion.svg
+                        className="w-10 h-10 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
                       >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={3} 
-                          d="M5 13l4 4L19 7" 
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
                         />
                       </motion.svg>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
-                    <p className="text-gray-600 mb-4">Your meal plan has been created successfully.</p>
-                    <motion.div 
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      Success!
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Your meal plan has been created successfully.
+                    </p>
+                    <motion.div
                       className="h-1 bg-gray-200 w-full rounded-full overflow-hidden"
                       initial={{ width: 0 }}
                       animate={{ width: "100%" }}
                     >
-                      <motion.div 
+                      <motion.div
                         className="h-full bg-green-500"
                         initial={{ width: 0 }}
                         animate={{ width: "100%" }}
                         transition={{ duration: 1.5 }}
                       />
                     </motion.div>
-                    <p className="text-sm text-gray-500 mt-2">Redirecting to your meal plan...</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Redirecting to your meal plan...
+                    </p>
                   </motion.div>
                 ) : (
                   <>
@@ -364,23 +370,29 @@ const FoodPreferencesPage: React.FC = () => {
                         <div className="w-16 h-16 border-l-4 border-r-4 border-transparent rounded-full absolute top-0 animate-ping opacity-75"></div>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Creating Your Meal Plan</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      Creating Your Meal Plan
+                    </h3>
                     <p className="text-gray-600 mb-6">{loadingStage}</p>
-                    
+
                     {/* Progress bar */}
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <motion.div 
+                      <motion.div
                         className="h-full bg-orange-500"
                         initial={{ width: "5%" }}
-                        animate={{ 
-                          width: loadingStage.includes("Preparing") ? "25%" :
-                                 loadingStage.includes("Analyzing") ? "50%" :
-                                 loadingStage.includes("Crafting") ? "75%" : "95%" 
+                        animate={{
+                          width: loadingStage.includes("Preparing")
+                            ? "25%"
+                            : loadingStage.includes("Analyzing")
+                            ? "50%"
+                            : loadingStage.includes("Crafting")
+                            ? "75%"
+                            : "95%",
                         }}
                         transition={{ duration: 0.5 }}
                       />
                     </div>
-                    
+
                     {/* Loading tips */}
                     <div className="mt-6 text-sm text-gray-500 italic">
                       <motion.p
@@ -388,18 +400,18 @@ const FoodPreferencesPage: React.FC = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
                       >
-                        {diabetes ? 
-                          "Optimizing for diabetes-friendly meals with lower glycemic index..." :
-                          "Balancing nutritional content for your optimal health..."}
+                        {diabetes
+                          ? "Optimizing for diabetes-friendly meals with lower glycemic index..."
+                          : "Balancing nutritional content for your optimal health..."}
                       </motion.p>
                     </div>
                   </>
                 )}
-                
+
                 {error && (
                   <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md">
                     {error}
-                    <button 
+                    <button
                       onClick={() => setIsLoading(false)}
                       className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                     >
@@ -421,14 +433,21 @@ const FoodPreferencesPage: React.FC = () => {
             <div className="relative group">
               <button
                 onClick={() => applyPersona("earlJones")}
-                className={`px-4 py-2 ${selectedPersona === "earlJones" ? "bg-blue-600" : "bg-blue-500"} 
+                className={`px-4 py-2 ${
+                  selectedPersona === "earlJones"
+                    ? "bg-blue-600"
+                    : "bg-blue-500"
+                } 
                            text-white rounded-lg hover:bg-blue-600 transition duration-200`}
               >
                 Earl Jones
               </button>
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10">
-                Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
+              <div
+                className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
+                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10"
+              >
+                Earl, a busy African American forklift operator, prefers
+                culturally relevant meals, especially soul food.
               </div>
             </div>
           </div>
@@ -436,15 +455,22 @@ const FoodPreferencesPage: React.FC = () => {
           <div className="relative group">
             <button
               onClick={() => applyPersona("jessicaSmith")}
-              className={`px-4 py-2 ${selectedPersona === "jessicaSmith" ? "bg-green-600" : "bg-green-500"} 
+              className={`px-4 py-2 ${
+                selectedPersona === "jessicaSmith"
+                  ? "bg-green-600"
+                  : "bg-green-500"
+              } 
                          text-white rounded-lg hover:bg-green-600 transition duration-200`}
             >
               Jessica Smith
             </button>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                            px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10">
-              A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
-              low-glycemic, diabetic-friendly meals.
+            <div
+              className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
+                            px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10"
+            >
+              A college student with type 1 diabetes, Jessica needs a meal
+              recommendation system that prioritizes low-glycemic,
+              diabetic-friendly meals.
             </div>
           </div>
         </div>
@@ -504,7 +530,6 @@ const FoodPreferencesPage: React.FC = () => {
               mealIndex={currentMealIndex}
               totalMeals={mealsPerDay}
               mealName={mealConfigs[currentMealIndex].mealName}
-              mealTime={mealConfigs[currentMealIndex].mealTime}
               mealTypes={mealConfigs[currentMealIndex].mealTypes}
               onMealNameChange={(value) => {
                 setMealConfigs((prev) => {
@@ -512,16 +537,6 @@ const FoodPreferencesPage: React.FC = () => {
                   newConfigs[currentMealIndex] = {
                     ...newConfigs[currentMealIndex],
                     mealName: value,
-                  };
-                  return newConfigs;
-                });
-              }}
-              onMealTimeChange={(value) => {
-                setMealConfigs((prev) => {
-                  const newConfigs = [...prev];
-                  newConfigs[currentMealIndex] = {
-                    ...newConfigs[currentMealIndex],
-                    mealTime: value,
                   };
                   return newConfigs;
                 });
@@ -555,15 +570,35 @@ const FoodPreferencesPage: React.FC = () => {
             disabled={isLoading}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className={`px-12 ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-400 hover:bg-orange-500'} 
+            className={`px-12 ${
+              isLoading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-orange-400 hover:bg-orange-500"
+            } 
                       text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out 
                       transform hover:-translate-y-1 relative overflow-hidden`}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 PROCESSING...
               </span>
@@ -575,6 +610,6 @@ const FoodPreferencesPage: React.FC = () => {
       </div>
     </MainLayout>
   );
-}
+};
 
 export default FoodPreferencesPage;
