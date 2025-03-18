@@ -13,33 +13,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: 18
+      #     cache: "npm"
+      #     cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Frontend Dependencies and Build
-        run: |
-          cd frontend
-          npm install
-          npm run build
+      # - name: Install Frontend Dependencies and Build
+      #   run: |
+      #     cd frontend
+      #     npm install
+      #     npm run build
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.12
+      # - name: Set up Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: 3.12
 
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      # - name: Install Poetry
+      #   run: |
+      #     curl -sSL https://install.python-poetry.org | python3 -
+      #     echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install Backend Dependencies with Poetry
-        run: |
-          cd backend
-          poetry install --no-interaction --no-root
+      # - name: Install Backend Dependencies with Poetry
+      #   run: |
+      #     cd backend
+      #     poetry install --no-interaction --no-root
 
       # - name: Prepare SSH Key
       #   env:
@@ -78,18 +78,7 @@ jobs:
 
           # Add EC2 host to known_hosts (prevents host verification errors)
           ssh-keyscan -H ${{ secrets.AWS_HOST }} >> ~/.ssh/known_hosts
-
-
-      - name: Deploy to AWS EC2 via SCP
-        env:
-          AWS_HOST: ${{ secrets.AWS_HOST }}
-          AWS_USER: ubuntu
-        run: |
-          echo "Starting SCP Transfer..."
           
-          # Copy entire project to EC2 instance
-          scp -i ~/.ssh/aws_ec2_key.pem -v -r ./frontend ./backend $AWS_USER@$AWS_HOST:/home/ubuntu/beacon-of-hope
-
       - name: Run Deployment Commands on EC2
         env:
           AWS_HOST: ${{ secrets.AWS_HOST }}
@@ -100,26 +89,9 @@ jobs:
           ssh -i ~/.ssh/aws_ec2_key.pem $AWS_USER@$AWS_HOST << 'EOF'
             set -e
 
-            echo "Rebuilding Frontend..."
-            cd /home/ubuntu/beacon-of-hope/frontend
-            sudo rm -rf dist/
-            npm install
-            npm run build
-            sudo chown -R www-data:www-data dist/
-            sudo chmod -R 755 dist/
-
-            echo "Updating Nginx Files..."
-            sudo rm -rf /usr/share/nginx/html/*
-            sudo mv dist/* /usr/share/nginx/html/
-
-            echo "Restarting Backend..."
-            cd /home/ubuntu/beacon-of-hope/backend
-            export PATH="$HOME/.local/bin:$PATH"
-            poetry install --no-interaction --no-root
-            sudo systemctl daemon-reload
-            sudo systemctl restart gunicorn
-            sudo systemctl enable gunicorn
-            sudo systemctl status gunicorn --no-pager
+            cd /home/ubuntu/beacon-of-hope/
+            ./deploy.sh
+            
           EOF
 
       - name: Cleanup SSH Key
