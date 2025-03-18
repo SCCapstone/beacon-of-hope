@@ -284,7 +284,7 @@ export const MealView: React.FC<MealViewProps> = ({
   const renderMealCard = (meal: Meal) => {
     return (
       <motion.div
-        key={`meal-${meal.id}`}
+        key={`meal-${meal.id}-${selectedDate.toISOString()}`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
@@ -506,7 +506,9 @@ export const MealView: React.FC<MealViewProps> = ({
                         <AnimatePresence>
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
-                              key={`rec-${recommendation.meal.id}`}
+                              key={`rec-${
+                                recommendation.meal.id
+                              }-${selectedDate.toISOString()}`}
                               className="my-5 flex-grow"
                               recommendation={recommendation}
                               onClick={() =>
