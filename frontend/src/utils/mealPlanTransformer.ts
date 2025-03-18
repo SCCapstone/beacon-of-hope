@@ -6,7 +6,7 @@ import {
   NutritionalInfo,
 } from "../components/MealTimeline/types";
 import { fetchRecipeInfo, fetchBeverageInfo } from "../services/recipeService";
-import { parse } from 'date-fns';
+import { parse } from "date-fns";
 
 interface MealPlan {
   _id: string;
@@ -17,7 +17,7 @@ interface MealPlan {
       _id: string;
       meals: Array<{
         _id: string;
-        meal_time: string;
+        meal_time?: string;
         meal_name: string;
         meal_types: {
           beverage?: string;
@@ -60,21 +60,6 @@ export function convertTime24to12(time24h: string): string {
   const period = hour >= 12 ? "PM" : "AM";
   hour = hour % 12 || 12;
   return `${hour}:${minutes} ${period}`;
-}
-
-export function convertTime12to24(time12h: string): string {
-  const [time, modifier] = time12h.split(/([AaPp][Mm])/);
-  let [hours, minutes] = time.split(":");
-
-  if (hours === "12") {
-    hours = "00";
-  }
-
-  if (modifier?.toLowerCase() === "pm") {
-    hours = String(parseInt(hours, 10) + 12);
-  }
-
-  return `${hours.padStart(2, "0")}:${minutes}`;
 }
 
 function extractAllergensFromR3(r3Data: any): string[] {
@@ -179,11 +164,26 @@ export function isDiabetesFriendly(nutritionalInfo: NutritionalInfo): boolean {
   );
 }
 
+export function getDefaultMealTime(mealName: string): string {
+  switch (mealName.toLowerCase()) {
+    case "breakfast":
+      return "08:00";
+    case "lunch":
+      return "12:30";
+    case "dinner":
+      return "18:30";
+    case "snack":
+      return "15:00";
+    default:
+      return "12:00"; // Default fallback time
+  }
+}
+
 export async function transformMealPlanToRecommendations(
   mealPlan: MealPlan
 ): Promise<DayRecommendations[]> {
   if (!mealPlan || !mealPlan.days) {
-    console.error('Invalid meal plan data');
+    console.error("Invalid meal plan data");
     return [];
   }
 
@@ -191,7 +191,7 @@ export async function transformMealPlanToRecommendations(
 
   for (const [dateStr, dayData] of Object.entries(mealPlan.days)) {
     const dayRecommendations: DayRecommendations = {
-      date: parse(dateStr, 'yyyy-MM-dd', new Date()),
+      date: parse(dateStr, "yyyy-MM-dd", new Date()),
       recommendations: [],
     };
 
@@ -199,7 +199,10 @@ export async function transformMealPlanToRecommendations(
     for (const mealData of dayData.meals) {
       const mealRecommendations: MealRecommendation[] = [];
 
-      // Process each meal type (main  course, side dish, etc.)
+      // Get default meal time based on meal name
+      const mealTime = getDefaultMealTime(mealData.meal_name);
+
+      // Process each meal type (main_course, side_dish, etc.)
       for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
         try {
           let foodInfo;
@@ -212,7 +215,9 @@ export async function transformMealPlanToRecommendations(
           // Transform ingredients
           const ingredients: Ingredient[] = foodInfo.ingredients?.map(
             (ing: any) => ({
-              id: (ing.name || ing.ingredient_name).toLowerCase().replace(/\s+/g, "-"),
+              id: (ing.name || ing.ingredient_name)
+                .toLowerCase()
+                .replace(/\s+/g, "-"),
               name: ing.name || ing.ingredient_name,
               amount: parseFloat(ing.quantity?.measure) || 1,
               unit: ing.quantity?.unit || "unit",
@@ -253,8 +258,16 @@ export async function transformMealPlanToRecommendations(
             meal: {
               id: `${dateStr}-${mealData.meal_name}-${foodId}`,
               name: `${food.name} Meal`,
-              time: convertTime12to24(mealData.meal_time),
-              type: ['breakfast', 'lunch', 'dinner', 'snack'].includes(mealData.meal_name) ? (mealData.meal_name as 'breakfast' | 'lunch' | 'dinner' | 'snack') : 'breakfast',
+              time: mealTime, // Use the default meal time
+              type: ["breakfast", "lunch", "dinner", "snack"].includes(
+                mealData.meal_name
+              )
+                ? (mealData.meal_name as
+                    | "breakfast"
+                    | "lunch"
+                    | "dinner"
+                    | "snack")
+                : "breakfast",
               foods: [food],
               nutritionalInfo: calculateNutritionalInfo(foodInfo),
               diabetesFriendly: isDiabetesFriendly(
@@ -264,7 +277,8 @@ export async function transformMealPlanToRecommendations(
               healthBenefits: [],
             },
             score: 85, //  TODO: To be calculated based on user preferences
-            reasons: [  // TODO: Add more and confirm
+            reasons: [
+              // TODO: Add more and confirm
               "Matches your dietary preferences",
               "Good nutritional balance",
               "Diabetes-friendly option",
@@ -275,7 +289,8 @@ export async function transformMealPlanToRecommendations(
               protein: food.nutritionalInfo.protein,
               fiber: food.nutritionalInfo.fiber,
             },
-            healthBenefits: [  // TODO: Add more and confirm
+            healthBenefits: [
+              // TODO: Add more and confirm
               "Good source of protein",
               "Contains fiber for better blood sugar control",
               "Balanced macronutrients",

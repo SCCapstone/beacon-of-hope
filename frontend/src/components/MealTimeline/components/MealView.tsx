@@ -78,18 +78,46 @@ export const MealView: React.FC<MealViewProps> = ({
       const meals = getMealsForDate(date);
       const recommendations = getRecommendationsForDate(date);
 
-      // Sort all meals by time
+      // Define meal type priority for sorting (breakfast, lunch, dinner, snack)
+      const mealTypePriority = {
+        breakfast: 0,
+        lunch: 1,
+        dinner: 2,
+        snack: 3,
+      };
+
+      // Sort all meals by time, then by meal type priority if times are the same
       const sortedMeals = [...meals].sort((a, b) => {
         const timeA = a.time.split(":").map(Number);
         const timeB = b.time.split(":").map(Number);
-        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // First compare by time
+        const timeCompare =
+          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // If times are the same, sort by meal type priority
+        if (timeCompare === 0) {
+          return mealTypePriority[a.type] - mealTypePriority[b.type];
+        }
+
+        return timeCompare;
       });
 
-      // Sort all recommendations by time
+      // Sort all recommendations by time, then by meal type priority if times are the same
       const sortedRecommendations = [...recommendations].sort((a, b) => {
         const timeA = a.meal.time.split(":").map(Number);
         const timeB = b.meal.time.split(":").map(Number);
-        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // First compare by time
+        const timeCompare =
+          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // If times are the same, sort by meal type priority
+        if (timeCompare === 0) {
+          return mealTypePriority[a.meal.type] - mealTypePriority[b.meal.type];
+        }
+
+        return timeCompare;
       });
 
       // Create time slots for all items (meals and recommendations)
@@ -107,7 +135,16 @@ export const MealView: React.FC<MealViewProps> = ({
       ].sort((a, b) => {
         const timeA = a.time.split(":").map(Number);
         const timeB = b.time.split(":").map(Number);
-        return timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+        const timeCompare =
+          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // If times are the same, sort by item type (meal vs recommendation)
+        if (timeCompare === 0) {
+          // Prioritize actual meals over recommendations
+          return a.type === "meal" ? -1 : 1;
+        }
+
+        return timeCompare;
       });
 
       // Check if we need more bins than currently available

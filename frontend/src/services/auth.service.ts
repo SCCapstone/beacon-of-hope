@@ -51,7 +51,7 @@ export interface UserResponse {
     num_meals: number;
     meal_configs: {
       meal_name: string;
-      meal_time: string;
+      meal_time?: string;
       beverage: boolean;
       main_course: boolean;
       side: boolean;
