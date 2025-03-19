@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await dispatch(loginUser({email, password, rememberMe})).unwrap();
-      navigate("/meal-plan");
+      navigate("/food-preferences");
     } catch(err: any) {
       setError(err.response?.data?.message);
     }
@@ -218,7 +218,7 @@ const LoginPage: React.FC = () => {
           >
             Not registered yet?{" "}
             <a
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/food-preferences")}
               style={{
                 color: "#7f265b",
                 textDecoration: "none",
