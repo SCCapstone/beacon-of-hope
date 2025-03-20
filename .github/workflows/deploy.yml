@@ -1,12 +1,15 @@
 name: Deploy to AWS EC2
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed # Runs only when a PR is closed
     branches:
-      - main
+      - "**" # Match all branches
 
 jobs:
   deploy:
+    if: github.event.pull_request.merged == true # Only runes if the PR is merged successfully
     runs-on: ubuntu-24.04
 
     steps:
