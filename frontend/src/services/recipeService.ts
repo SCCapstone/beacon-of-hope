@@ -240,7 +240,13 @@ export async function transformApiResponseToDayMeals(
     for (const meal of dayData.meals) {
       for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
         if (typeof foodId === "string") {
-          foodIdsToFetch.set(foodId, {
+          // Add a check to ensure the ID is properly formatted
+          // Beverage IDs should have a "bev_" prefix
+          const formattedId =
+            mealType === "beverage" && !foodId.startsWith("bev_")
+              ? `bev_${foodId}`
+              : foodId;
+          foodIdsToFetch.set(formattedId, {
             type: mealType,
             mealId: meal._id,
             date: dateStr,

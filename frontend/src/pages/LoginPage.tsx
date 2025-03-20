@@ -218,7 +218,7 @@ const LoginPage: React.FC = () => {
           >
             Not registered yet?{" "}
             <a
-              onClick={() => navigate("/food-preferences")}
+              onClick={() => navigate("/signup")}
               style={{
                 color: "#7f265b",
                 textDecoration: "none",
