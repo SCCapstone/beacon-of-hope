@@ -1,5 +1,5 @@
 import warnings
-from .firebase import get_r3, get_beverages
+from .firebase import FirebaseManager
 import traceback
 
 
@@ -22,8 +22,9 @@ class User_Constraints:
 
     def __init__(self):
         # Recipe calibration
-        self.r3_items, _ = get_r3()
-        self.bev_items, _ = get_beverages()
+        firebaseManager = FirebaseManager()
+        self.r3_items, _ = firebaseManager.get_r3()
+        self.bev_items, _ = firebaseManager.get_beverages()
 
         for id_, recipe in self.r3_items.items():
             features_dict = {

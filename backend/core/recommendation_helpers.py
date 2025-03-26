@@ -2,7 +2,7 @@ import random
 import json
 import os
 import re
-from .firebase import get_r3, get_beverages
+from .firebase import FirebaseManager
 import shutil
 import subprocess
 from bson import ObjectId
@@ -17,8 +17,9 @@ from typing import Dict, List
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
 
-food_items, _ = get_r3()
-beverages, _ = get_beverages()
+firebaseManager = FirebaseManager()
+food_items, _ = firebaseManager.get_r3()
+beverages, _ = firebaseManager.get_beverages()
 
 
 def get_highest_prob_foods(items_probs, num_users):

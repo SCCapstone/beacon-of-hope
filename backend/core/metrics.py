@@ -3,10 +3,11 @@
 from typing import List, Dict
 from .item_coverage_metric import Coverage
 from .nutritional_constraint_metric import User_Constraints
-from .firebase import get_r3, get_beverages
+from .firebase import FirebaseManager
 
-r3_items, _ = get_r3()
-bev_items, _ = get_beverages()
+firebaseManager = FirebaseManager()
+r3_items, _ = firebaseManager.get_r3()
+bev_items, _ = firebaseManager.get_beverages()
 
 
 def food_variety_score(meal: Dict):
