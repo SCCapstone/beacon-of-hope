@@ -19,6 +19,7 @@ from .recommendation_helpers import (
     test_bandit,
     gen_bandit_rec,
     calculate_goodness,
+    get_favorite_items,
 )
 from .firebase import FirebaseManager
 
@@ -220,16 +221,19 @@ def bandit_recommendation(request: HttpRequest):
                     user_id, "bandit_counter", bandit_counter + 1
                 )
 
-                # TODO get the user's favorite items
-                # and generate a meal
-                ...
+                favorite_items = user["favorite_items"]
         except:
             # TODO, error message
-            ...
+            return JsonResponse(
+                {
+                    "error": "There was an error in retrieving the user's past favorite items"
+                },
+                status=500,
+            )
 
-        # Configure bandit
         start = time.time()
         if need_to_train:
+            # Configure bandit
             try:
                 bandit_trial_path, trial_num = configure_bandit(num_days)
             except:
@@ -265,14 +269,15 @@ def bandit_recommendation(request: HttpRequest):
             execution_time = end - start
             print(f"Testing bandit: {execution_time:.4f} seconds")
 
-            # TODO, in generate recommendation or somewhere, update user with new favorite food items
+            # get the favorite items recommended by the bandit and save them to firebase
+            favorite_items = get_favorite_items(trial_num, user_preferences)
+            firebaseManager.update_user_attr(user_id, "favorite_items", favorite_items)
 
         # Generate Bandit Recommendation
         start = time.time()
         try:
             days = gen_bandit_rec(
-                trial_num,
-                user_preferences,
+                favorite_items,
                 num_days,
                 meal_configs,
                 starting_date,
@@ -402,10 +407,10 @@ def create_user(request: HttpRequest):
             "day_plans": {},
             "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
-                "main_course": [],
-                "side": [],
-                "dessert": [],
-                "beverage": [],
+                "Main Course": [],
+                "Side": [],
+                "Dessert": [],
+                "Beverage": [],
             },
         }
         firebaseManager.add_user(user_id, user)

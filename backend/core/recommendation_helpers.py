@@ -474,26 +474,7 @@ def test_bandit(bandit_trial_path):
         return False
 
 
-def gen_bandit_rec(
-    trial_num: int,
-    user_preferences: Dict[str, int],
-    num_days: int,
-    meal_configs: List[Dict],
-    starting_date: datetime,
-) -> Dict:
-    """Take Bandit Output and generate a meal plan
-
-    Positional arguments:
-    trial_num        -- Number of the bandit training session
-    user_preferences -- Dictionary of the form {'dairyPreference': 1, 'meatPreference': 0, 'nutsPreference': -1}.
-                        Contains ternary preference (-1(dislike); 0(neutral); 1(like)) for dairy meat and nuts
-    num_days         -- Length of the meal plan in days
-    meal_configs     -- List of configuration objects that contain the structure of each user requested meal
-    starting_date    -- Starting date of the meal plan
-
-    Returns:
-    days             -- A dictionary of meal plans, consisting of a sequence of meals for each day
-    """
+def get_favorite_items(trial_num: int, user_preferences: Dict[str, int]):
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
         f"boosted_bandit/trial{trial_num}/test/results_recommendation.db", "r"
@@ -554,6 +535,34 @@ def gen_bandit_rec(
     bevs = rec_user_bevs[user + 1]
     foods = rec_user_foods[user + 1]
 
+    return {
+        "Main Course": foods["Main Course"],
+        "Side": foods["Side"],
+        "Dessert": foods["Dessert"],
+        "Beverage": bevs,
+    }
+
+
+def gen_bandit_rec(
+    favorite_items: Dict[str, List[str]],
+    num_days: int,
+    meal_configs: List[Dict],
+    starting_date: datetime,
+) -> Dict:
+    """Take Bandit Output and generate a meal plan
+
+    Positional arguments:
+    trial_num        -- Number of the bandit training session
+    user_preferences -- Dictionary of the form {'dairyPreference': 1, 'meatPreference': 0, 'nutsPreference': -1}.
+                        Contains ternary preference (-1(dislike); 0(neutral); 1(like)) for dairy meat and nuts
+    num_days         -- Length of the meal plan in days
+    meal_configs     -- List of configuration objects that contain the structure of each user requested meal
+    starting_date    -- Starting date of the meal plan
+
+    Returns:
+    days             -- A dictionary of meal plans, consisting of a sequence of meals for each day
+    """
+
     # create a skeleton structure of meals that will be recommended throughout a single day
     meal_list = []
 
@@ -585,6 +594,10 @@ def gen_bandit_rec(
     }
 
     # popoulate each day recommendation for the user
+    mains = favorite_items["Main Course"]
+    sides = favorite_items["Side"]
+    desserts = favorite_items["Dessert"]
+    bevs = favorite_items["Beverage"]
     for day_rec in days.values():
         # iterate over meals
         for meal in day_rec["meals"]:
@@ -598,17 +611,13 @@ def gen_bandit_rec(
                     meal["beverage"] = beverages[bev_num]
 
             if "main_course" in meal:
-                meal["main_course"] = food_items[random.choice(foods["Main Course"])][
-                    "recipe-id"
-                ]
+                meal["main_course"] = food_items[random.choice(mains)]["recipe-id"]
 
             if "side" in meal:
-                meal["side"] = food_items[random.choice(foods["Side"])]["recipe-id"]
+                meal["side"] = food_items[random.choice(sides)]["recipe-id"]
 
             if "dessert" in meal:
-                meal["dessert"] = food_items[random.choice(foods["Dessert"])][
-                    "recipe-id"
-                ]
+                meal["dessert"] = food_items[random.choice(desserts)]["recipe-id"]
 
     return days
 
