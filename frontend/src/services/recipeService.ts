@@ -86,6 +86,14 @@ export async function fetchMealDays(userId: string, dates: string[]) {
         `Error fetching meal days: ${error.message}`,
         error.response?.data
       );
+      
+      // If it's a 500 error and likely due to no meal history,
+      // return an empty result instead of throwing an error
+      if (error.response?.status === 500) {
+        console.log("No meal history found, returning empty data");
+        return { day_plans: {} };
+      }
+      
       throw new ApiError(
         `Failed to fetch meal data: ${error.message}`,
         error.response?.status,

@@ -114,6 +114,21 @@ export const MealTimelinePage: React.FC = () => {
       const response = await fetchMealDays(userId, datesToFetch);
       console.log("API response received");
 
+      // Check if we got empty data (no meal history)
+      if (!response.day_plans || Object.keys(response.day_plans).length === 0) {
+        console.log("No meal history found for the requested dates");
+        // Create empty placeholder data for the requested dates
+        const emptyData: DayMeals[] = datesToFetch.map((dateStr) => ({
+          date: new Date(dateStr),
+          meals: [],
+        }));
+
+        setWeekData((prev) => [...prev, ...emptyData]);
+        setIsLoading(false);
+        setPendingFetch(false);
+        return;
+      }
+
       // Transform API response to DayMeals format
       const transformedData = await transformApiResponseToDayMeals(response);
       console.log("Data transformed:", transformedData.length, "days");
@@ -146,11 +161,37 @@ export const MealTimelinePage: React.FC = () => {
       setError(null);
     } catch (error) {
       console.error("Error fetching meal data:", error);
+      // For critical errors, still show the error
       setError(
         error instanceof Error
           ? error.message
           : "An error occurred while loading data"
       );
+
+      // But also provide empty data for the requested dates so the UI doesn't break
+      const emptyData: DayMeals[] = generateDateRange(startDate, endDate).map(
+        (dateStr) => ({
+          date: new Date(dateStr),
+          meals: [],
+        })
+      );
+
+      setWeekData((prev) => {
+        const dataMap = new Map(
+          prev.map((day) => [format(new Date(day.date), "yyyy-MM-dd"), day])
+        );
+
+        emptyData.forEach((day) => {
+          const dateKey = format(new Date(day.date), "yyyy-MM-dd");
+          if (!dataMap.has(dateKey)) {
+            dataMap.set(dateKey, day);
+          }
+        });
+
+        return Array.from(dataMap.values()).sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+      });
     } finally {
       setIsLoading(false);
       setPendingFetch(false);
