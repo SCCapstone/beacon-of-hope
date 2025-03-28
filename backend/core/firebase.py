@@ -355,20 +355,22 @@ class FirebaseManager:
         """
         return self._add_document("users", user_id, user)
 
-    def add_meal_plan(user_id, meal_plan):
+    def add_meal_plan(self, user_id, meal_plan):
         """
         Saves a meal plan to Firestore and updates the user's plan_ids list.
         Returns a tuple: (result message, status code)
         """
         try:
             meal_plan_id = meal_plan["_id"]
-            update_res, update_status = update_document_list_attr(
+            update_res, update_status = self._update_document_list_attr(
                 "users", user_id, "plan_ids", meal_plan_id
             )
             if update_status != 200:
                 return (update_res, update_status)
 
-            add_res, add_status = add_document("meal_plans", meal_plan_id, meal_plan)
+            add_res, add_status = self._add_document(
+                "meal_plans", meal_plan_id, meal_plan
+            )
             if add_status != 200:
                 return (add_res, add_status)
 
@@ -376,13 +378,13 @@ class FirebaseManager:
         except Exception as e:
             return (f"There was an issue saving the meal plan: {e}", 500)
 
-    def add_dayplan(user_id, date, day_plan):
+    def add_dayplan(self, user_id, date, day_plan):
         # in the user object in firebase, we want to store a sub-object of the following form
         # day_plans: {"2025-03-01": day_plan_id}
         # where day_plan_id links to a day plan object in the day_plans collection
         try:
             # add a reference to the user's day plan in the user firebase object
-            update_res, update_status = update_document_dict_attr(
+            update_res, update_status = self._update_document_dict_attr(
                 "users", user_id, "day_plans", date, day_plan["_id"]
             )
             if update_status != 200:
@@ -390,7 +392,9 @@ class FirebaseManager:
                 return (update_res, update_status)
 
             # save the user's dayplan
-            add_res, add_status = add_document("day_plans", day_plan["_id"], day_plan)
+            add_res, add_status = self._add_document(
+                "day_plans", day_plan["_id"], day_plan
+            )
             if add_status != 200:
                 print("dayplan was not saved")
                 return (add_res, add_status)
@@ -401,12 +405,12 @@ class FirebaseManager:
 
     """Object deletion functions"""
 
-    def delete_user(user_id):
+    def delete_user(self, user_id):
         """
         Deletes a user from Firestore.
         Returns a tuple: (result message, status code)
         """
         try:
-            return delete_document("users", user_id)
+            return self._delete_document("users", user_id)
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
