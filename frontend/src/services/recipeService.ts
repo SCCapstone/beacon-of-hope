@@ -234,7 +234,7 @@ export async function transformApiResponseToDayMeals(
 
   const dayMeals: DayMeals[] = [];
 
-  // Step 1: Collect all food IDs that need to be fetched
+  // Step 1: Collect all food IDs that need to be fetched, storing original ID and type
   const foodIdsToFetch = new Map<
     string,
     { type: string; mealId: string; date: string }
@@ -247,14 +247,10 @@ export async function transformApiResponseToDayMeals(
 
     for (const meal of dayData.meals) {
       for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
-        if (typeof foodId === "string") {
-          // Add a check to ensure the ID is properly formatted
-          // Beverage IDs should have a "bev_" prefix
-          const formattedId =
-            mealType === "beverage" && !foodId.startsWith("bev_")
-              ? `bev_${foodId}`
-              : foodId;
-          foodIdsToFetch.set(formattedId, {
+        // Ensure foodId is a non-empty string
+        if (typeof foodId === "string" && foodId.trim() !== "") {
+          // Store the original foodId from the API response and its type
+          foodIdsToFetch.set(foodId, {
             type: mealType,
             mealId: meal._id,
             date: dateStr,
@@ -267,47 +263,58 @@ export async function transformApiResponseToDayMeals(
   // Step 2: Batch fetch all food information
   const foodInfoMap = new Map<string, any>();
 
-  // Split into beverage and recipe requests
-  const beverageIds = Array.from(foodIdsToFetch.keys()).filter((id) =>
-    id.startsWith("bev_")
-  );
-  const recipeIds = Array.from(foodIdsToFetch.keys()).filter(
-    (id) => !id.startsWith("bev_")
-  );
+  // Split into beverage and recipe requests based on the stored type
+  const beverageIdsToFetch: string[] = [];
+  const recipeIdsToFetch: string[] = [];
+
+  foodIdsToFetch.forEach((details, id) => {
+    if (details.type === "beverage") {
+      beverageIdsToFetch.push(id); // Use the original ID (numeric string)
+    } else {
+      // Assume anything not explicitly 'beverage' is a recipe
+      recipeIdsToFetch.push(id);
+    }
+  });
 
   // Fetch in parallel with chunking for large datasets
   const chunkSize = 10; // Adjust based on API limitations
 
   try {
-    // Process beverages
-    for (let i = 0; i < beverageIds.length; i += chunkSize) {
-      const chunk = beverageIds.slice(i, i + chunkSize);
-      const promises = chunk.map(async (id) => {
+    // Process beverages using the original numeric IDs
+    for (let i = 0; i < beverageIdsToFetch.length; i += chunkSize) {
+      const chunk = beverageIdsToFetch.slice(i, i + chunkSize);
+      const promises = chunk.map(async (id) => { // 'id' is the original numeric string
         try {
+          // Call fetchBeverageInfo with the correct ID (no prefix)
           const info = await fetchBeverageInfo(id);
+          // Store the fetched info using the original ID as the key
           foodInfoMap.set(id, info);
         } catch (error) {
           console.error(`Error fetching beverage info for ID ${id}:`, error);
+          // Optionally store a null or error marker in foodInfoMap if needed downstream
+          // foodInfoMap.set(id, null);
         }
       });
       await Promise.all(promises);
     }
 
-    // Process recipes
-    for (let i = 0; i < recipeIds.length; i += chunkSize) {
-      const chunk = recipeIds.slice(i, i + chunkSize);
+    // Process recipes (assuming recipe IDs are correct as received)
+    for (let i = 0; i < recipeIdsToFetch.length; i += chunkSize) {
+      const chunk = recipeIdsToFetch.slice(i, i + chunkSize);
       const promises = chunk.map(async (id) => {
         try {
           const info = await fetchRecipeInfo(id);
-          foodInfoMap.set(id, info);
+          foodInfoMap.set(id, info); // Store using the original recipe ID
         } catch (error) {
           console.error(`Error fetching recipe info for ID ${id}:`, error);
+          // foodInfoMap.set(id, null);
         }
       });
       await Promise.all(promises);
     }
   } catch (error) {
     console.error("Error during batch fetching of food information:", error);
+    // TODO: Consider how to handle partial failures if needed
   }
 
   // Step 3: Transform the data using the pre-fetched food information
@@ -333,26 +340,30 @@ export async function transformApiResponseToDayMeals(
 
         // Process each meal type (main course, side dish, etc.)
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
-          if (typeof foodId !== "string") continue;
+          if (typeof foodId !== "string" || foodId.trim() === "") continue;
 
-          // Use the pre-fetched food info
+          // Use the original foodId to retrieve the pre-fetched info
           const foodInfo = foodInfoMap.get(foodId);
 
           if (!foodInfo) {
-            console.warn(`No food info found for ${foodId} in ${mealType}`);
+            // Log warning if info wasn't fetched (e.g., due to error in step 2)
+            console.warn(
+              `No food info found or fetched for ${foodId} (type: ${mealType}) in meal ${meal.meal_name} on ${dateStr}`
+            );
             continue;
           }
 
           try {
+            // Pass the original foodId to transformFoodInfo
             const transformedFood = await transformFoodInfo(
               foodInfo,
               mealType,
-              foodId
+              foodId // Pass the original ID
             );
             mealFoods.push(transformedFood);
           } catch (error) {
             console.error(
-              `Error transforming food info for ${mealType}:`,
+              `Error transforming food info for ${foodId} (type: ${mealType}):`,
               error
             );
           }
@@ -374,7 +385,7 @@ export async function transformApiResponseToDayMeals(
           diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
         });
       } catch (error) {
-        console.error(`Error processing meal:`, error);
+        console.error(`Error processing meal ${meal._id} on ${dateStr}:`, error);
       }
     }
 

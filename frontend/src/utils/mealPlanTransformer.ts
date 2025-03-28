@@ -320,14 +320,11 @@ export async function transformMealPlanToRecommendations(
 
       // Collect all food items for this specific meal (e.g., Lunch)
       for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
+        // Ensure foodId is a non-empty string
         if (typeof foodId === "string" && foodId.trim() !== "") {
-          // Add a check for beverage prefix if needed, similar to recipeService
-          const formattedId =
-            mealType === "beverage" && !foodId.startsWith("bev_")
-              ? `bev_${foodId}`
-              : foodId;
+          // Directly use the original foodId from the meal plan data
           foodFetchPromises.push(
-            transformSingleFoodItem(formattedId, mealType)
+            transformSingleFoodItem(foodId, mealType)
           );
         }
       }
