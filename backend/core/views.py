@@ -25,6 +25,7 @@ from .firebase import FirebaseManager
 
 firebaseManager = FirebaseManager()
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)  # neccesary to generate meal plan
 
 
@@ -206,30 +207,52 @@ def bandit_recommendation(request: HttpRequest):
             )
         user_preferences = data["user_preferences"]
         user_id = data["user_id"]
+        user_id = ""
+        if not user_id:
+            # TODO, handle default case
+
+            ...
+        print(f"User ID: {user_id}")
+
+        logger.info("User data parsed")
 
         # Update user
         need_to_train = True  # training flag
-        try:
-            user, _ = firebaseManager.get_user_by_id(user_id)
-            bandit_counter = user["bandit_counter"]
-            if bandit_counter % 5 != 0:
-                # flip flag
-                need_to_train = False
+        if user_id:
+            try:
+                user, _ = firebaseManager.get_user_by_id(user_id)
+                bandit_counter = user["bandit_counter"]
+                logger.info(f"User bandit counter: {bandit_counter}")
+                if (
+                    bandit_counter % 5 != 0
+                    and user.get("favorite_items")
+                    and all(
+                        user["favorite_items"][key]
+                        for key in ["Beverage", "Main Course", "Side", "Dessert"]
+                    )
+                ):
+                    # flip flag
+                    need_to_train = False
 
-                # increment the user's bandit counter
-                firebaseManager.update_user_attr(
-                    user_id, "bandit_counter", bandit_counter + 1
+                    # increment the user's bandit counter
+                    firebaseManager.update_user_attr(
+                        user_id, "bandit_counter", bandit_counter + 1
+                    )
+
+                    favorite_items = user["favorite_items"]
+                    logger.info("User past favorite items retrieved")
+                else:
+                    logger.info(
+                        "User favorite items will be replaced, bandit being retrained ..."
+                    )
+            except:
+                # TODO, error message
+                return JsonResponse(
+                    {
+                        "error": "There was an error in retrieving the user's past favorite items"
+                    },
+                    status=500,
                 )
-
-                favorite_items = user["favorite_items"]
-        except:
-            # TODO, error message
-            return JsonResponse(
-                {
-                    "error": "There was an error in retrieving the user's past favorite items"
-                },
-                status=500,
-            )
 
         start = time.time()
         if need_to_train:
@@ -243,7 +266,7 @@ def bandit_recommendation(request: HttpRequest):
                 )
             end = time.time()
             execution_time = end - start
-            print(f"Configuring bandit: {execution_time:.4f} seconds")
+            logger.info(f"Configuring bandit: {execution_time:.4f} seconds")
 
             # Train Bandit
             start = time.time()
@@ -255,7 +278,7 @@ def bandit_recommendation(request: HttpRequest):
                 )
             end = time.time()
             execution_time = end - start
-            print(f"Training bandit: {execution_time:.4f} seconds")
+            logger.info(f"Training bandit: {execution_time:.4f} seconds")
 
             # Test Bandit
             start = time.time()
@@ -267,14 +290,21 @@ def bandit_recommendation(request: HttpRequest):
                 )
             end = time.time()
             execution_time = end - start
-            print(f"Testing bandit: {execution_time:.4f} seconds")
+            logger.info(f"Testing bandit: {execution_time:.4f} seconds")
 
             # get the favorite items recommended by the bandit and save them to firebase
             favorite_items = get_favorite_items(trial_num, user_preferences)
-            firebaseManager.update_user_attr(user_id, "favorite_items", favorite_items)
+            if user_id:
+                msg, status = firebaseManager.update_user_attr(
+                    user_id, "favorite_items", favorite_items
+                )
+                if status != 200:
+                    logger.info(msg)
+                    return JsonResponse({"error": msg}, status)
 
         # Generate Bandit Recommendation
         start = time.time()
+        logger.info("Generating recommendation")
         try:
             days = gen_bandit_rec(
                 favorite_items,
@@ -290,34 +320,35 @@ def bandit_recommendation(request: HttpRequest):
                 "days": days,
             }
         except:
+            logger.error("There was an error in generating the meal plan")
             return JsonResponse(
                 {"error": "There was an error in generating the meal plan"},
                 status=500,
             )
         end = time.time()
         execution_time = end - start
-        print(f"Generating Rec: {execution_time:.4f} seconds")
+        logger.info(f"Generating Rec: {execution_time:.4f} seconds")
 
-        # import pdb
-        # pdb.set_trace()
         start = time.time()
         scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
         meal_plan["scores"] = scores
         end = time.time()
         execution_time = end - start
-        print(f"Evaluating Rec: {execution_time:.4f} seconds")
+        logger.info(f"Evaluating Rec: {execution_time:.4f} seconds")
 
+        logger.info(f"Saving meal plan to firebase")
         try:
-            # save day plans to firebase
-            for date, day_plan in meal_plan["days"].items():
-                day_plan["user_id"] = user_id
-                day_plan["meal_plan_id"] = meal_plan["_id"]
-                msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
-                if status != 200:
-                    print(msg)
+            if user_id:
+                # save day plans to firebase
+                for date, day_plan in meal_plan["days"].items():
+                    day_plan["user_id"] = user_id
+                    day_plan["meal_plan_id"] = meal_plan["_id"]
+                    msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+                    if status != 200:
+                        print(msg)
 
-            # save meal plan to firebase
-            firebaseManager.add_meal_plan(user_id, meal_plan)
+                # save meal plan to firebase
+                firebaseManager.add_meal_plan(user_id, meal_plan)
 
             return JsonResponse(meal_plan, status=200)
         except Exception as e:
@@ -413,6 +444,7 @@ def create_user(request: HttpRequest):
                 "Beverage": [],
             },
         }
+        logger.info(f"Creating user {user_id}")
         firebaseManager.add_user(user_id, user)
         return JsonResponse(user, status=200)
     except:
