@@ -4,6 +4,7 @@ import {
   Ingredient,
   MealRecommendation,
   NutritionalInfo,
+  Meal,
 } from "../components/MealTimeline/types";
 import { fetchRecipeInfo, fetchBeverageInfo } from "../services/recipeService";
 import { parse } from "date-fns";
@@ -179,135 +180,241 @@ export function getDefaultMealTime(mealName: string): string {
   }
 }
 
+// Helper function to calculate combined nutritional info for a Meal
+function calculateCombinedMealNutritionalInfo(foods: Food[]): NutritionalInfo {
+  const initial: NutritionalInfo = {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    fiber: 0,
+    glycemicIndex: 0, // Will be calculated as weighted average
+    glycemicLoad: 0, // Will be calculated based on total carbs and avg GI
+    sugarContent: 0,
+  };
+
+  if (!foods || foods.length === 0) return initial;
+
+  const combined = foods.reduce(
+    (acc, food) => ({
+      calories: acc.calories + (food.nutritionalInfo?.calories || 0),
+      protein: acc.protein + (food.nutritionalInfo?.protein || 0),
+      carbs: acc.carbs + (food.nutritionalInfo?.carbs || 0),
+      fat: acc.fat + (food.nutritionalInfo?.fat || 0),
+      fiber: acc.fiber + (food.nutritionalInfo?.fiber || 0),
+      sugarContent:
+        acc.sugarContent || +(food.nutritionalInfo?.sugarContent || 0),
+    }),
+    initial
+  );
+
+  // Calculate average glycemic index weighted by carb content
+  const totalCarbs = foods.reduce(
+    (sum, food) => sum + (food.nutritionalInfo?.carbs || 0),
+    0
+  );
+
+  const weightedGI =
+    totalCarbs > 0
+      ? foods.reduce((sum, food) => {
+          const gi = food.nutritionalInfo?.glycemicIndex ?? 50; // Default to 50 if undefined
+          const carbs = food.nutritionalInfo?.carbs || 0;
+          return sum + gi * carbs; // Sum of (GI * Carbs)
+        }, 0) / totalCarbs // Divide by total carbs
+      : 0; // Avoid division by zero
+
+  return {
+    ...combined,
+    glycemicIndex: parseFloat(weightedGI.toFixed(1)), // Keep one decimal place
+    glycemicLoad: Math.round((combined.carbs * weightedGI) / 100),
+  };
+}
+
+// Helper function to transform a single food item (recipe or beverage)
+async function transformSingleFoodItem(
+  foodId: string,
+  mealType: string
+): Promise<Food | null> {
+  try {
+    let foodInfo;
+    const isBeverage = mealType === "beverage"; // Assume 'beverage' type indicates a beverage
+
+    if (isBeverage) {
+      foodInfo = await fetchBeverageInfo(foodId);
+    } else {
+      foodInfo = await fetchRecipeInfo(foodId);
+    }
+
+    if (!foodInfo) {
+      console.warn(`No info found for ${mealType} with ID ${foodId}`);
+      return null;
+    }
+
+    // Transform ingredients
+    const ingredients: Ingredient[] =
+      foodInfo.ingredients?.map((ing: any) => ({
+        id: (ing.name || ing.ingredient_name || "unknown")
+          .toLowerCase()
+          .replace(/\s+/g, "-"),
+        name: ing.name || ing.ingredient_name || "Unknown Ingredient",
+        amount: parseFloat(ing.quantity?.measure) || 1,
+        unit: ing.quantity?.unit || "unit",
+        category: ing.category || "other",
+        nutritionalInfo: calculateNutritionalInfo(ing), // Assuming calculateNutritionalInfo works for ingredients too
+        allergens: ing.allergies?.category || [],
+        culturalOrigin: foodInfo.cultural_origin || [], // Inherit from parent food if needed
+        diabetesFriendly: true, // Placeholder: Needs proper calculation based on ingredient nutrition
+      })) || [];
+
+    const nutritionalInfo = calculateNutritionalInfo(foodInfo);
+
+    // Transform food
+    const food: Food = {
+      id: foodId,
+      name: foodInfo.recipe_name || foodInfo.name || "Unnamed Food",
+      type: mealType as
+        | "main_course"
+        | "side_dish"
+        | "beverage"
+        | "dessert"
+        | "snack",
+      ingredients,
+      nutritionalInfo,
+      diabetesFriendly: isDiabetesFriendly(nutritionalInfo),
+      preparationTime: parseInt(foodInfo.prep_time?.split(" ")[0] || "0"),
+      cookingTime: parseInt(foodInfo.cook_time?.split(" ")[0] || "0"),
+      instructions:
+        foodInfo.instructions?.map((inst: any) => inst.original_text) || [],
+      culturalOrigin: foodInfo.cultural_origin || [],
+      allergens: extractAllergensFromR3(foodInfo), // Use existing helper
+    };
+
+    return food;
+  } catch (error) {
+    console.error(`Error processing ${mealType} with ID ${foodId}:`, error);
+    return null;
+  }
+}
+
 export async function transformMealPlanToRecommendations(
   mealPlan: MealPlan
 ): Promise<DayRecommendations[]> {
   if (!mealPlan || !mealPlan.days) {
-    console.error("Invalid meal plan data");
+    console.error("Invalid meal plan data received for recommendations");
     return [];
   }
 
   const recommendations: DayRecommendations[] = [];
 
+  // Iterate through each day in the meal plan
   for (const [dateStr, dayData] of Object.entries(mealPlan.days)) {
     const dayRecommendations: DayRecommendations = {
       date: parse(dateStr, "yyyy-MM-dd", new Date()),
       recommendations: [],
     };
 
-    // Iterate through the meals array in the day object
+    // Iterate through the meals array for the current day
     for (const mealData of dayData.meals) {
-      const mealRecommendations: MealRecommendation[] = [];
+      const mealFoods: Food[] = [];
+      const foodFetchPromises: Promise<Food | null>[] = [];
+
+      // Collect all food items for this specific meal (e.g., Lunch)
+      for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
+        if (typeof foodId === "string" && foodId.trim() !== "") {
+          // Add a check for beverage prefix if needed, similar to recipeService
+          const formattedId =
+            mealType === "beverage" && !foodId.startsWith("bev_")
+              ? `bev_${foodId}`
+              : foodId;
+          foodFetchPromises.push(
+            transformSingleFoodItem(formattedId, mealType)
+          );
+        }
+      }
+
+      // Fetch and transform all food items for this meal in parallel
+      const fetchedFoods = await Promise.all(foodFetchPromises);
+
+      // Filter out any null results (due to errors)
+      fetchedFoods.forEach((food) => {
+        if (food) {
+          mealFoods.push(food);
+        }
+      });
+
+      // If no valid foods were found for this meal, skip creating a recommendation
+      if (mealFoods.length === 0) {
+        console.warn(
+          `Skipping recommendation for ${mealData.meal_name} on ${dateStr} as no valid food items were found.`
+        );
+        continue;
+      }
+
+      // Calculate combined nutritional info for the entire meal
+      const combinedNutritionalInfo =
+        calculateCombinedMealNutritionalInfo(mealFoods);
+
+      // Determine overall meal diabetes friendliness (e.g., if all foods are friendly)
+      const mealDiabetesFriendly = mealFoods.every(
+        (food) => food.diabetesFriendly
+      );
 
       // Get default meal time based on meal name
       const mealTime = getDefaultMealTime(mealData.meal_name);
 
-      // Process each meal type (main_course, side_dish, etc.)
-      for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
-        try {
-          let foodInfo;
-          if (mealType === "beverage") {
-            foodInfo = await fetchBeverageInfo(foodId);
-          } else {
-            foodInfo = await fetchRecipeInfo(foodId);
-          }
+      // Create the complete Meal object
+      const completeMeal: Meal = {
+        id: `${dateStr}-${mealData.meal_name}-${mealData._id}-rec`, // Unique ID for the recommended meal
+        name: `Recommended ${
+          mealData.meal_name.charAt(0).toUpperCase() +
+          mealData.meal_name.slice(1)
+        }`, // e.g., "Recommended Lunch"
+        time: mealTime,
+        type: mealData.meal_name as "breakfast" | "lunch" | "dinner" | "snack", // Ensure type safety
+        foods: mealFoods, // Array of all food items in this meal
+        nutritionalInfo: combinedNutritionalInfo,
+        diabetesFriendly: mealDiabetesFriendly,
+        // TODO: Populate culturalTips and healthBenefits if available/calculable
+        culturalTips: [],
+        healthBenefits: [],
+      };
 
-          // Transform ingredients
-          const ingredients: Ingredient[] = foodInfo.ingredients?.map(
-            (ing: any) => ({
-              id: (ing.name || ing.ingredient_name)
-                .toLowerCase()
-                .replace(/\s+/g, "-"),
-              name: ing.name || ing.ingredient_name,
-              amount: parseFloat(ing.quantity?.measure) || 1,
-              unit: ing.quantity?.unit || "unit",
-              category: ing.category || "other",
-              nutritionalInfo: calculateNutritionalInfo(ing),
-              allergens: ing.allergies?.category || [],
-              culturalOrigin: foodInfo.cultural_origin || [],
-              diabetesFriendly: true,
-            })
-          );
+      // Create a single MealRecommendation for this complete meal
+      const recommendation: MealRecommendation = {
+        meal: completeMeal,
+        score: 85, // TODO: Calculate score based on user preferences, etc.
+        reasons: [
+          // TODO: Generate dynamic reasons
+          "Matches your dietary preferences",
+          "Good nutritional balance",
+          mealDiabetesFriendly
+            ? "Diabetes-friendly option"
+            : "Review nutritional info",
+        ],
+        nutritionalImpact: {
+          // TODO: Calculate impact relative to something? Or just show totals? For now, show totals.
+          calories: combinedNutritionalInfo.calories,
+          carbs: combinedNutritionalInfo.carbs,
+          protein: combinedNutritionalInfo.protein,
+          fiber: combinedNutritionalInfo.fiber,
+        },
+        healthBenefits: [
+          // TODO: Generate dynamic benefits
+          "Provides a mix of macronutrients",
+          combinedNutritionalInfo.fiber > 5 ? "Good source of fiber" : "",
+        ].filter((b) => b), // Filter out empty strings
+      };
 
-          // Transform food
-          const food: Food = {
-            id: foodId,
-            name: foodInfo.recipe_name || foodInfo.name,
-            type: mealType as
-              | "main_course"
-              | "side_dish"
-              | "beverage"
-              | "dessert"
-              | "snack",
-            ingredients,
-            nutritionalInfo: calculateNutritionalInfo(foodInfo),
-            diabetesFriendly: isDiabetesFriendly(
-              calculateNutritionalInfo(foodInfo)
-            ),
-            preparationTime: parseInt(foodInfo.prep_time?.split(" ")[0] || "0"),
-            cookingTime: parseInt(foodInfo.cook_time?.split(" ")[0] || "0"),
-            instructions:
-              foodInfo.instructions?.map((inst: any) => inst.original_text) ||
-              [],
-            culturalOrigin: foodInfo.cultural_origin || [],
-            allergens: extractAllergensFromR3(foodInfo),
-          };
-
-          // Create meal recommendation
-          const recommendation: MealRecommendation = {
-            meal: {
-              id: `${dateStr}-${mealData.meal_name}-${foodId}`,
-              name: `${food.name} Meal`,
-              time: mealTime, // Use the default meal time
-              type: ["breakfast", "lunch", "dinner", "snack"].includes(
-                mealData.meal_name
-              )
-                ? (mealData.meal_name as
-                    | "breakfast"
-                    | "lunch"
-                    | "dinner"
-                    | "snack")
-                : "breakfast",
-              foods: [food],
-              nutritionalInfo: calculateNutritionalInfo(foodInfo),
-              diabetesFriendly: isDiabetesFriendly(
-                calculateNutritionalInfo(foodInfo)
-              ),
-              culturalTips: [],
-              healthBenefits: [],
-            },
-            score: 85, //  TODO: To be calculated based on user preferences
-            reasons: [
-              // TODO: Add more and confirm
-              "Matches your dietary preferences",
-              "Good nutritional balance",
-              "Diabetes-friendly option",
-            ],
-            nutritionalImpact: {
-              calories: food.nutritionalInfo.calories,
-              carbs: food.nutritionalInfo.carbs,
-              protein: food.nutritionalInfo.protein,
-              fiber: food.nutritionalInfo.fiber,
-            },
-            healthBenefits: [
-              // TODO: Add more and confirm
-              "Good source of protein",
-              "Contains fiber for better blood sugar control",
-              "Balanced macronutrients",
-            ],
-          };
-
-          mealRecommendations.push(recommendation);
-        } catch (error) {
-          console.error(`Error processing food ID ${foodId}:`, error);
-        }
-      }
-
-      dayRecommendations.recommendations.push(...mealRecommendations);
+      // Add this single recommendation to the day's list
+      dayRecommendations.recommendations.push(recommendation);
     }
 
-    recommendations.push(dayRecommendations);
+    // Add the completed day's recommendations to the overall list
+    if (dayRecommendations.recommendations.length > 0) {
+      recommendations.push(dayRecommendations);
+    }
   }
 
+  console.log("Transformed recommendations:", recommendations);
   return recommendations;
 }
