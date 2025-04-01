@@ -76,7 +76,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date>(
     initialSelectedDate || new Date()
   );
-  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MealRecommendation | null>(null);
   const vizRef = React.useRef<HTMLDivElement>(null);
