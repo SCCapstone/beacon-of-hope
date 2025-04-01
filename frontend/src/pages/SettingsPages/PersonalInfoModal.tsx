@@ -99,7 +99,7 @@ const PersonalInfoModal: React.FC = () => {
     if (validateField(field, value)) {
       setInfo((prev) => {
         const updatedUser = { ...prev, [field]: value };
-        dispatch(updateUser(updatedUser) as any);
+        dispatch(updateUser({ [field]: value }) as any);
         return updatedUser;
       });
       setEditing(null);

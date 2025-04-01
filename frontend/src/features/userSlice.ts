@@ -101,7 +101,12 @@ export const updateUser = createAsyncThunk(
                 updatedFields,
                 { headers: { Authorization: `Bearer ${state.user.user?.token}` } }
             );
-            return response.data;
+            
+            // Merge the updated fields with the existing user state
+            return {
+                ...state.user.user,
+                ...response.data
+            };
         } catch (error: unknown) {
             if (error instanceof Error) {
                 return rejectWithValue(error.message);
@@ -122,6 +127,11 @@ export const userSlice = createSlice({
             sessionStorage.clear();
         },
         setGuestUser: (state) => {
+            // Clear any existing user data from localStorage
+            localStorage.removeItem("user");
+            localStorage.removeItem("rememberMe");
+            sessionStorage.clear();
+            
             // Create a minimal guest user object
             state.user = {
                 _id: "",
