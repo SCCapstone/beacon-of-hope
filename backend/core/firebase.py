@@ -199,7 +199,7 @@ class FirebaseManager:
 
     def update_user_attr(self, user_id: str, attr: str, val):
         """
-        Updates a user's attribute
+        Updates a user's single attribute
         Returns: status code
         """
         try:
