@@ -26,8 +26,8 @@ const SettingsPage: React.FC = () => {
             },
             {
               icon: "🔒",
-              title: "Login & Security",
-              description: "Update your password and secure your account",
+              title: "Security & Account",
+              description: "Secure your account with 2FA or delete your account",
               onClick: () => setActiveModal("login-security"),
             },
             {
