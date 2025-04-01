@@ -29,6 +29,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)  # neccesary to generate meal plan
 
 
+"""Recommendation API Endpoints"""
+
+
 @csrf_exempt
 def random_recommendation(request: HttpRequest):
     if request.method != "POST":
@@ -361,25 +364,7 @@ def bandit_recommendation(request: HttpRequest):
         )
 
 
-def get_recipe_info(request: HttpRequest, recipe_id):
-    if request.method != "GET":
-        return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
-    # Get R3 representation of the specified recipe
-    r3, _ = firebaseManager.get_single_r3(recipe_id)
-
-    if isinstance(r3, Exception):
-        return JsonResponse({"Error": "Error retrieving recipe"}, status=400)
-
-    return JsonResponse(r3, status=200, safe=isinstance(r3, dict))
-
-
-def get_beverage_info(request: HttpRequest, beverage_id):
-    if request.method != "GET":
-        return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
-    bev, _ = firebaseManager.get_single_beverage(beverage_id)
-    if isinstance(bev, Exception):
-        return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
-    return JsonResponse(bev, status=200)
+"""User Account API Endpoints"""
 
 
 @csrf_exempt
@@ -443,6 +428,8 @@ def create_user(request: HttpRequest):
                 "Dessert": [],
                 "Beverage": [],
             },
+            # TODO Implement date of birth
+            # "dob": data["d"],
         }
         logger.info(f"Creating user {user_id}")
         firebaseManager.add_user(user_id, user)
@@ -477,6 +464,64 @@ def login_user(request: HttpRequest):
         )  # Ensure the error is JSON serializable
 
 
+def update_user(request: HttpRequest):
+    """Update user"""
+    if request.method != "PATCH":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    try:
+        data = json.loads(request.body)
+        if "user_id" not in data:
+            return JsonResponse({"Error": "Missing attribute 'user_id'"}, status=401)
+        user_id = data["user_id"]
+
+        if "email" not in data:
+            return JsonResponse({"Error": "Missing attribute 'email'"}, status=401)
+        email = data["email"]
+
+        if "ethnicity" not in data:
+            return JsonResponse({"Error": "Missing attribute 'ethnicity'"}, status=401)
+        ethnicity = data["ethnicity"]
+
+        if "preferences" not in data:
+            return JsonResponse(
+                {"Error": "Missing attribute 'preferences'"}, status=401
+            )
+        preferences = data["dietaryRestrictions"]
+        # demographicsInfo.ethnicity
+
+        name = data["name"].split()
+        msg, status = firebaseManager.update_user_attr(user_id, "first_name", name[0])
+        if status != 200:
+            return JsonResponse({"Error": msg}, status=500)
+
+        # TODO error checking
+        msg, status = firebaseManager.update_user_attr(user_id, "last_name", name[1])
+        if status != 200:
+            return JsonResponse({"Error": msg}, status=500)
+
+        msg, status = firebaseManager.update_user_attr(user_id, "email", email)
+        if status != 200:
+            return JsonResponse({"Error": msg}, status=500)
+
+        msg, status = firebaseManager.update_user_attr(
+            user_id, "demographicsInfo.ethnicity", ethnicity
+        )
+        if status != 200:
+            return JsonResponse({"Error": msg}, status=500)
+
+        msg, status = firebaseManager.update_user_attr(
+            user_id, "dietary_preferences.preferences", preferences
+        )
+        if status != 200:
+            return JsonResponse({"Error": msg}, status=500)
+
+        # TODO, check what attribute date of birth is during signup request
+    except:
+        return JsonResponse(
+            {"Error": "There was some error in updating the user"}, status=500
+        )
+
+
 @csrf_exempt
 def delete_account(request: HttpRequest, user_id: str):
     if request.method != "DELETE":
@@ -487,6 +532,9 @@ def delete_account(request: HttpRequest, user_id: str):
         return HttpResponse(status=204)
     except:
         return JsonResponse({"Error": f"Couldn't delete user: {user_id}"}, status=500)
+
+
+"""Meal Plan Retrieval and Food Item Retrieval Items"""
 
 
 def retrieve_meal_plan(request: HttpRequest, user_id: str):
@@ -538,3 +586,24 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
         return JsonResponse(
             {"Error": f"There was an error retrieving the day plans: {e}"}, status=500
         )
+
+
+def get_recipe_info(request: HttpRequest, recipe_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
+    # Get R3 representation of the specified recipe
+    r3, _ = firebaseManager.get_single_r3(recipe_id)
+
+    if isinstance(r3, Exception):
+        return JsonResponse({"Error": "Error retrieving recipe"}, status=400)
+
+    return JsonResponse(r3, status=200, safe=isinstance(r3, dict))
+
+
+def get_beverage_info(request: HttpRequest, beverage_id):
+    if request.method != "GET":
+        return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
+    bev, _ = firebaseManager.get_single_beverage(beverage_id)
+    if isinstance(bev, Exception):
+        return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
+    return JsonResponse(bev, status=200)

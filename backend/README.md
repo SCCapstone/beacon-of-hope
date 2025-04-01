@@ -494,12 +494,18 @@ poetry run coverage report
   - Parameters
     - Content-type: application/json
     - JSON schema:
-    ```json
+    ```python
       {
-        'first_name': str,
-        'last_name': str,
-        'email': str,
-        'password': str
+      "first_name": str,
+      "last_name": str,
+      "email": str,
+      "password": str,
+      "demographicsInfo": {
+          "ethnicity": str,
+          "height": str,
+          "weight": str,
+          "gender": str,
+        }
       }
     ```
   - Returns

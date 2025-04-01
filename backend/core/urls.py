@@ -38,4 +38,5 @@ urlpatterns = [
     path("user/signup", views.create_user, name="create_user"),
     path("user/login", views.login_user, name="login_user"),
     path("user/delete/<str:user_id>", views.delete_account, name="delete_account"),
+    path("user/update/<str:user_id>", views.update_user, name="update_user"),
 ]
