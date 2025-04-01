@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../assets/LOGO.svg";
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
 
 interface HeaderProps {
   title: string;
@@ -30,6 +32,8 @@ const navigationItems: NavigationItem[] = [
 export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const location = useLocation();
+  const userData = useSelector((state: RootState) => state.user.user);
+  const isGuest = !userData?._id;
 
   return (
     <header
@@ -129,12 +133,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                   exit={{ opacity: 0, y: 10 }}
                   className="absolute right-0 mt-2 w-48 py-2 bg-white/90 backdrop-blur-lg rounded-xl shadow-lg"
                 >
-                  <Link
-                    to="/settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
-                  >
-                    Settings
-                  </Link>
+                  {!isGuest && (
+                    <Link
+                      to="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                    >
+                      Settings
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       console.log("Logout clicked");
@@ -142,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
                   >
-                    Logout
+                    {isGuest ? "Exit Guest Mode" : "Logout"}
                   </button>
                 </motion.div>
               )}

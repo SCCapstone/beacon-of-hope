@@ -1,7 +1,18 @@
 // WelcomePage.tsx
 import WelcomeCard from '../components/WelcomeCard';
+import { useDispatch } from 'react-redux';
+import { setGuestUser } from '../features/userSlice';
+import { useNavigate } from 'react-router-dom';
 
 const WelcomePage: React.FC = () => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    const handleGuestAccess = () => {
+        dispatch(setGuestUser());
+        navigate('/food-preferences');
+    };
+
     return (
         <div id='welcome--page'>
             <div id='welcome--left'>
@@ -16,8 +27,19 @@ const WelcomePage: React.FC = () => {
                         Choose Your Starting Point to Personalize Your Experience
                     </p>
                 </div>
-                <WelcomeCard id='button--one' header='Login' desc='Access your saved preferences for a tailored experience.' to='login' data-testid="welcome-card"></WelcomeCard>
-                <WelcomeCard id='button--two' header='Default' desc='Start with default settings for ease and simplicity.' to='food-preferences'></WelcomeCard>
+                <WelcomeCard 
+                    id='button--one' 
+                    header='Login' 
+                    desc='Access your saved preferences for a tailored experience.' 
+                    to='login' 
+                    data-testid="welcome-card"
+                />
+                <WelcomeCard 
+                    id='button--two' 
+                    header='Default' 
+                    desc='Start with default settings for ease and simplicity.' 
+                    onClick={handleGuestAccess}
+                />
                 {/* <WelcomeCard id='button--three' header='Personas' desc='Explore different meal styles and explore one that suits your goals.' to='personas'></WelcomeCard> */}
             </div>
         </div>
