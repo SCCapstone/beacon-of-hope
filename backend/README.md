@@ -230,6 +230,7 @@ poetry run coverage report
 
 
 - #### `<backend_ip/beacon/recommendation/random>`
+   - **Deprecated**, use `<backend_ip/beacon/recommendation/bandit>` instead
    - HTTP Method: `POST`
    - Description: Generates a random meal plan based on the provided meal configuration for a specified number of days.
    - Request body:
@@ -509,18 +510,18 @@ poetry run coverage report
       }
     ```
   - Returns
-    - ```json
+    - ```python
       {
-          "_id": pyMongo ObjectId type,
+          "_id": str,
           "username": str,
           "email": str,
-          "plan_ids": [pyMongo ObjectId type],
+          "plan_ids": [str],
           "dietary_preferences": {
               "preferences": [str],
               "numerical_preferences": {
-                  "dairy": -1,
-                  "nuts": 0,
-                  "meat": 1,
+                  "dairy": int, # {-1, 0, 1}
+                  "nuts": int, # {-1, 0, 1}
+                  "meat": int, # {-1, 0, 1}
               },
           },
           "health_info": {
@@ -547,8 +548,8 @@ poetry run coverage report
                   }
               ],
           },
-          "created_at": python DateTime,
-          "updated_at": python DateTime,
+          "created_at": DateTime,
+          "updated_at": DateTime,
         }
 
       ```
