@@ -13,8 +13,13 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
 }) => {
   const levels: VisualizationLevel["type"][] = ["meal", "food", "ingredient"];
 
+  const handleClick = (level: VisualizationLevel["type"]) => (e: React.MouseEvent) => {
+    e.stopPropagation(); // Stop event from bubbling up
+    onLevelChange(level);
+  };
+
   return (
-    <div className="flex space-x-2">
+    <div className="level-selector flex items-center space-x-2">
       {levels.map((level) => (
         <motion.button
           key={level}
@@ -25,7 +30,7 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
               ? "bg-blue-500 text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
-          onClick={() => onLevelChange(level)}
+          onClick={handleClick(level)}
         >
           <span className="capitalize">{level}</span>
         </motion.button>

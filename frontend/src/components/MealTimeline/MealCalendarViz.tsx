@@ -312,9 +312,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Click handler for the main visualization area
   const handleMainAreaClick = (event: React.MouseEvent) => {
-    // Check if click is not on a meal or recommendation
     if (
-      (event.target as HTMLElement).closest(".meal-card, .recommendation-card")
+      (event.target as HTMLElement).closest(
+        ".meal-card, .recommendation-card, .level-selector, button, .food-button, .ingredient-button"
+      )
     ) {
       return;
     }
@@ -439,17 +440,67 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
       setCurrentLevel(newLevel);
-      setSelectedMeal(null); // Reset selections when changing level
+      // Reset selections when changing level
+      setSelectedMeal(null);
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
 
-      // Trigger a check/fetch for the date range required by the *new* level
-      // We can reuse handleDateChange logic by calling it with the current selectedDate
-      handleDateChange(selectedDate);
+      // Use newLevel directly when computing the required date range
+      const normalizedSelected = normalizeDate(selectedDate);
+      let requiredStartDate: Date;
+      let requiredEndDate: Date;
+      switch (newLevel) {
+        case "meal":
+          requiredStartDate = subDays(normalizedSelected, 3);
+          requiredEndDate = addDays(normalizedSelected, 3);
+          break;
+        case "food":
+          requiredStartDate = subDays(normalizedSelected, 1);
+          requiredEndDate = addDays(normalizedSelected, 1);
+          break;
+        case "ingredient":
+        default:
+          requiredStartDate = normalizedSelected;
+          requiredEndDate = normalizedSelected;
+          break;
+      }
+
+      console.log(
+        `Required date range for ${newLevel} view:`,
+        format(requiredStartDate, "yyyy-MM-dd"),
+        "to",
+        format(requiredEndDate, "yyyy-MM-dd")
+      );
+
+      // Check if data for the required range is missing
+      const requiredDates = eachDayOfInterval({
+        start: requiredStartDate,
+        end: requiredEndDate,
+      });
+      const missingDates = requiredDates.filter(
+        (date) =>
+          !weekData.some((day) => isSameNormalizedDay(new Date(day.date), date))
+      );
+
+      if (missingDates.length > 0) {
+        console.log(
+          "Missing dates for new level:",
+          missingDates.map((d) => format(d, "yyyy-MM-dd"))
+        );
+        if (onDateRangeChange) {
+          onDateRangeChange(
+            requiredStartDate,
+            requiredEndDate,
+            normalizedSelected
+          );
+        }
+      } else {
+        console.log("All required dates already loaded for new level");
+      }
     },
-    [selectedDate, handleDateChange]
-  ); // Depend on handleDateChange
+    [weekData, onDateRangeChange, selectedDate]
+  );
 
   useEffect(() => {
     if (initialSelectedDate && !isSameDay(initialSelectedDate, selectedDate)) {
@@ -486,10 +537,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       {/* Main Content */}
       <div className="w-full h-full flex flex-col overflow-hidden box-border">
         {/* Center Calendar View */}
-        <div
-          className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden"
-          onClick={handleMainAreaClick}
-        >
+        <div className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden">
           {/* Level Selector Bar */}
           <div className="w-full h-16 px-4 bg-white border-b shadow-sm z-10 flex items-center justify-between">
             {/* Left side group */}
@@ -511,7 +559,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           <div className="flex-1 flex overflow-hidden">
             {/* Calendar View */}
             <div className="flex-1 min-w-0 p-4 flex flex-col">
-              <div className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col">
+              <div
+                className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col"
+                onClick={handleMainAreaClick}
+              >
                 {currentLevel === "meal" && (
                   <MealView
                     // Pass datesToDisplay instead of weekData directly for rendering
