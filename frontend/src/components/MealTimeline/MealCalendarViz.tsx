@@ -10,7 +10,6 @@ import {
   MealRecommendation,
 } from "./types";
 import { LevelSelector } from "./components/LevelSelector";
-import { FilterPanel } from "./components/FilterPanel";
 import { MealView } from "./components/MealView";
 import { FoodView } from "./components/FoodView";
 import { IngredientView } from "./components/IngredientView";
@@ -181,8 +180,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     protein: 0,
     fiber: 0,
   });
-
-  const { filters, updateFilters } = useFilters();
 
   useEffect(() => {
     const mergeData = () => {
@@ -426,58 +423,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     >
       {/* Main Content */}
       <div className="w-full flex-1 flex overflow-hidden">
-        {/* Left Panel Container */}
-        <motion.div
-          initial={false}
-          animate={{ width: showLeftPanel ? 320 : 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex-shrink-0 relative z-20"
-        >
-          {/* Left Panel Content */}
-          <AnimatePresence>
-            {showLeftPanel && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="h-full w-[320px] bg-white shadow-lg flex flex-col overflow-hidden"
-              >
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-4 space-y-6">
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                      {/* Header */}
-                      <div className="w-full px-4 py-3 flex items-center justify-between text-left rounded-t-lg">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            Filters
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            Customize your meal view
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="overflow-hidden">
-                        <div className="p-4 border-t border-gray-100 bg-gray-50">
-                          <FilterPanel
-                            filters={filters}
-                            userPreferences={userPreferences}
-                            onFilterChange={updateFilters}
-                            mealBinNames={mealBinNames}
-                            onMealBinNamesUpdate={handleMealBinNamesUpdate}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
         {/* Center Calendar View */}
         <div
           className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden"
@@ -487,36 +432,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           <div className="w-full h-16 px-4 bg-white border-b shadow-sm z-10 flex items-center justify-between">
             {/* Left side group */}
             <div className="flex items-center">
-              {/* Toggle Button */}
-              <motion.button
-                initial={false}
-                onClick={() => setShowLeftPanel(!showLeftPanel)}
-                className="mr-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <svg
-                  className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${
-                    !showLeftPanel ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={!showLeftPanel ? "M15 19l-7-7 7-7" : "M15 5l-7 7 7 7"}
-                  />
-                </svg>
-              </motion.button>
-              {/* Divider */}
-              <div className="h-8 w-px bg-gray-200 mr-4"></div>
-
               {/* Level Selector */}
               <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={setCurrentLevel}
-              /> 
+              />
             </div>
 
             {/* Right side - Week Selector */}
