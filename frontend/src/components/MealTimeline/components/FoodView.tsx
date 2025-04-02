@@ -1,347 +1,209 @@
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
-import { DayMeals, Food, NutritionalInfo } from "../types";
-import { format } from "date-fns";
+import React, { useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { DayMeals, Food } from "../types";
+import { format, isSameDay } from "date-fns";
+import { FoodTypeIcon } from "./FoodTypeIcon";
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
 
 interface FoodViewProps {
-  weekData: DayMeals[];
+  datesToDisplay: DayMeals[];
+  allData: DayMeals[];
   onFoodSelect: (food: Food | null) => void;
   selectedFood: Food | null;
+  mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
 }
 
-export const FoodView: React.FC<FoodViewProps> = ({
-  weekData,
-  onFoodSelect,
-  selectedFood,
-}) => {
-  // Helper function to get food cultural info
-  const getFoodCulturalInfo = (food: Food): string[] => {
-    if (food.culturalOrigin?.length) return food.culturalOrigin;
-    
-    // Try to infer from ingredients
-    const cultures = new Set<string>();
-    food.ingredients.forEach(ing => {
-      ing.culturalOrigin?.forEach(culture => cultures.add(culture));
-    });
-    return Array.from(cultures);
-  };
-
-  // Helper function to calculate diabetes friendliness
-  const calculateDiabetesFriendliness = (food: Food): {
-    isDiabetesFriendly: boolean;
-    reason: string;
-  } => {
-    if (food.diabetesFriendly !== undefined) {
-      return {
-        isDiabetesFriendly: food.diabetesFriendly,
-        reason: food.diabetesFriendly 
-          ? "Marked as diabetes-friendly"
-          : "Not marked as diabetes-friendly"
-      };
-    }
-
-    // Calculate based on nutritional values
-    const carbsPerServing = food.nutritionalInfo.carbs;
-    const fiberContent = food.nutritionalInfo.fiber || 0;
-    const avgGI = food.nutritionalInfo.glycemicIndex || 
-      food.ingredients.reduce((sum, ing) => 
-        sum + (ing.nutritionalInfo.glycemicIndex || 70), 0) / food.ingredients.length;
-
-    const isDiabetesFriendly = 
-      carbsPerServing <= 30 && 
-      fiberContent >= 3 && 
-      avgGI < 55;
-
-    return {
-      isDiabetesFriendly,
-      reason: isDiabetesFriendly
-        ? "Based on nutritional profile"
-        : "Consider portion control"
-    };
-  };
-
-  // Analyze food patterns across the week
-  const foodAnalysis = useMemo(() => {
-    const allFoods = weekData.flatMap((day) =>
-      day.meals.flatMap((meal) => meal.foods)
-    );
-
-    // Count food occurrences and calculate averages
-    const foodStats = new Map<
-      string,
-      {
-        count: number;
-        pattern: string[];
-        avgNutrition: NutritionalInfo;
-        diabetesFriendly?: boolean;
-        culturalInfo: string[];
-        mealTypes: Set<string>;
-        timeSlots: Set<string>;
-      }
-    >();
-
-    allFoods.forEach((food) => {
-      const existing = foodStats.get(food.id) || {
-        count: 0,
-        pattern: [],
-        avgNutrition: { ...food.nutritionalInfo },
-        diabetesFriendly: food.diabetesFriendly,
-        culturalInfo: getFoodCulturalInfo(food),
-        mealTypes: new Set<string>(),
-        timeSlots: new Set<string>(),
-      };
-
-      // Determine food patterns
-      const patterns: string[] = [];
-      const n = food.nutritionalInfo;
-      if (n.protein > 20) patterns.push("high_protein");
-      if (n.carbs > 40) patterns.push("high_carb");
-      if (n.fiber && n.fiber > 5) patterns.push("high_fiber");
-      if (n.calories < 300) patterns.push("low_calorie");
-
-      // Update existing stats
-      existing.count += 1;
-      existing.pattern = patterns;
-      existing.mealTypes.add(food.type);
-
-      foodStats.set(food.id, existing);
-    });
-
-    return foodStats;
-  }, [weekData]);
-
-  // Get pattern color
-  const getPatternColor = (patterns: string[]): string => {
-    if (patterns.length === 0) return "#f3f4f6";
-
-    const colorMap = {
-      high_protein: "#ef4444",
-      high_carb: "#f59e0b",
-      high_fiber: "#10b981",
-      low_calorie: "#8b5cf6",
-    };
-
-    return colorMap[patterns[0] as keyof typeof colorMap] || "#f3f4f6";
-  };
-
+// Placeholder Food Card Component
+const FoodCard: React.FC<{
+  food: Food;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ food, isSelected, onClick }) => {
   return (
-    <div className="p-4">
-      {/* Pattern Summary */}
-      <div className="mb-6 grid grid-cols-4 gap-4">
-        {["high_protein", "high_carb", "high_fiber", "low_calorie"].map(
-          (pattern) => (
-            <div
-              key={pattern}
-              className="p-3 rounded-lg bg-white shadow-sm"
-              style={{ borderLeft: `4px solid ${getPatternColor([pattern])}` }}
-            >
-              <div className="text-sm font-medium capitalize">
-                {pattern.replace("_", " ")}
-              </div>
-              <div className="text-2xl font-bold">
-                {
-                  Array.from(foodAnalysis.values()).filter((stats) =>
-                    stats.pattern.includes(pattern)
-                  ).length
-                }
-              </div>
-            </div>
-          )
+    <motion.div
+      key={`food-${food.id}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className={`p-3 mb-2 rounded-lg cursor-pointer text-xs
+        bg-white shadow-sm hover:shadow transition-all duration-300
+        ${isSelected ? "ring-2 ring-purple-500" : "border border-gray-200"}
+        flex items-center space-x-2`}
+      onClick={onClick}
+    >
+      <FoodTypeIcon
+        type={food.type}
+        className="w-4 h-4 text-gray-600 flex-shrink-0"
+      />
+      <div className="flex-grow overflow-hidden">
+        <h4 className="font-medium text-gray-800 truncate">{food.name}</h4>
+        <p className="text-gray-500 capitalize">
+          {food.type.replace("_", " ")}
+        </p>
+      </div>
+      <div className="text-right flex-shrink-0">
+        <div className="text-gray-700 font-medium">
+          {food.nutritionalInfo.calories} cal
+        </div>
+        {food.diabetesFriendly && (
+          <span className="mt-1 inline-block px-1 py-0.5 bg-green-100 text-green-800 text-[10px] rounded-full">
+            DF
+          </span>
         )}
       </div>
+    </motion.div>
+  );
+};
 
-      {/* Weekly Calendar View */}
-      <div className="grid grid-cols-7 gap-4">
-        {weekData.map((day) => (
-          <div key={day.date.toString()} className="space-y-2">
-            <div className="text-sm font-medium">
-              {format(new Date(day.date), "EEE, MMM d")}
-            </div>
+export const FoodView: React.FC<FoodViewProps> = ({
+  datesToDisplay,
+  allData,
+  onFoodSelect,
+  selectedFood,
+  mealBinNames,
+  onMealBinUpdate, // Use this if bins need dynamic updates based on food count
+}) => {
+  // Helper to get all unique foods for a given date and potentially bin
+  // For simplicity now, let's get all foods for the date first
+  const getFoodsForDate = useCallback(
+    (targetDate: Date): Food[] => {
+      const dayData = allData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
+      );
+      if (!dayData) return [];
 
-            {day.meals.map((meal) => (
-              <div key={meal.id} className="p-2 rounded-lg bg-white shadow-sm">
-                <div className="text-xs text-gray-500 mb-1">
-                  {meal.time} - {meal.type}
-                </div>
+      const allFoods: Food[] = [];
+      const foodIds = new Set<string>(); // Track unique food IDs
 
-                {meal.foods.map((food) => {
-                  const stats = foodAnalysis.get(food.id);
-                  const patterns = stats?.pattern || [];
-                  const diabetesProfile = calculateDiabetesFriendliness(food);
-                  const culturalInfo = getFoodCulturalInfo(food);
+      dayData.meals.forEach((meal) => {
+        meal.foods.forEach((food) => {
+          if (!foodIds.has(food.id)) {
+            allFoods.push(food);
+            foodIds.add(food.id);
+          }
+        });
+      });
+      return allFoods;
+    },
+    [allData]
+  );
 
-                  return (
-                    <motion.div
-                      key={food.id}
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => onFoodSelect(food)}
-                      className={`p-2 rounded cursor-pointer ${
-                        selectedFood?.id === food.id
-                          ? "ring-2 ring-blue-500"
-                          : ""
-                      }`}
-                      style={{
-                        backgroundColor: getPatternColor(patterns),
-                        opacity: patterns.length ? 0.8 : 0.5,
-                      }}
-                    >
-                      {/* Food Name and Type */}
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="text-sm font-medium text-gray-800">
-                            {food.name}
-                          </div>
-                          <div className="text-xs text-gray-500 capitalize">
-                            {food.type.replace("_", " ")}
-                          </div>
-                        </div>
-                        
-                        {/* Diabetes Friendliness Indicator */}
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            diabetesProfile.isDiabetesFriendly
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {diabetesProfile.isDiabetesFriendly ? "DF" : "Monitor"}
-                        </span>
-                      </div>
+  // TODO: Implement logic to distribute foods into bins if needed, similar to organizeMealsIntoBins
+  // For now, we'll just list all foods in the first bin for simplicity.
+  const organizeFoodsIntoBins = useCallback(
+    (date: Date) => {
+      const foods = getFoodsForDate(date);
+      const bins: Record<string, Food[]> = {};
 
-                      {/* Nutritional Quick View */}
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
-                        <div>
-                          Calories: {food.nutritionalInfo.calories}
-                        </div>
-                        <div>
-                          Carbs: {food.nutritionalInfo.carbs}g
-                        </div>
-                        {food.nutritionalInfo.glycemicIndex && (
-                          <div>
-                            GI: {food.nutritionalInfo.glycemicIndex}
-                          </div>
-                        )}
-                        {food.nutritionalInfo.fiber && (
-                          <div>
-                            Fiber: {food.nutritionalInfo.fiber}g
-                          </div>
-                        )}
-                      </div>
+      mealBinNames.forEach((name) => {
+        bins[name] = [];
+      });
 
-                      {/* Patterns and Tags */}
-                      {patterns.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {patterns.map((pattern) => (
-                            <span
-                              key={pattern}
-                              className="text-xs px-1.5 py-0.5 rounded-full bg-white/50"
-                            >
-                              {pattern.replace("_", " ")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+      // Simple distribution: put all foods in the first bin for now
+      if (mealBinNames.length > 0) {
+        bins[mealBinNames[0]] = foods;
+      }
+      // More complex logic needed here to distribute based on meal time or type
 
-                      {/* Cultural Information */}
-                      {culturalInfo.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {culturalInfo.map((culture) => (
-                            <span
-                              key={culture}
-                              className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800"
-                            >
-                              {culture.replace("_", " ")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ))}
+      // Check if bin count needs update (similar to MealView)
+      if (foods.length > mealBinNames.length && mealBinNames.length > 0) {
+        // Simplified: just check total foods vs bins
+        const requiredBins = Math.ceil(foods.length / 5); // Example: 5 foods per bin max
+        if (requiredBins > mealBinNames.length) {
+          const newNames = [...mealBinNames];
+          while (newNames.length < requiredBins) {
+            newNames.push(`Bin ${newNames.length + 1}`);
+          }
+          onMealBinUpdate(newNames);
+        }
+      }
+
+      return bins;
+    },
+    [getFoodsForDate, mealBinNames, onMealBinUpdate]
+  );
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {/* Fixed header for bins */}
+      <div className="flex border-b bg-white z-10 sticky top-0">
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700">
+          Date
+        </div>
+        {mealBinNames.map((binName) => (
+          <div
+            key={binName}
+            className="flex-1 p-4 text-center font-medium text-gray-700 border-l"
+          >
+            {binName} {/* Or maybe Food Category? */}
           </div>
         ))}
       </div>
 
-      {/* Selected Food Details */}
-      {selectedFood && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-lg p-4"
-        >
-          <h3 className="font-medium text-lg mb-2">{selectedFood.name}</h3>
-
-          <div className="space-y-4">
-            {/* Nutritional Information */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Nutritional Information
-              </h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Calories: {selectedFood.nutritionalInfo.calories}</div>
-                <div>Protein: {selectedFood.nutritionalInfo.protein}g</div>
-                <div>Carbs: {selectedFood.nutritionalInfo.carbs}g</div>
-                {selectedFood.nutritionalInfo.fiber && (
-                  <div>Fiber: {selectedFood.nutritionalInfo.fiber}g</div>
-                )}
-                {selectedFood.nutritionalInfo.glycemicIndex && (
-                  <div>
-                    Glycemic Index: {selectedFood.nutritionalInfo.glycemicIndex}
+      {/* Scrollable container */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="min-h-full flex flex-col">
+          {datesToDisplay.map((currentDate) => {
+            const bins = organizeFoodsIntoBins(currentDate.date);
+            return (
+              <div
+                key={currentDate.date.toISOString()}
+                className="flex flex-1 min-h-[150px] border-b last:border-b-0 bg-white"
+              >
+                {/* Date Cell */}
+                <div className="w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start">
+                  <div className="font-semibold text-gray-800">
+                    {format(currentDate.date, "EEE")}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Ingredients */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Ingredients
-              </h4>
-              <div className="flex flex-wrap gap-1">
-                {selectedFood.ingredients.map((ing) => (
-                  <span
-                    key={ing.id}
-                    className="px-2 py-1 bg-gray-100 rounded-full text-xs"
-                  >
-                    {ing.name} ({ing.amount}{ing.unit})
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Preparation Info */}
-            <div className="flex gap-4 text-sm text-gray-600">
-              <div>Prep: {selectedFood.preparationTime}min</div>
-              <div>Cook: {selectedFood.cookingTime}min</div>
-            </div>
-
-            {/* Health Information */}
-            <div className="space-y-2">
-              {/* Diabetes Friendliness */}
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-1 text-xs rounded-full ${
-                    calculateDiabetesFriendliness(selectedFood).isDiabetesFriendly
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {calculateDiabetesFriendliness(selectedFood).reason}
-                </span>
-              </div>
-
-              {/* Allergens */}
-              {selectedFood.allergens.length > 0 && (
-                <div className="text-sm text-red-600">
-                  Contains: {selectedFood.allergens.join(", ")}
+                  <div className="text-sm text-gray-500">
+                    {format(currentDate.date, "MMM d")}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {format(currentDate.date, "yyyy")}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+
+                {/* Food Bins */}
+                <div className="flex flex-1">
+                  {mealBinNames.map((binName) => (
+                    <div
+                      key={`${currentDate.date.toISOString()}-${binName}`}
+                      className="flex-1 p-2 border-l overflow-y-auto"
+                    >
+                      <AnimatePresence>
+                        {bins[binName]?.map((food) => (
+                          <FoodCard
+                            key={food.id}
+                            food={food}
+                            isSelected={selectedFood?.id === food.id}
+                            onClick={() =>
+                              onFoodSelect(
+                                selectedFood?.id === food.id ? null : food
+                              )
+                            }
+                          />
+                        ))}
+                      </AnimatePresence>
+                      {/* Empty State */}
+                      {!bins[binName] ||
+                        (bins[binName].length === 0 && (
+                          <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                            No foods
+                          </div>
+                        ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

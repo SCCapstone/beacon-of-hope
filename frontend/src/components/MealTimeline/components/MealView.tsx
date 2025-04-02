@@ -1,39 +1,46 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
-import { format, isSameDay, addDays, subDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 
 interface MealViewProps {
-  weekData: DayMeals[];
+  datesToDisplay: Date[];
+  allData: DayMeals[]; // All loaded data for lookups
   recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
   selectedRecommendation: MealRecommendation | null;
-  onDateChange: (date: Date) => void;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
   isLoading?: boolean;
 }
 
+// Helper function
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
 export const MealView: React.FC<MealViewProps> = ({
-  weekData,
+  datesToDisplay,
+  allData,
   recommendationData,
   selectedDate,
   onMealSelect,
   selectedMeal,
   onRecommendationSelect,
   selectedRecommendation,
-  onDateChange,
   mealBinNames,
   onMealBinUpdate,
   isLoading = false,
 }) => {
-  const mainAreaRef = useRef<HTMLDivElement>(null);
+  // const mainAreaRef = useRef<HTMLDivElement>(null);
 
   if (isLoading) {
     return (
@@ -46,26 +53,34 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   }
 
-  // Get adjacent dates
-  const previousDate = subDays(selectedDate, 1);
-  const nextDate = addDays(selectedDate, 1);
+  // // Get adjacent dates
+  // const previousDate = subDays(selectedDate, 1);
+  // const nextDate = addDays(selectedDate, 1);
 
-  // Get meals for a specific date
-  const getMealsForDate = useCallback(
-    (targetDate: Date): Meal[] => {
-      const dayData = weekData.find((day) =>
-        isSameDay(new Date(day.date), targetDate)
+  // Get data for a specific date from allData ***
+  const getDataForDate = useCallback(
+    (targetDate: Date): DayMeals | undefined => {
+      return allData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
       );
-      return dayData?.meals || [];
     },
-    [weekData]
+    [allData]
   );
 
-  // Get recommendations for a specific date
+  // Get meals for a specific date using getDataForDate
+  const getMealsForDate = useCallback(
+    (targetDate: Date): Meal[] => {
+      const dayData = getDataForDate(targetDate);
+      return dayData?.meals || [];
+    },
+    [getDataForDate]
+  );
+
+  // Keep getRecommendationsForDate (adapt if needed based on recommendationData structure)
   const getRecommendationsForDate = useCallback(
     (targetDate: Date): MealRecommendation[] => {
       const dayRecs = recommendationData.find((day) =>
-        isSameDay(new Date(day.date), targetDate)
+        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
       );
       return dayRecs?.recommendations || [];
     },
@@ -192,99 +207,12 @@ export const MealView: React.FC<MealViewProps> = ({
     return selectedMeal?.id === meal.id;
   };
 
-  // Render a collapsed date row
-  const renderCollapsedDateRow = (date: Date, position: "top" | "bottom") => {
-    const bins = organizeMealsIntoBins(date);
-
-    return (
-      <div
-        className={`
-          flex h-16 cursor-pointer transition-all duration-300
-          ${
-            position === "top"
-              ? "border-b-2 border-gray-300 bg-gray-100"
-              : "border-t-2 border-gray-300 bg-gray-100"
-          }
-          hover:bg-gray-200 relative
-        `}
-        onClick={() => onDateChange(date)}
-      >
-        {/* Navigation indicator */}
-        <div className="absolute inset-y-0 left-0 w-1 bg-blue-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-
-        {/* Date cell with navigation icon */}
-        <div className="w-32 flex-shrink-0 p-2 font-medium text-gray-700 flex items-center">
-          <div className="mr-2">
-            {position === "top" ? (
-              <svg
-                className="w-4 h-4 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 10l7-7m0 0l7 7m-7-7v18"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-4 h-4 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                />
-              </svg>
-            )}
-          </div>
-          <div>
-            <div className="text-sm">{format(date, "EEE, MMM d")}</div>
-            <div className="text-xs text-gray-500">{format(date, "yyyy")}</div>
-          </div>
-        </div>
-
-        {/* Meal bins - simplified view */}
-        {mealBinNames.map((binName) => {
-          const bin = bins[binName];
-          const totalItems = bin.meals.length + bin.recommendations.length;
-
-          return (
-            <div
-              key={`${date.toISOString()}-${binName}`}
-              className="flex-1 p-2 border-l flex items-center justify-center"
-            >
-              {totalItems > 0 ? (
-                <div className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                  {totalItems} item{totalItems !== 1 ? "s" : ""}
-                </div>
-              ) : (
-                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Navigation hint text */}
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {position === "top" ? "Previous day" : "Next day"}
-        </div>
-      </div>
-    );
-  };
-
   // Function to render a meal card
-  const renderMealCard = (meal: Meal) => {
+  const renderMealCard = (meal: Meal, date: Date) => {
+    // Pass date for unique key
     return (
       <motion.div
-        key={`meal-${meal.id}-${selectedDate.toISOString()}`}
+        key={`meal-${meal.id}-${date.toISOString()}`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
@@ -458,112 +386,82 @@ export const MealView: React.FC<MealViewProps> = ({
         ))}
       </div>
 
-      {/* Previous day - collapsed row */}
-      <div className="flex-shrink-0">
-        {renderCollapsedDateRow(previousDate, "top")}
-      </div>
+      {/* Scrollable container for all displayed days */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="min-h-full flex flex-col">
+          {/* *** Iterate over datesToDisplay *** */}
+          {datesToDisplay.map((currentDate, _) => {
+            const isSelected = isSameDay(normalizeDate(currentDate), normalizeDate(selectedDate));
+            const bins = organizeMealsIntoBins(currentDate);
 
-      {/* Scrollable container for all three days */}
-      <div className="flex-1 overflow-auto bg-white">
-        <div className="min-h-full flex flex-col h-full">
-          {/* Main content area - current selected date */}
-          <div className="flex-grow overflow-auto bg-white" ref={mainAreaRef}>
-            <div className="h-full flex flex-col">
-              {/* Date header */}
-              <div className="bg-blue-50 p-4 border-b border-blue-200">
-                <div className="flex items-baseline">
-                  <h2 className="text-2xl font-bold text-blue-800">
-                    {format(selectedDate, "EEEE")}
-                  </h2>
-                  <span className="ml-2 text-lg text-blue-600">
-                    {format(selectedDate, "MMMM d, yyyy")}
-                  </span>
+            return (
+              <div
+                key={currentDate.toISOString()}
+                className={`
+                  flex flex-1 min-h-[200px] border-b last:border-b-0
+                  ${isSelected ? 'bg-blue-50' : 'bg-white'}
+                `} // Add min-height and highlight selected
+              >
+                {/* Date Cell */}
+                <div
+                  className={`
+                    w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start
+                    ${isSelected ? 'border-blue-200' : 'border-gray-200'}
+                  `}
+                >
+                  <div className={`font-semibold ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
+                    {format(currentDate, "EEE")}
+                  </div>
+                  <div className={`text-sm ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {format(currentDate, "MMM d")}
+                  </div>
+                  <div className={`text-xs ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                    {format(currentDate, "yyyy")}
+                  </div>
                 </div>
-              </div>
 
-              {/* Meal bins for selected date */}
-              <div className="flex flex-1 min-h-0">
-                {/* Left sidebar with time indicators */}
-                <div className="w-32 flex-shrink-0 border-r bg-gray-50 p-4"></div>
-
-                {/* Meal bins */}
+                {/* Meal Bins for this date */}
                 <div className="flex flex-1">
                   {mealBinNames.map((binName) => {
-                    const bins = organizeMealsIntoBins(selectedDate);
                     const bin = bins[binName];
-
                     return (
                       <div
-                        key={`${selectedDate.toISOString()}-${binName}`}
-                        className="flex-1 p-4 border-l overflow-y-auto flex flex-col"
+                        key={`${currentDate.toISOString()}-${binName}`}
+                        className={`
+                          flex-1 p-4 border-l overflow-y-auto flex flex-col
+                          ${isSelected ? 'border-blue-200' : 'border-gray-200'}
+                        `} // Adjust border color
                       >
-                        {/* Meals in this bin */}
+                        {/* Meals */}
                         <AnimatePresence>
-                          {bin.meals.map((meal) => renderMealCard(meal))}
+                          {bin.meals.map((meal) => renderMealCard(meal, currentDate))}
                         </AnimatePresence>
-
-                        {/* Recommendations in this bin */}
+                        {/* Recommendations */}
                         <AnimatePresence>
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
-                              key={`rec-${
-                                recommendation.meal.id
-                              }-${selectedDate.toISOString()}`}
-                              className="my-5 flex-grow"
+                              key={`rec-${recommendation.meal.id}-${currentDate.toISOString()}`}
+                              className="my-2 flex-shrink-0" // Adjust margin/sizing
                               recommendation={recommendation}
-                              onClick={() =>
-                                onRecommendationSelect(recommendation)
-                              }
-                              isSelected={
-                                selectedRecommendation?.meal.id ===
-                                recommendation.meal.id
-                              }
+                              onClick={() => onRecommendationSelect(recommendation)}
+                              isSelected={selectedRecommendation?.meal.id === recommendation.meal.id}
                             />
                           ))}
                         </AnimatePresence>
-
-                        {/* Empty state */}
-                        {bin.meals.length === 0 &&
-                          bin.recommendations.length === 0 && (
-                            <div className="h-full flex items-center justify-center">
-                              <div className="text-center p-6">
-                                <div className="text-gray-400 mb-2">
-                                  <svg
-                                    className="w-12 h-12 mx-auto"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={1.5}
-                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                    />
-                                  </svg>
-                                </div>
-                                <p className="text-sm text-gray-500">
-                                  No meals planned
-                                </p>
-                                <button className="mt-2 px-3 py-1 text-xs text-blue-600 hover:text-blue-800">
-                                  Add meal
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                        {/* Empty State */}
+                        {bin.meals.length === 0 && bin.recommendations.length === 0 && (
+                           <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                             No items
+                           </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      </div>
-
-      {/* Next day - collapsed row */}
-      <div className="flex-shrink-0">
-        {renderCollapsedDateRow(nextDate, "bottom")}
       </div>
     </div>
   );
