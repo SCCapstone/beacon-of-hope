@@ -66,7 +66,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   onFoodSelect,
   selectedFood,
   mealBinNames,
-  onMealBinUpdate, // Use this if bins need dynamic updates based on food count
+  onMealBinUpdate,
 }) => {
   // Helper to get all unique foods for a given date and potentially bin
   // For simplicity now, let's get all foods for the date first
@@ -129,16 +129,18 @@ export const FoodView: React.FC<FoodViewProps> = ({
   );
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header for bins */}
       <div className="flex border-b bg-white z-10 sticky top-0">
-        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700">
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
           Date
         </div>
-        {mealBinNames.map((binName) => (
+        {mealBinNames.map((binName, index) => (
           <div
             key={binName}
-            className="flex-1 p-4 text-center font-medium text-gray-700 border-l"
+            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
+              index > 0 ? "border-l" : ""
+            }`}
           >
             {binName} {/* Or maybe Food Category? */}
           </div>
@@ -170,10 +172,12 @@ export const FoodView: React.FC<FoodViewProps> = ({
 
                 {/* Food Bins */}
                 <div className="flex flex-1">
-                  {mealBinNames.map((binName) => (
+                  {mealBinNames.map((binName, index) => (
                     <div
                       key={`${currentDate.date.toISOString()}-${binName}`}
-                      className="flex-1 p-2 border-l overflow-y-auto"
+                      className={`flex-1 p-4 overflow-y-auto ${
+                        index > 0 ? "border-l" : ""
+                      }`}
                     >
                       <AnimatePresence>
                         {bins[binName]?.map((food) => (

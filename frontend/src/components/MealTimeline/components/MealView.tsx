@@ -367,19 +367,21 @@ export const MealView: React.FC<MealViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header for meal bins */}
       <div className="flex border-b bg-white z-20 sticky top-0">
         {/* Date column header */}
-        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700">
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
           Date
         </div>
 
         {/* Meal bin headers */}
-        {mealBinNames.map((binName) => (
+        {mealBinNames.map((binName, index) => (
           <div
             key={binName}
-            className="flex-1 p-4 text-center font-medium text-gray-700 border-l"
+            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
+              index > 0 ? "border-l" : ""
+            }`}
           >
             {binName}
           </div>
@@ -390,32 +392,48 @@ export const MealView: React.FC<MealViewProps> = ({
       <div className="flex-1 overflow-auto bg-gray-50">
         <div className="min-h-full flex flex-col">
           {/* *** Iterate over datesToDisplay *** */}
-          {datesToDisplay.map((currentDate, _) => {
-            const isSelected = isSameDay(normalizeDate(currentDate), normalizeDate(selectedDate));
+          {datesToDisplay.map((currentDate) => {
+            const isSelected = isSameDay(
+              normalizeDate(currentDate),
+              normalizeDate(selectedDate)
+            );
             const bins = organizeMealsIntoBins(currentDate);
 
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`
-                  flex flex-1 min-h-[200px] border-b last:border-b-0
-                  ${isSelected ? 'bg-blue-50' : 'bg-white'}
-                `} // Add min-height and highlight selected
+                className={`flex flex-1 min-h-[150px] border-b last:border-b-0  ${isSelected ? "bg-blue-50" : "bg-white"}`}
+                // className={`
+                //   flex flex-1 min-h-[200px] border-b last:border-b-0
+                //   ${isSelected ? "bg-blue-50" : "bg-white"}
+                // `} // Add min-height and highlight selected
               >
                 {/* Date Cell */}
                 <div
                   className={`
                     w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start
-                    ${isSelected ? 'border-blue-200' : 'border-gray-200'}
+                    ${isSelected ? "border-blue-200" : "border-gray-200"}
                   `}
                 >
-                  <div className={`font-semibold ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
+                  <div
+                    className={`font-semibold ${
+                      isSelected ? "text-blue-800" : "text-gray-800"
+                    }`}
+                  >
                     {format(currentDate, "EEE")}
                   </div>
-                  <div className={`text-sm ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}>
+                  <div
+                    className={`text-sm ${
+                      isSelected ? "text-blue-600" : "text-gray-500"
+                    }`}
+                  >
                     {format(currentDate, "MMM d")}
                   </div>
-                  <div className={`text-xs ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                  <div
+                    className={`text-xs ${
+                      isSelected ? "text-blue-500" : "text-gray-400"
+                    }`}
+                  >
                     {format(currentDate, "yyyy")}
                   </div>
                 </div>
@@ -429,31 +447,41 @@ export const MealView: React.FC<MealViewProps> = ({
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
                           flex-1 p-4 border-l overflow-y-auto flex flex-col
-                          ${isSelected ? 'border-blue-200' : 'border-gray-200'}
+                          ${isSelected ? "border-blue-200" : "border-gray-200"}
                         `} // Adjust border color
                       >
                         {/* Meals */}
                         <AnimatePresence>
-                          {bin.meals.map((meal) => renderMealCard(meal, currentDate))}
+                          {bin.meals.map((meal) =>
+                            renderMealCard(meal, currentDate)
+                          )}
                         </AnimatePresence>
                         {/* Recommendations */}
                         <AnimatePresence>
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
-                              key={`rec-${recommendation.meal.id}-${currentDate.toISOString()}`}
+                              key={`rec-${
+                                recommendation.meal.id
+                              }-${currentDate.toISOString()}`}
                               className="my-2 flex-shrink-0" // Adjust margin/sizing
                               recommendation={recommendation}
-                              onClick={() => onRecommendationSelect(recommendation)}
-                              isSelected={selectedRecommendation?.meal.id === recommendation.meal.id}
+                              onClick={() =>
+                                onRecommendationSelect(recommendation)
+                              }
+                              isSelected={
+                                selectedRecommendation?.meal.id ===
+                                recommendation.meal.id
+                              }
                             />
                           ))}
                         </AnimatePresence>
                         {/* Empty State */}
-                        {bin.meals.length === 0 && bin.recommendations.length === 0 && (
-                           <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                             No items
-                           </div>
-                        )}
+                        {bin.meals.length === 0 &&
+                          bin.recommendations.length === 0 && (
+                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                              No items
+                            </div>
+                          )}
                       </div>
                     );
                   })}

@@ -144,10 +144,12 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700">
           {format(currentDate, "MMM d, yyyy")}
         </div>
-        {mealBinNames.map((binName) => (
+        {mealBinNames.map((binName, index) => (
           <div
             key={binName}
-            className="flex-1 p-4 text-center font-medium text-gray-700 border-l capitalize"
+            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
+              index > 0 ? "border-l" : ""
+            }`}
           >
             {binName} {/* Display bin name (e.g., Category) */}
           </div>
@@ -168,10 +170,12 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
 
         {/* Ingredient Bins */}
         <div className="flex flex-1">
-          {mealBinNames.map((binName) => (
+          {mealBinNames.map((binName, index) => (
             <div
               key={`${currentDate.toISOString()}-${binName}`}
-              className="flex-1 p-2 border-l overflow-y-auto"
+              className={`flex-1 p-2 overflow-y-auto ${
+                index > 0 ? "border-l" : ""
+              }`}
             >
               <AnimatePresence>
                 {bins[binName]?.map((ingredient) => (
