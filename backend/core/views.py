@@ -215,7 +215,7 @@ def bandit_recommendation(request: HttpRequest):
 
             ...
         print(f"User ID: {user_id}")
-
+       
         logger.info("User data parsed")
 
         # Update user
@@ -227,7 +227,7 @@ def bandit_recommendation(request: HttpRequest):
                     logger.info(user)
                     return JsonResponse(
                         {
-                            "Error": "There was an error in retrieving the user from Firebase"
+                            "Error": user
                         },
                         status=status,
                     )
@@ -400,6 +400,263 @@ def bandit_recommendation(request: HttpRequest):
             status=500,
         )
 
+
+@csrf_exempt
+def regenerate_partial_meal_plan(request: HttpRequest):
+    """
+    Regenerate specific meals in an existing meal plan using bandit recommendations.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
+    try:
+        data: dict = json.loads(request.body)
+        
+        required_fields = ["user_id", "dates_to_regenerate", "meal_plan_config"]
+        if not all(field in data for field in required_fields):
+            return JsonResponse(
+                {"error": "Request body is missing required fields: user_id, dates_to_regenerate, or meal_plan_config"},
+                status=403,
+            )
+
+        user_id = data["user_id"]
+        dates_to_regenerate = data["dates_to_regenerate"]
+        meal_plan_config = data["meal_plan_config"]
+        user_preferences = data.get("user_preferences", {})
+
+        if "dairy" in user_preferences:
+            user_preferences = {
+                "dairyPreference": user_preferences["dairy"],
+                "meatPreference": user_preferences["meat"],
+                "nutsPreference": user_preferences["nuts"]
+            }
+        elif "dairyPreference" not in user_preferences:
+            # If neither format is present, use default preferences
+            user_preferences = {
+                "dairyPreference": 0,
+                "meatPreference": 0,
+                "nutsPreference": 0
+            }
+
+        # Ensure preferences are integers (-1, 0, or 1)
+        for key in user_preferences:
+            if isinstance(user_preferences[key], float):
+                user_preferences[key] = round(user_preferences[key])
+
+        # Convert meal configs to expected format if needed
+        if meal_plan_config.get("meal_configs"):
+            meal_plan_config["meal_configs"] = [
+                {
+                    "meal_name": config["meal_name"].lower(),
+                    "meal_types": {
+                        "beverage": config.get("beverage", False),
+                        "main_course": config.get("main_course", False),
+                        "side": config.get("side", False),
+                        "dessert": config.get("dessert", False)
+                    }
+                }
+                for config in meal_plan_config["meal_configs"]
+            ]
+
+        # Get the user's current meal plan
+        meal_plan = data.get("meal_plan")
+        if not meal_plan:
+            meal_plan, status = firebaseManager.get_latest_user_meal_plan(user_id=user_id)
+            if status != 200:
+             return JsonResponse({"error": "Failed to retrieve current meal plan"}, status=status)
+
+
+        
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse({"error": "Failed to retrieve user data"}, status=status)
+
+        bandit_counter = user["bandit_counter"]
+        need_to_train = True
+
+        if bandit_counter % 5 != 0 and user.get("favorite_items") and all(
+            user["favorite_items"][key] for key in ["Beverage", "Main Course", "Side", "Dessert"]
+        ):
+            need_to_train = False
+            favorite_items = user["favorite_items"]
+            
+            # Increment bandit counter
+            msg, status = firebaseManager.update_user_attr(
+                user_id, "bandit_counter", bandit_counter + 1
+            )
+            if status != 200:
+                return JsonResponse({"error": "Failed to update bandit counter"}, status=status)
+        else:
+            logger.info("Retraining bandit for new recommendations...")
+
+        if need_to_train:
+            # Train bandit
+            try:
+                bandit_trial_path, trial_num = configure_bandit(len(dates_to_regenerate))
+                if not train_bandit(bandit_trial_path):
+                    return JsonResponse({"error": "Failed to train bandit"}, status=500)
+                if not test_bandit(bandit_trial_path):
+                    return JsonResponse({"error": "Failed to test bandit"}, status=500)
+                
+                favorite_items = get_favorite_items(trial_num, user_preferences)
+                
+                
+                msg, status = firebaseManager.update_user_attr(
+                    user_id, "favorite_items", favorite_items
+                )
+                if status != 200:
+                    return JsonResponse({"error": "Failed to update favorite items"}, status=status)
+            except Exception as e:
+                return JsonResponse({"error": f"Bandit training failed: {str(e)}"}, status=500)
+
+        # new recommendations for specified dates = num of days of mp
+        try:
+            new_days = gen_bandit_rec(
+                favorite_items,
+                len(dates_to_regenerate),
+                meal_plan_config["meal_configs"],
+                datetime.strptime(dates_to_regenerate[0], "%Y-%m-%d")
+            )
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to generate new recommendations: {str(e)}"}, status=500)
+
+        # Update meal plan with regenerated recommendations
+        success_messages = []
+        for date, new_day_plan in new_days.items():
+            if date in dates_to_regenerate:
+                new_day_plan["user_id"] = user_id
+                new_day_plan["meal_plan_id"] = meal_plan["_id"]
+                msg, status = firebaseManager.add_dayplan(user_id, date, new_day_plan)
+                if status != 200:
+                    return JsonResponse({"error": f"Failed to update day plan for {date}"}, status=status)
+                
+                meal_plan["days"][date] = new_day_plan
+                success_messages.append(f"Successfully regenerated meals for {date}")
+
+        #TODO fix scores for the regenerated meal plan
+        
+        # scores = calculate_goodness(meal_plan, meal_plan_config["meal_configs"], user_preferences)
+        # meal_plan["scores"] = scores
+
+        # Update meal plan in Firebase
+        msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
+        if status != 200:
+            return JsonResponse({"error": "Failed to update meal plan"}, status=status)
+
+        return JsonResponse({
+            "success": True,
+            "meal_plan": meal_plan,
+            "messages": success_messages
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("An error occurred while regenerating the meal plan")
+        return JsonResponse({"error": str(e)}, status=500)
+
+@csrf_exempt
+def edit_meal_plan(request: HttpRequest):
+    """
+    Edit a specific meal within a generated meal plan.
+    You can add, update, or delete individual meal items (beverage, main_course, dessert, side).
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        # Old required fields
+        # required_fields = ["user_id", "date", "meal_name", "updates"]
+        # New required fields with meal_plan
+        required_fields = ["user_id", "date", "meal_name", "updates", "meal_plan"]
+        if not all(k in data for k in required_fields):
+            return JsonResponse(
+                {"error": "Missing one or more required fields: user_id, date, meal_name, updates, meal_plan"},
+                status=400,
+            )
+
+        user_id = data["user_id"]
+        date = data["date"]
+        meal_name = data["meal_name"].lower()
+        updates = data["updates"]
+        # New: Get meal plan from request body
+        meal_plan = data["meal_plan"]
+
+        # Validate updates object
+        valid_meal_types = {"beverage", "main_course", "side", "dessert"}
+        if not all(key in valid_meal_types for key in updates.keys()):
+            return JsonResponse(
+                {"error": f"Invalid meal type in updates. Valid types are: {', '.join(valid_meal_types)}"},
+                status=400,
+            )
+
+        # Old: Fetch latest meal plan
+        # meal_plan, status = firebaseManager.get_latest_user_meal_plan(user_id)
+        # if status != 200 or not isinstance(meal_plan, dict):
+        #     return JsonResponse({"error": "Could not retrieve user's meal plan"}, status=status)
+
+        if date not in meal_plan.get("days", {}):
+            return JsonResponse({"error": f"No meal plan exists for date: {date}"}, status=404)
+
+        day_plan = meal_plan["days"][date]
+        meals = day_plan.get("meals", [])
+
+        # Find the meal to update
+        meal_found = False
+        for meal in meals:
+            if meal.get("meal_name", "").lower() == meal_name:
+                meal_found = True
+                meal_types = meal.setdefault("meal_types", {})
+                
+                # Update meal types
+                for key, val in updates.items():
+                    if val is None:
+                        meal_types.pop(key, None)
+                    else:
+                        # Validate that the new item exists in the database
+                        if key == "beverage":
+                            beverage, _ = firebaseManager.get_single_beverage(val)
+                            if isinstance(beverage, Exception):
+                                return JsonResponse(
+                                    {"error": f"Invalid beverage ID: {val}"},
+                                    status=400
+                                )
+                        else:
+                            food, _ = firebaseManager.get_single_r3(val)
+                            if isinstance(food, Exception):
+                                return JsonResponse(
+                                    {"error": f"Invalid food item ID: {val}"},
+                                    status=400
+                                )
+                        meal_types[key] = val
+                break
+
+        if not meal_found:
+            return JsonResponse({"error": f"Meal '{meal_name}' not found on {date}"}, status=404)
+
+        # Update day plan in Firebase
+        day_plan["user_id"] = user_id
+        day_plan["meal_plan_id"] = meal_plan["_id"]
+        msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+        if status != 200:
+            return JsonResponse({
+                "error": f"Failed to update day plan for {date}",
+                "details": msg
+            }, status=status)
+
+        # Update meal plan in Firebase
+        meal_plan["days"][date] = day_plan
+        msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
+        if status != 200:
+            return JsonResponse({"error": "Failed to update meal plan"}, status=status)
+
+        return JsonResponse({
+            "success": True, 
+            "updated_day_plan": day_plan,
+            "message": f"Successfully updated {meal_name} for {date}"
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("edit_meal_plan failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
 
 """User Account API Endpoints"""
 

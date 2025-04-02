@@ -227,7 +227,183 @@ poetry run coverage report
       - (400) Missing or invalid input
       - (500) Internal Server error
 
+- #### `<backend_ip/beacon/recommendation/edit-meal>`
+   - HTTP Method: `POST`
+   - Description: Edit a specific meal within an existing meal plan. Allows adding, updating, or removing individual meal components (beverage, main course, side, dessert).
+   - Request body:
+      - Content-type: application/json
 
+   - JSON Schema:
+   ```json
+   {
+      "user_id": "674f7d4c5b4425639bef8cd6",
+      "date": "2025-03-08",
+      "meal_name": "breakfast",
+      "updates": {
+          "beverage": "15",
+          "main_course": "26",
+          "side": null,
+          "dessert": "22"
+      },
+      "meal_plan": {
+          "_id": "67d242226d9fb9f7510444fc",
+          "user_id": "67c149e417717376a4ab1dff",
+          "name": "User Meal Plan",
+          "days": {
+              "2025-03-08": {
+                  "_id": "67d242226d9fb9f7510444fa",
+                  "meals": [
+                      {
+                          "_id": "67d242226d9fb9f7510444f8",
+                          "meal_name": "breakfast",
+                          "meal_types": {
+                              "main_course": "26",
+                              "side": "28",
+                              "dessert": "22",
+                              "beverage": "15"
+                          }
+                      }
+                  ],
+                  "user_id": "67c149e417717376a4ab1dff",
+                  "meal_plan_id": "67d242226d9fb9f7510444fc"
+              }
+          }
+      }
+   }
+   ```
+   - Response:
+      - (200) Successfully updated meal
+   ```json
+   {
+      "success": true,
+      "updated_day_plan": {
+          "_id": "67d242226d9fb9f7510444fa",
+          "meals": [
+              {
+                  "_id": "67d242226d9fb9f7510444f8",
+                  "meal_name": "breakfast",
+                  "meal_types": {
+                      "main_course": "26",
+                      "dessert": "22",
+                      "beverage": "15"
+                  }
+              }
+          ],
+          "user_id": "67c149e417717376a4ab1dff",
+          "meal_plan_id": "67d242226d9fb9f7510444fc"
+      },
+      "message": "Successfully updated breakfast for 2025-03-08"
+   }
+   ```
+      - (400) Missing or invalid input
+      - (404) Meal or date not found
+      - (500) Internal Server error
+
+- #### `<backend_ip/beacon/recommendation/regenerate-partial>`
+   - HTTP Method: `POST`
+   - Description: Regenerate specific meals in an existing meal plan using the bandit recommendation system. This endpoint is useful when a user wants to replace specific meals while keeping the rest of their meal plan intact.
+   - Request body:
+      - Content-type: application/json
+
+   - JSON Schema:
+   ```json
+   {
+      "user_id": "674f7d4c5b4425639bef8cd6",
+      "dates_to_regenerate": ["2025-03-08", "2025-03-09"],
+      "meal_plan_config": {
+        "num_days": 3,
+        "num_meals": 3,
+        "meal_configs": [
+            {
+                "meal_name": "breakfast",
+                "beverage": true,
+                "main_course": true,
+                "side": false,
+                "dessert": false
+            },
+            {
+                "meal_name": "lunch",
+                "beverage": true,
+                "main_course": true,
+                "side": true,
+                "dessert": false
+            }
+        ]
+      },
+      "user_preferences": {
+        "dairyPreference": 1,
+        "meatPreference": 0,
+        "nutsPreference": -1
+      }
+   }
+   ```
+   - Response:
+      - (200) Successfully regenerated meals
+   ```json
+   {
+      "_id": "67d242226d9fb9f7510444fc",
+      "user_id": "67c149e417717376a4ab1dff",
+      "name": "User Meal Plan",
+      "days": {
+        "2025-03-08": {
+          "_id": "67d242226d9fb9f7510444fa",
+          "meals": [
+            {
+              "_id": "67d242226d9fb9f7510444f8",
+              "meal_name": "breakfast",
+              "meal_types": {
+                "main_course": "26",
+                "beverage": "15"
+              }
+            },
+            {
+              "_id": "67d242226d9fb9f7510444f9",
+              "meal_name": "lunch",
+              "meal_types": {
+                "main_course": "26",
+                "side": "28",
+                "beverage": "15"
+              }
+            }
+          ],
+          "user_id": "67c149e417717376a4ab1dff",
+          "meal_plan_id": "67d242226d9fb9f7510444fc"
+        },
+        "2025-03-09": {
+          "_id": "67d242226d9fb9f7510444fb",
+          "meals": [
+            {
+              "_id": "67d242226d9fb9f7510444f8",
+              "meal_name": "breakfast",
+              "meal_types": {
+                "main_course": "26",
+                "beverage": "15"
+              }
+            },
+            {
+              "_id": "67d242226d9fb9f7510444f9",
+              "meal_name": "lunch",
+              "meal_types": {
+                "main_course": "26",
+                "side": "28",
+                "beverage": "15"
+              }
+            }
+          ],
+          "user_id": "67c149e417717376a4ab1dff",
+          "meal_plan_id": "67d242226d9fb9f7510444fc"
+        }
+      },
+      "scores": {
+        "variety_scores": [1.0, 1.0, 1.0, 1.0],
+        "coverage_scores": [0.5, 0.5, 0.5, 0.5],
+        "constraint_scores": [0.6666666666666667, 0.6666666666666667, 0.6666666666666667, 0.6666666666666667]
+      }
+   }
+   ```
+      - (400) Missing or invalid input
+      - (403) Missing required fields
+      - (500) Internal Server error
 
 - #### `<backend_ip/beacon/recommendation/random>`
    - **Deprecated**, use `<backend_ip/beacon/recommendation/bandit>` instead
