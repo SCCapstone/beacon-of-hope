@@ -19,7 +19,6 @@ import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransfor
 import {
   subDays,
   addDays,
-  isSameDay,
   format,
   eachDayOfInterval,
 } from "date-fns";
@@ -32,13 +31,15 @@ const normalizeDate = (date: Date): Date => {
 };
 
 const isSameNormalizedDay = (date1: Date, date2: Date): boolean => {
+  if (!date1 || !date2) return false; // Guard against null/undefined dates
   const d1 = normalizeDate(date1);
   const d2 = normalizeDate(date2);
   return d1.getTime() === d2.getTime();
 };
 
 interface MealCalendarVizProps {
-  initialData: DayMeals[];
+  // Renamed prop: Use data passed from parent directly
+  mealData: DayMeals[];
   userPreferences: {
     diabetesFriendly: boolean;
     culturalPreferences: string[];
@@ -51,39 +52,38 @@ interface MealCalendarVizProps {
   };
   mealPlan?: any;
   onRecommendationSelect?: (recommendation: MealRecommendation) => void;
-  onDateRangeChange?: (start: Date, end: Date, selectedDate?: Date) => void;
+  onDateRangeChange: (start: Date, end: Date, selectedDate?: Date) => void; // Make mandatory
   initialSelectedDate?: Date;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
-  initialData,
+  // Use mealData prop directly
+  mealData,
   nutritionalGoals,
   mealPlan,
   onDateRangeChange,
   initialSelectedDate,
 }) => {
   // State declarations
-  const [loading, setLoading] = useState(false);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false); // Separate loading state for recommendations
   const [error, setError] = useState<string | null>(null);
-  const [weekData, setWeekData] = useState<DayMeals[]>(initialData);
   const [recommendationData, setRecommendationData] = useState<
     DayRecommendations[]
   >([]);
   const [currentLevel, setCurrentLevel] =
-    useState<VisualizationLevel["type"]>("food");
+    useState<VisualizationLevel["type"]>("meal");
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   const [selectedIngredient, setSelectedIngredient] =
     useState<Ingredient | null>(null);
+  // Use initialSelectedDate from props, default to today if not provided
   const [selectedDate, setSelectedDate] = useState<Date>(
-    normalizeDate(initialSelectedDate || new Date()) // Normalize initial date
+    normalizeDate(initialSelectedDate || new Date())
   );
-  const [showLeftPanel, setShowLeftPanel] = useState(false);
+  const [_, setShowLeftPanel] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MealRecommendation | null>(null);
   const vizRef = React.useRef<HTMLDivElement>(null);
-  const [recommendations, setRecommendations] = useState<DayMeals[]>([]);
-  const [combinedData, setCombinedData] = useState<DayMeals[]>([]);
   const [mealBinNames, setMealBinNames] = useState<string[]>([
     "Meal 1",
     "Meal 2",
@@ -96,6 +96,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     localStorage.setItem("mealBinNames", JSON.stringify(newNames));
   };
 
+  // Load saved meal bin names
   useEffect(() => {
     const savedNames = localStorage.getItem("mealBinNames");
     if (savedNames) {
@@ -110,15 +111,31 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     }
   }, []);
 
+  // Log selectedDate changes
   useEffect(() => {
-    console.log("selectedDate changed to:", format(selectedDate, "yyyy-MM-dd"));
+    console.log("Viz: selectedDate changed to:", format(selectedDate, "yyyy-MM-dd"));
   }, [selectedDate]);
 
+  // Sync selectedDate with parent prop if it changes externally
+  useEffect(() => {
+      const normalizedInitial = initialSelectedDate ? normalizeDate(initialSelectedDate) : null;
+      if (normalizedInitial && !isSameNormalizedDay(normalizedInitial, selectedDate)) {
+          console.log(
+              "Viz: Syncing selectedDate with parent prop:",
+              format(normalizedInitial, "yyyy-MM-dd")
+          );
+          setSelectedDate(normalizedInitial);
+      }
+  }, [initialSelectedDate, selectedDate]); // Add selectedDate dependency
+
+
+  // Load recommendations based on mealPlan prop
   useEffect(() => {
     async function loadRecommendations() {
       try {
-        if (mealPlan) {
-          setLoading(true); // Show loading state while transforming
+        if (mealPlan && Object.keys(mealPlan).length > 0) { // Check if mealPlan is not empty
+          setLoadingRecommendations(true);
+          setError(null); // Clear previous errors
 
           // Use a memoized version of the meal plan to prevent unnecessary transformations
           const mealPlanKey = JSON.stringify(mealPlan);
@@ -126,7 +143,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             `recommendations-${mealPlanKey}`
           );
 
-          let recommendations;
+          let recommendations: DayRecommendations[];
           if (cachedRecommendations) {
             // Use cached recommendations if available
             recommendations = (
@@ -137,39 +154,44 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             ).map(
               (day): DayRecommendations => ({
                 ...day,
-                date: new Date(day.date), // Convert date strings back to Date objects
+                date: normalizeDate(new Date(day.date)), // Normalize date on load
               })
             );
+            console.log("Viz: Loaded recommendations from cache.");
           } else {
-            // Transform the data if not cached
+            console.log("Viz: Transforming meal plan to recommendations...");
             const transformedData = await transformMealPlanToRecommendations(
               mealPlan
             );
             recommendations = transformedData.map((day) => ({
-              date: day.date,
+              date: normalizeDate(day.date), // Normalize date on transform
               recommendations: day.recommendations || [],
             }));
-
-            // Cache the result
+            console.log("Viz: Transformation complete.");
             sessionStorage.setItem(
               `recommendations-${mealPlanKey}`,
               JSON.stringify(recommendations)
             );
           }
           setRecommendationData(recommendations);
+        } else {
+            // If no meal plan, ensure recommendation data is empty
+            setRecommendationData([]);
+            console.log("Viz: No meal plan provided, clearing recommendations.");
         }
       } catch (error) {
-        console.error("Error transforming meal plan:", error);
+        console.error("Viz: Error transforming meal plan:", error);
         setError("Error loading recommendations");
+        setRecommendationData([]); // Clear data on error
       } finally {
-        setLoading(false);
+        setLoadingRecommendations(false);
       }
     }
 
     loadRecommendations();
-  }, [mealPlan]);
+  }, [mealPlan]); // Rerun when mealPlan changes
 
-  // Add state for nutritional values
+  // State for nutritional values
   const [currentNutritionalValues, setCurrentNutritionalValues] = useState({
     calories: 0,
     carbs: 0,
@@ -184,45 +206,17 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     fiber: 0,
   });
 
-  useEffect(() => {
-    const mergeData = () => {
-      const merged = new Map<string, DayMeals>();
-
-      // Add initial data to map
-      initialData.forEach((day) => {
-        const dateKey = day.date.toISOString().split("T")[0];
-        merged.set(dateKey, { ...day });
-      });
-
-      // Merge recommendations
-      recommendations.forEach((day) => {
-        const dateKey = day.date.toISOString().split("T")[0];
-        if (merged.has(dateKey)) {
-          const existingDay = merged.get(dateKey)!;
-          merged.set(dateKey, {
-            ...existingDay,
-          });
-        } else {
-          merged.set(dateKey, day);
-        }
-      });
-
-      // Convert map back to array and sort by date
-      const sortedData = Array.from(merged.values()).sort(
-        (a, b) => a.date.getTime() - b.date.getTime()
-      );
-
-      setCombinedData(sortedData);
-    };
-
-    mergeData();
-  }, [initialData, recommendations]);
-
+  // Handle clicks outside interactive elements
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (vizRef.current && !vizRef.current.contains(event.target as Node)) {
-        handleRecommendationSelect(null);
-        setSelectedMeal(null);
+        // Check if the click target is outside the panel as well
+        if (!(event.target as HTMLElement).closest('.meal-details-panel-container')) {
+            handleRecommendationSelect(null);
+            setSelectedMeal(null);
+            setSelectedFood(null);
+            setSelectedIngredient(null);
+        }
       }
     };
 
@@ -230,30 +224,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
-  useEffect(() => {
-    const processData = async () => {
-      try {
-        setLoading(true);
-        // Ensure all dates are properly processed
-        const processedData = initialData.map((day) => ({
-          ...day,
-          date: new Date(day.date),
-        }));
-        setWeekData(processedData);
-      } catch (error) {
-        setError(
-          error instanceof Error ? error.message : "Error processing data"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Removed useEffect processing initialData into weekData state
 
-    processData();
-  }, [initialData]);
-
+  // Handle keyboard shortcuts for panel visibility
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === "[") {
@@ -267,27 +242,55 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
-  // Update nutritional values when week data changes
+  // Update nutritional values when mealData (prop) changes
   useEffect(() => {
-    const values = calculateCurrentNutritionalValues(weekData);
+    // Calculate based on the data for the currently selected date
+    const dayData = mealData.find(day => isSameNormalizedDay(day.date, selectedDate));
+    const values = calculateCurrentNutritionalValues(dayData ? [dayData] : []); // Calculate for single day
     setCurrentNutritionalValues(values);
-    setBaseNutritionalValues(values); // Store base values
-  }, [weekData]);
+    setBaseNutritionalValues(values); // Store base values for the selected day
+    console.log("Viz: Updated nutritional values for selected date", selectedDate, values);
+  }, [mealData, selectedDate]); // Depend on mealData prop and selectedDate
 
   // Meal selection handler
   const handleMealSelect = (meal: Meal | null) => {
-    // If selecting a new meal, reset any active recommendation
     if (meal && meal !== selectedMeal) {
-      handleRecommendationSelect(null); // Reset recommendation first
+      handleRecommendationSelect(null);
     }
     setSelectedMeal(meal);
+    setSelectedFood(null); // Clear other selections
+    setSelectedIngredient(null);
   };
+
+  // Food selection handler
+  const handleFoodSelect = (food: Food | null) => {
+      if (food && food !== selectedFood) {
+          handleRecommendationSelect(null);
+      }
+      setSelectedFood(food);
+      setSelectedMeal(null); // Clear other selections
+      setSelectedIngredient(null);
+  };
+
+  // Ingredient selection handler
+  const handleIngredientSelect = (ingredient: Ingredient | null) => {
+      if (ingredient && ingredient !== selectedIngredient) {
+          handleRecommendationSelect(null);
+      }
+      setSelectedIngredient(ingredient);
+      setSelectedMeal(null); // Clear other selections
+      setSelectedFood(null);
+  };
+
 
   // Handle recommendation selection
   const handleRecommendationSelect = (
     recommendation: MealRecommendation | null
   ) => {
     setSelectedRecommendation(recommendation);
+    setSelectedMeal(null); // Clear other selections
+    setSelectedFood(null);
+    setSelectedIngredient(null);
 
     // Reset to base values if deselecting
     if (!recommendation) {
@@ -295,36 +298,50 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       return;
     }
 
-    // Update nutritional values with recommendation impact
+    // Update nutritional values with recommendation impact (relative to the day's base)
     setCurrentNutritionalValues({
       calories:
         baseNutritionalValues.calories +
-        recommendation.nutritionalImpact.calories,
+        (recommendation.nutritionalImpact?.calories || 0),
       carbs:
-        baseNutritionalValues.carbs + recommendation.nutritionalImpact.carbs,
+        baseNutritionalValues.carbs +
+        (recommendation.nutritionalImpact?.carbs || 0),
       protein:
         baseNutritionalValues.protein +
-        recommendation.nutritionalImpact.protein,
+        (recommendation.nutritionalImpact?.protein || 0),
       fiber:
-        baseNutritionalValues.fiber + recommendation.nutritionalImpact.fiber,
+        baseNutritionalValues.fiber +
+        (recommendation.nutritionalImpact?.fiber || 0),
     });
   };
 
-  // Click handler for the main visualization area
+  // Click handler for the main visualization area to deselect items
   const handleMainAreaClick = (event: React.MouseEvent) => {
+    // Check if the click is on the background of the viz area, not on cards/buttons etc.
     if (
-      (event.target as HTMLElement).closest(
-        ".meal-card, .recommendation-card, .level-selector, button, .food-button, .ingredient-button"
-      )
+      (event.target as HTMLElement).classList.contains('meal-view-background') ||
+      (event.target as HTMLElement).classList.contains('food-view-background') ||
+      (event.target as HTMLElement).classList.contains('ingredient-view-background')
+      // Add similar checks if needed, or check if the target IS the background div
     ) {
-      return;
+        handleRecommendationSelect(null);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedIngredient(null);
+    } else if (
+        // More robust check: ensure click wasn't inside any interactive element
+        !(event.target as HTMLElement).closest(
+            ".meal-card, .recommendation-card, .level-selector, button, .food-card, .ingredient-card, .week-selector-container" // Added specific card classes
+        )
+    ) {
+        handleRecommendationSelect(null);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedIngredient(null);
     }
-
-    handleRecommendationSelect(null);
-    setSelectedMeal(null);
   };
 
-  // Calculate dates to display based on level ***
+  // Calculate dates to display based on level and selectedDate
   const datesToDisplay = useMemo(() => {
     const normalizedSelected = normalizeDate(selectedDate);
     let startDate: Date;
@@ -345,185 +362,174 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         endDate = normalizedSelected;
         break;
     }
+    // Ensure start date is not after end date (can happen if logic is complex)
+    if (startDate > endDate) {
+        startDate = endDate;
+    }
     return eachDayOfInterval({ start: startDate, end: endDate });
   }, [selectedDate, currentLevel]);
 
-  // Filter data for the calculated visible range
+  // Filter data for the calculated visible range using mealData prop
   const visibleData = useMemo(() => {
-    // Get data for the dates we need to display
+    console.log("Viz: Recalculating visibleData. Dates to display:", datesToDisplay.map(d => format(d, 'yyyy-MM-dd')));
     return datesToDisplay.map((date) => {
       const normalizedDate = normalizeDate(date);
-      // Find existing day data or create empty placeholder
-      const existingDay = weekData.find((day) =>
+      // Find existing day data from mealData prop or create empty placeholder
+      const existingDay = mealData.find((day) =>
         isSameNormalizedDay(new Date(day.date), normalizedDate)
       );
-      return (
-        existingDay || {
+      if (existingDay) {
+        // console.log(`Viz: Found data for ${format(normalizedDate, 'yyyy-MM-dd')}`);
+        return existingDay;
+      } else {
+        // console.log(`Viz: No data found for ${format(normalizedDate, 'yyyy-MM-dd')}, creating placeholder.`);
+        return {
           date: normalizedDate,
           meals: [],
-        }
-      );
+        };
+      }
     });
-  }, [weekData, datesToDisplay]);
+  // Depend on mealData prop and datesToDisplay
+  }, [mealData, datesToDisplay]);
+
+  // Calculate required date range based on a given level and date
+  const getRequiredRange = useCallback((level: VisualizationLevel["type"], date: Date) => {
+      const normalizedDate = normalizeDate(date);
+      let requiredStartDate: Date;
+      let requiredEndDate: Date;
+      switch (level) {
+          case "meal":
+              requiredStartDate = subDays(normalizedDate, 3); // Fetch 7 days for meal view buffer
+              requiredEndDate = addDays(normalizedDate, 3);
+              break;
+          case "food":
+              requiredStartDate = subDays(normalizedDate, 1); // Fetch 3 days for food view
+              requiredEndDate = addDays(normalizedDate, 1);
+              break;
+          case "ingredient":
+          default:
+              requiredStartDate = normalizedDate; // Fetch 1 day for ingredient view
+              requiredEndDate = normalizedDate;
+              break;
+      }
+      return { requiredStartDate, requiredEndDate };
+  }, []);
+
 
   // Handle date change and trigger potential data fetch
   const handleDateChange = useCallback(
     (newDateInput: Date) => {
-      const newDate = normalizeDate(newDateInput); // Normalize the input date
-      console.log("Date changed to:", format(newDate, "yyyy-MM-dd"));
+      const newDate = normalizeDate(newDateInput);
+      console.log("Viz: handleDateChange called with:", format(newDate, "yyyy-MM-dd"));
 
-      // Update selected date state
+      // Update selected date state immediately for responsiveness
       setSelectedDate(newDate);
 
       // Determine the required range based on the *current* level
-      let requiredStartDate: Date;
-      let requiredEndDate: Date;
-      switch (currentLevel) {
-        case "meal":
-          requiredStartDate = subDays(newDate, 3);
-          requiredEndDate = addDays(newDate, 3);
-          break;
-        case "food":
-          requiredStartDate = subDays(newDate, 1);
-          requiredEndDate = addDays(newDate, 1);
-          break;
-        case "ingredient":
-        default:
-          requiredStartDate = newDate;
-          requiredEndDate = newDate;
-          break;
-      }
+      const { requiredStartDate, requiredEndDate } = getRequiredRange(currentLevel, newDate);
 
       console.log(
-        `Required date range for ${currentLevel} view:`,
+        `Viz: Required date range for ${currentLevel} view:`,
         format(requiredStartDate, "yyyy-MM-dd"),
         "to",
         format(requiredEndDate, "yyyy-MM-dd")
       );
 
-      // Check if we need to fetch new data
+      // Check if we need to fetch new data using mealData prop
       const requiredDates = eachDayOfInterval({
         start: requiredStartDate,
         end: requiredEndDate,
       });
       const missingDates = requiredDates.filter(
         (date) =>
-          !weekData.some((day) => isSameNormalizedDay(new Date(day.date), date))
+          !mealData.some((day) => isSameNormalizedDay(new Date(day.date), date))
       );
 
       if (missingDates.length > 0) {
         console.log(
-          "Missing dates:",
+          "Viz: Missing dates:",
           missingDates.map((d) => format(d, "yyyy-MM-dd"))
         );
         // Notify parent component to fetch new data for the required range
-        if (onDateRangeChange) {
-          // Fetch the broader range needed for the current view level
-          onDateRangeChange(requiredStartDate, requiredEndDate, newDate);
-        }
+        onDateRangeChange(requiredStartDate, requiredEndDate, newDate);
       } else {
         console.log(
-          "All required dates already loaded, no need to fetch new data"
+          "Viz: All required dates already loaded, no need to fetch new data"
         );
       }
 
       // Reset selections when changing dates
       setSelectedMeal(null);
-      setSelectedFood(null); // Reset food selection
-      setSelectedIngredient(null); // Reset ingredient selection
+      setSelectedFood(null);
+      setSelectedIngredient(null);
       setSelectedRecommendation(null);
     },
-    [weekData, onDateRangeChange, currentLevel]
+    // Depend on mealData prop, currentLevel, onDateRangeChange, getRequiredRange
+    [mealData, currentLevel, onDateRangeChange, getRequiredRange]
   );
 
   // Handle level change and trigger potential data fetch
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
-      setCurrentLevel(newLevel);
+      console.log("Viz: handleLevelChange called with:", newLevel);
+      setCurrentLevel(newLevel); // Update level state
+
       // Reset selections when changing level
       setSelectedMeal(null);
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
 
-      // Use newLevel directly when computing the required date range
-      const normalizedSelected = normalizeDate(selectedDate);
-      let requiredStartDate: Date;
-      let requiredEndDate: Date;
-      switch (newLevel) {
-        case "meal":
-          requiredStartDate = subDays(normalizedSelected, 3);
-          requiredEndDate = addDays(normalizedSelected, 3);
-          break;
-        case "food":
-          requiredStartDate = subDays(normalizedSelected, 1);
-          requiredEndDate = addDays(normalizedSelected, 1);
-          break;
-        case "ingredient":
-        default:
-          requiredStartDate = normalizedSelected;
-          requiredEndDate = normalizedSelected;
-          break;
-      }
+      // Determine the required range based on the *new* level and *current* selectedDate
+      const { requiredStartDate, requiredEndDate } = getRequiredRange(newLevel, selectedDate);
 
       console.log(
-        `Required date range for ${newLevel} view:`,
+        `Viz: Required date range for ${newLevel} view:`,
         format(requiredStartDate, "yyyy-MM-dd"),
         "to",
         format(requiredEndDate, "yyyy-MM-dd")
       );
 
-      // Check if data for the required range is missing
+      // Check if data for the required range is missing using mealData prop
       const requiredDates = eachDayOfInterval({
         start: requiredStartDate,
         end: requiredEndDate,
       });
       const missingDates = requiredDates.filter(
         (date) =>
-          !weekData.some((day) => isSameNormalizedDay(new Date(day.date), date))
+          !mealData.some((day) => isSameNormalizedDay(new Date(day.date), date))
       );
 
       if (missingDates.length > 0) {
         console.log(
-          "Missing dates for new level:",
+          "Viz: Missing dates for new level:",
           missingDates.map((d) => format(d, "yyyy-MM-dd"))
         );
-        if (onDateRangeChange) {
-          onDateRangeChange(
-            requiredStartDate,
-            requiredEndDate,
-            normalizedSelected
-          );
-        }
+        // Notify parent to fetch, passing the current selectedDate
+        onDateRangeChange(requiredStartDate, requiredEndDate, selectedDate);
       } else {
-        console.log("All required dates already loaded for new level");
+        console.log("Viz: All required dates already loaded for new level");
       }
     },
-    [weekData, onDateRangeChange, selectedDate]
+    // Depend on mealData prop, selectedDate, onDateRangeChange, getRequiredRange
+    [mealData, selectedDate, onDateRangeChange, getRequiredRange]
   );
 
-  useEffect(() => {
-    if (initialSelectedDate && !isSameDay(initialSelectedDate, selectedDate)) {
-      console.log(
-        "Syncing with parent's selected date:",
-        format(initialSelectedDate, "yyyy-MM-dd")
-      );
-      setSelectedDate(initialSelectedDate);
-    }
-  }, [initialSelectedDate]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-      </div>
-    );
-  }
+  // Render loading state (consider separate loading for recommendations vs initial data)
+  // The parent now handles the main loading state. We only show recommendation loading.
+  // if (isLoading) { // Removed - Parent handles main loading
+  //   return (
+  //     <div className="flex items-center justify-center h-96">
+  //       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+  //     </div>
+  //   );
+  // }
 
   if (error) {
     return (
       <div className="flex items-center justify-center h-96 text-red-500">
-        <p>{error}</p>
+        <p>Error in Visualization: {error}</p>
       </div>
     );
   }
@@ -548,12 +554,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 onLevelChange={handleLevelChange}
               />
             </div>
-
-            {/* Right side - Week Selector */}
-            <WeekSelector
-              selectedDate={selectedDate}
-              onDateChange={handleDateChange}
-            />
+            {/* Wrap WeekSelector for click handling */}
+             <div className="week-selector-container">
+                <WeekSelector
+                    selectedDate={selectedDate}
+                    onDateChange={handleDateChange}
+                />
+             </div>
           </div>
           {/* Main Visualization Area */}
           <div className="flex-1 flex overflow-hidden">
@@ -561,57 +568,68 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             <div className="flex-1 min-w-0 p-4 flex flex-col">
               <div
                 className="bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col"
+                // Attach click handler here for deselection
                 onClick={handleMainAreaClick}
               >
+                {/* Add background divs for better click target detection */}
                 {currentLevel === "meal" && (
-                  <MealView
-                    // Pass datesToDisplay instead of weekData directly for rendering
-                    datesToDisplay={datesToDisplay}
-                    // Pass the full weekData for lookups if needed inside MealView
-                    allData={weekData}
-                    recommendationData={recommendationData}
-                    selectedDate={selectedDate}
-                    onMealSelect={handleMealSelect}
-                    selectedMeal={selectedMeal}
-                    onRecommendationSelect={handleRecommendationSelect}
-                    selectedRecommendation={selectedRecommendation}
-                    mealBinNames={mealBinNames}
-                    onMealBinUpdate={handleMealBinNamesUpdate}
-                  />
+                  <div className="meal-view-background h-full">
+                    <MealView
+                      // Pass datesToDisplay to determine layout
+                      datesToDisplay={datesToDisplay}
+                      // Pass the full mealData prop for lookups
+                      allData={mealData}
+                      recommendationData={recommendationData}
+                      selectedDate={selectedDate}
+                      onMealSelect={handleMealSelect}
+                      selectedMeal={selectedMeal}
+                      onRecommendationSelect={handleRecommendationSelect}
+                      selectedRecommendation={selectedRecommendation}
+                      mealBinNames={mealBinNames}
+                      onMealBinUpdate={handleMealBinNamesUpdate}
+                      isLoading={loadingRecommendations} // Pass recommendation loading state
+                    />
+                  </div>
                 )}
                 {currentLevel === "food" && (
-                  <FoodView
-                    datesToDisplay={visibleData}
-                    allData={weekData} // Pass full data for lookups
-                    onFoodSelect={setSelectedFood}
-                    selectedFood={selectedFood}
-                    mealBinNames={mealBinNames}
-                    onMealBinUpdate={handleMealBinNamesUpdate}
-                    selectedRecommendation={selectedRecommendation}
-                    selectedDate={selectedDate}
-                  />
+                   <div className="food-view-background h-full">
+                      <FoodView
+                        // Pass visibleData which contains DayMeals objects for the required dates
+                        datesToDisplay={visibleData}
+                        // Pass full mealData prop for lookups if needed (e.g., context)
+                        allData={mealData}
+                        onFoodSelect={handleFoodSelect} // Use specific handler
+                        selectedFood={selectedFood}
+                        mealBinNames={mealBinNames}
+                        onMealBinUpdate={handleMealBinNamesUpdate}
+                        selectedRecommendation={selectedRecommendation}
+                        selectedDate={selectedDate}
+                      />
+                   </div>
                 )}
                 {currentLevel === "ingredient" && (
-                  <IngredientView
-                    // Ingredient view focuses on one day
-                    selectedDateData={visibleData.find((d) =>
-                      isSameNormalizedDay(d.date, selectedDate)
-                    )}
-                    onIngredientSelect={setSelectedIngredient}
-                    selectedIngredient={selectedIngredient}
-                    mealBinNames={mealBinNames}
-                    onMealBinUpdate={handleMealBinNamesUpdate}
-                    selectedRecommendation={selectedRecommendation}
-                    selectedDate={selectedDate}
-                  />
+                   <div className="ingredient-view-background h-full">
+                      <IngredientView
+                        // Ingredient view focuses on one day's data from visibleData
+                        selectedDateData={visibleData.find((d) =>
+                          isSameNormalizedDay(d.date, selectedDate)
+                        )}
+                        onIngredientSelect={handleIngredientSelect} // Use specific handler
+                        selectedIngredient={selectedIngredient}
+                        mealBinNames={mealBinNames}
+                        onMealBinUpdate={handleMealBinNamesUpdate}
+                        selectedRecommendation={selectedRecommendation}
+                        selectedDate={selectedDate}
+                      />
+                   </div>
                 )}
               </div>
             </div>
 
             {/* Right Panel */}
-            <div className="w-[480px] bg-white shadow-lg z-10 flex-shrink-0">
+            {/* Wrap panel in a container for click detection */}
+            <div className="meal-details-panel-container w-[480px] bg-white shadow-lg z-10 flex-shrink-0 border-l border-gray-200">
               <MealDetailsPanel
-                // Pass all selected items, let the panel decide what to show
                 meal={selectedMeal}
                 food={selectedFood}
                 ingredient={selectedIngredient}
@@ -626,7 +644,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 currentNutritionalValues={currentNutritionalValues}
                 baseNutritionalValues={baseNutritionalValues}
                 selectedDate={selectedDate}
-                currentLevel={currentLevel} // Pass current level for context
+                currentLevel={currentLevel}
               />
             </div>
           </div>

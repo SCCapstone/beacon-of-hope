@@ -45,7 +45,9 @@ const FoodCard: React.FC<{
       className={`relative p-3 mb-2 rounded-lg cursor-pointer text-xs
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-purple-500" : "border border-gray-200"}
-        ${isRecommended ? "border-green-400 border-l-4 pl-2" : ""} // Recommended style
+        ${
+          isRecommended ? "border-green-400 border-l-4 pl-2" : ""
+        } // Recommended style
         flex items-center space-x-2`}
       onClick={onClick}
     >
@@ -70,12 +72,18 @@ const FoodCard: React.FC<{
         </div>
         <div className="flex items-center justify-end space-x-1">
           {food.diabetesFriendly && (
-            <span className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full" title="Diabetes Friendly">
+            <span
+              className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
+              title="Diabetes Friendly"
+            >
               DF
             </span>
           )}
           {totalTime > 0 && (
-             <span className={`inline-block px-1 py-0.5 ${timeIndicator.color} text-[10px] rounded-full`} title={`Prep+Cook: ${totalTime}min`}>
+            <span
+              className={`inline-block px-1 py-0.5 ${timeIndicator.color} text-[10px] rounded-full`}
+              title={`Prep+Cook: ${totalTime}min`}
+            >
               {timeIndicator.text}
             </span>
           )}
@@ -95,18 +103,21 @@ export const FoodView: React.FC<FoodViewProps> = ({
   selectedRecommendation,
   selectedDate,
 }) => {
-    // Memoize the set of recommended food IDs for the selected date
-    const recommendedFoodIds = useMemo(() => {
-      const ids = new Set<string>();
-      if (
-        selectedRecommendation &&
-        selectedRecommendation.meal.date &&
-        isSameDay(normalizeDate(selectedRecommendation.meal.date), normalizeDate(selectedDate)) // Compare recommendation's date with the currently selected view date
-      ) {
-        selectedRecommendation.meal.foods.forEach((food) => ids.add(food.id));
-      }
-      return ids;
-    }, [selectedRecommendation, selectedDate]);
+  // Memoize the set of recommended food IDs for the selected date
+  const recommendedFoodIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (
+      selectedRecommendation &&
+      selectedRecommendation.meal.date &&
+      isSameDay(
+        normalizeDate(selectedRecommendation.meal.date),
+        normalizeDate(selectedDate)
+      ) // Compare recommendation's date with the currently selected view date
+    ) {
+      selectedRecommendation.meal.foods.forEach((food) => ids.add(food.id));
+    }
+    return ids;
+  }, [selectedRecommendation, selectedDate]);
 
   // Helper to get all unique foods for a given date and potentially bin
   // For simplicity now, let's get all foods for the date first
@@ -148,7 +159,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
       }
 
       // Auto-adjust bin count (simplified)
-      if (foods.length > mealBinNames.length * 5 && mealBinNames.length > 0) { // Example: 5 foods per bin max
+      if (foods.length > mealBinNames.length * 5 && mealBinNames.length > 0) {
+        // Example: 5 foods per bin max
         const requiredBins = Math.ceil(foods.length / 5);
         if (requiredBins > mealBinNames.length) {
           const newNames = [...mealBinNames];
@@ -163,6 +175,11 @@ export const FoodView: React.FC<FoodViewProps> = ({
       return bins;
     },
     [getFoodsForDate, mealBinNames, onMealBinUpdate]
+  );
+
+  console.log(
+    `FoodView: Rendering with ${mealBinNames.length} bins:`,
+    mealBinNames
   );
 
   return (
@@ -191,7 +208,12 @@ export const FoodView: React.FC<FoodViewProps> = ({
             const currentDate = currentDateData.date; // Get the date object
             const bins = organizeFoodsIntoBins(currentDate);
             // Check against the date being currently rendered in the loop
-            const isCurrentDateSelectedForRecCheck = selectedRecommendation?.meal.date && isSameDay(normalizeDate(selectedRecommendation.meal.date), normalizeDate(currentDate));
+            const isCurrentDateSelectedForRecCheck =
+              selectedRecommendation?.meal.date &&
+              isSameDay(
+                normalizeDate(selectedRecommendation.meal.date),
+                normalizeDate(currentDate)
+              );
 
             return (
               <div
@@ -227,7 +249,10 @@ export const FoodView: React.FC<FoodViewProps> = ({
                             food={food}
                             isSelected={selectedFood?.id === food.id}
                             // Check if food is recommended for the selected date
-                            isRecommended={!!isCurrentDateSelectedForRecCheck && recommendedFoodIds.has(food.id)}
+                            isRecommended={
+                              !!isCurrentDateSelectedForRecCheck &&
+                              recommendedFoodIds.has(food.id)
+                            }
                             onClick={() =>
                               onFoodSelect(
                                 selectedFood?.id === food.id ? null : food

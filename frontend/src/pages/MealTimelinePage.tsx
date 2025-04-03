@@ -38,10 +38,13 @@ const normalizeDate = (date: Date): Date => {
 };
 
 export const MealTimelinePage: React.FC = () => {
+  // Use weekData state here as the single source of truth for loaded meal data
   const [weekData, setWeekData] = useState<DayMeals[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    normalizeDate(new Date())
+  ); // Normalize initial date
 
   const userId = JSON.parse(localStorage.user)._id || "";
   const [userPreferences] = useState<UserPreferences>({
@@ -72,33 +75,31 @@ export const MealTimelinePage: React.FC = () => {
       postPrandial: 140,
     },
   });
-  const [pendingFetch, setPendingFetch] = useState<boolean>(false);
-  const [dateRange, setDateRange] = useState({
-    start: subDays(new Date(), 1),
-    end: addDays(new Date(), 1),
-  });
-  const [loadedDateRanges, setLoadedDateRanges] = useState<
-    Array<{ start: Date; end: Date }>
-  >([]);
+
+  // Check which dates we already have data for using the weekData state
+  const existingDates = new Set(
+    weekData.map((day) =>
+      format(normalizeDate(new Date(day.date)), "yyyy-MM-dd")
+    )
+  );
 
   // Function to fetch meal data for a date range
   const fetchMealData = useCallback(
     async (startDate: Date, endDate: Date) => {
+      // Normalize input dates
+      const normStart = normalizeDate(startDate);
+      const normEnd = normalizeDate(endDate);
+
       try {
         console.log(
           "Fetching meal data for:",
-          format(startDate, "yyyy-MM-dd"),
+          format(normStart, "yyyy-MM-dd"),
           "to",
-          format(endDate, "yyyy-MM-dd")
-        );
-
-        // Check which dates we already have data for
-        const existingDates = new Set(
-          weekData.map((day) => format(new Date(day.date), "yyyy-MM-dd"))
+          format(normEnd, "yyyy-MM-dd")
         );
 
         // Generate array of dates to fetch
-        const allDates = generateDateRange(startDate, endDate);
+        const allDates = generateDateRange(normStart, normEnd);
 
         // Filter to only fetch dates we don't already have
         const datesToFetch = allDates.filter(
@@ -108,12 +109,13 @@ export const MealTimelinePage: React.FC = () => {
         // If we already have all the data, no need to fetch
         if (datesToFetch.length === 0) {
           console.log("All dates already loaded, skipping API call");
-          setPendingFetch(false);
+          // Ensure loading is false if we skip
+          if (isLoading) setIsLoading(false);
           return;
         }
 
         console.log("Dates to fetch:", datesToFetch);
-        setIsLoading(true);
+        setIsLoading(true); // Set loading true only if we are fetching
 
         const userId = JSON.parse(localStorage.user)._id || "";
 
@@ -121,41 +123,40 @@ export const MealTimelinePage: React.FC = () => {
         const response = await fetchMealDays(userId, datesToFetch);
         console.log("API response received");
 
+        let transformedData: DayMeals[] = [];
         // Check if we got empty data (no meal history)
         if (
           !response.day_plans ||
           Object.keys(response.day_plans).length === 0
         ) {
           console.log("No meal history found for the requested dates");
-          // Create empty placeholder data for the requested dates
-          const emptyData: DayMeals[] = datesToFetch.map((dateStr) => ({
-            date: new Date(dateStr),
+          // Create empty placeholder data for the fetched dates
+          transformedData = datesToFetch.map((dateStr) => ({
+            date: normalizeDate(new Date(dateStr)), // Ensure date is normalized
             meals: [],
           }));
-
-          setWeekData((prev) => [...prev, ...emptyData]);
-          setIsLoading(false);
-          setPendingFetch(false);
-          return;
+        } else {
+          // Transform API response to DayMeals format
+          transformedData = await transformApiResponseToDayMeals(response);
+          console.log("Data transformed:", transformedData.length, "days");
         }
 
-        // Transform API response to DayMeals format
-        const transformedData = await transformApiResponseToDayMeals(response);
-        console.log("Data transformed:", transformedData.length, "days");
-
-        // Update the week data with the new data
+        // Update the week data state by merging previous and new data
         setWeekData((prevData) => {
-          // Create a map of existing data for easy lookup
+          // Create a map of existing data for easy lookup and update
           const dataMap = new Map(
             prevData.map((day) => [
-              format(new Date(day.date), "yyyy-MM-dd"),
+              format(normalizeDate(new Date(day.date)), "yyyy-MM-dd"),
               day,
             ])
           );
 
-          // Add or update with new data
+          // Add or update with new data (including empty placeholders)
           transformedData.forEach((day) => {
-            const dateKey = format(new Date(day.date), "yyyy-MM-dd");
+            const dateKey = format(
+              normalizeDate(new Date(day.date)),
+              "yyyy-MM-dd"
+            );
             dataMap.set(dateKey, day);
           });
 
@@ -165,85 +166,82 @@ export const MealTimelinePage: React.FC = () => {
           );
         });
 
-        // Update loaded date ranges
-        setLoadedDateRanges((prev) => [
-          ...prev,
-          { start: startDate, end: endDate },
-        ]);
-
         setError(null);
       } catch (error) {
         console.error("Error fetching meal data:", error);
-        // For critical errors, still show the error
         setError(
           error instanceof Error
             ? error.message
             : "An error occurred while loading data"
         );
 
-        // But also provide empty data for the requested dates so the UI doesn't break
-        const emptyData: DayMeals[] = generateDateRange(startDate, endDate).map(
-          (dateStr) => ({
-            date: new Date(dateStr),
+        // Optionally add empty placeholders for failed dates to prevent UI breaks
+        // This logic might need refinement based on desired error handling
+        const errorPlaceholders: DayMeals[] = generateDateRange(
+          normStart,
+          normEnd
+        )
+          .filter((dateStr) => !existingDates.has(dateStr)) // Only for dates that failed
+          .map((dateStr) => ({
+            date: normalizeDate(new Date(dateStr)),
             meals: [],
-          })
-        );
+          }));
 
         setWeekData((prev) => {
           const dataMap = new Map(
-            prev.map((day) => [format(new Date(day.date), "yyyy-MM-dd"), day])
+            prev.map((day) => [
+              format(normalizeDate(new Date(day.date)), "yyyy-MM-dd"),
+              day,
+            ])
           );
-
-          emptyData.forEach((day) => {
-            const dateKey = format(new Date(day.date), "yyyy-MM-dd");
+          errorPlaceholders.forEach((day) => {
+            const dateKey = format(
+              normalizeDate(new Date(day.date)),
+              "yyyy-MM-dd"
+            );
             if (!dataMap.has(dateKey)) {
+              // Avoid overwriting potentially loaded data
               dataMap.set(dateKey, day);
             }
           });
-
           return Array.from(dataMap.values()).sort(
             (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
           );
         });
       } finally {
-        setIsLoading(false);
-        setPendingFetch(false);
+        setIsLoading(false); // Ensure loading is set to false after fetch attempt
       }
     },
-    [weekData]
-  ); // Add dependencies for fetchMealData
+    [weekData, isLoading, userId] // Include isLoading and userId
+  );
 
   const handleDateRangeChange = useCallback(
     (start: Date, end: Date, newSelectedDate?: Date) => {
+      const normStart = normalizeDate(start);
+      const normEnd = normalizeDate(end);
+      const normSelected = newSelectedDate
+        ? normalizeDate(newSelectedDate)
+        : undefined;
+
       console.log(
         "MealTimelinePage: Date range change triggered by Viz:",
-        format(start, "yyyy-MM-dd"),
+        format(normStart, "yyyy-MM-dd"),
         "to",
-        format(end, "yyyy-MM-dd"),
-        newSelectedDate
-          ? `Selected: ${format(newSelectedDate, "yyyy-MM-dd")}`
-          : ""
+        format(normEnd, "yyyy-MM-dd"),
+        normSelected ? `Selected: ${format(normSelected, "yyyy-MM-dd")}` : ""
       );
 
-      // Update the selected date if provided by the Viz component
-      if (newSelectedDate) {
-        // Check if the date actually changed to avoid redundant state updates
-        if (!selectedDate || !isSameDay(selectedDate, newSelectedDate)) {
-          console.log("MealTimelinePage: Updating selectedDate state");
-          setSelectedDate(new Date(newSelectedDate)); // Use new Date() to ensure it's a new object if needed
-        }
+      // Update the selected date state if provided and different
+      if (normSelected && !isSameDay(selectedDate, normSelected)) {
+        console.log("MealTimelinePage: Updating selectedDate state");
+        setSelectedDate(normSelected);
       }
 
-      // Update the date range state used for fetching/cleanup
-      setDateRange({ start, end });
-
-      // Fetch data for the requested range (fetchMealData already checks for existing dates)
-      // No need to check needsFetch here, let fetchMealData handle it.
+      // Trigger fetch for the requested range. fetchMealData handles checking existing dates.
       console.log("MealTimelinePage: Calling fetchMealData");
-      fetchMealData(start, end);
+      fetchMealData(normStart, normEnd);
     },
-    [fetchMealData, selectedDate] // Add selectedDate dependency if using it in the check
-    // Note: fetchMealData needs to be stable or wrapped in useCallback if defined inside the component
+    [fetchMealData, selectedDate] // Keep selectedDate dependency here
   );
 
   // Initial data load - fetch for the default view (e.g., Meal view = 7 days)
@@ -254,11 +252,22 @@ export const MealTimelinePage: React.FC = () => {
     const initialEnd = addDays(today, 3);
     console.log("MealTimelinePage: Initial fetch");
     // Set selected date first, then trigger range change/fetch
-    setSelectedDate(today);
+    // No need to set selectedDate here again as it's initialized in useState
     handleDateRangeChange(initialStart, initialEnd, today);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
+  // This effect handles the initial loading state more accurately
+  useEffect(() => {
+    if (weekData.length === 0 && error === null) {
+      setIsLoading(true);
+    } else {
+      // Set loading false if we have data or an error
+      setIsLoading(false);
+    }
+  }, [weekData, error]);
+
+  // Render loading indicator based on isLoading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -273,6 +282,7 @@ export const MealTimelinePage: React.FC = () => {
         <div className="text-center">
           <p className="text-xl mb-4">Error Loading Data</p>
           <p>{error}</p>
+          {/* Optionally add a retry button */}
         </div>
       </div>
     );
@@ -284,13 +294,14 @@ export const MealTimelinePage: React.FC = () => {
       title="Meal Calendar"
       subtitle="Plan and Track Your Meals With Ease"
     >
+      {/* Pass weekData state directly as mealData prop */}
       <MealCalendarViz
-        initialData={weekData}
+        mealData={weekData}
         userPreferences={userPreferences}
         nutritionalGoals={nutritionalGoals}
         mealPlan={mealPlan}
         onDateRangeChange={handleDateRangeChange}
-        initialSelectedDate={selectedDate}
+        initialSelectedDate={selectedDate} // Pass the selectedDate state
       />
     </MainLayout>
   );
