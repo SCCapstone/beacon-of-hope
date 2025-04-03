@@ -47,6 +47,7 @@ export interface Meal {
   diabetesFriendly?: boolean;
   culturalTips?: string[];
   healthBenefits?: string[];
+  date?: Date;
 }
 
 export interface DayMeals {

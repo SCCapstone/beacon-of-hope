@@ -57,7 +57,7 @@ export const MealView: React.FC<MealViewProps> = ({
   // const previousDate = subDays(selectedDate, 1);
   // const nextDate = addDays(selectedDate, 1);
 
-  // Get data for a specific date from allData ***
+  // Get data for a specific date from allData 
   const getDataForDate = useCallback(
     (targetDate: Date): DayMeals | undefined => {
       return allData.find((day) =>
@@ -232,14 +232,6 @@ export const MealView: React.FC<MealViewProps> = ({
             <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
               {meal.name}
             </h3>
-            <div className="flex items-center mt-1 space-x-2">
-              <span className="text-xs text-gray-500">{meal.time}</span>
-              {meal.diabetesFriendly && (
-                <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
-                  DF
-                </span>
-              )}
-            </div>
           </div>
           <div className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
             {meal.nutritionalInfo.calories} cal
@@ -391,7 +383,7 @@ export const MealView: React.FC<MealViewProps> = ({
       {/* Scrollable container for all displayed days */}
       <div className="flex-1 overflow-auto bg-gray-50">
         <div className="min-h-full flex flex-col">
-          {/* *** Iterate over datesToDisplay *** */}
+          {/*  Iterate over datesToDisplay  */}
           {datesToDisplay.map((currentDate) => {
             const isSelected = isSameDay(
               normalizeDate(currentDate),
@@ -402,11 +394,9 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`flex flex-1 min-h-[150px] border-b last:border-b-0  ${isSelected ? "bg-blue-50" : "bg-white"}`}
-                // className={`
-                //   flex flex-1 min-h-[200px] border-b last:border-b-0
-                //   ${isSelected ? "bg-blue-50" : "bg-white"}
-                // `} // Add min-height and highlight selected
+                className={`flex flex-1 min-h-[150px] border-b last:border-b-0  ${
+                  isSelected ? "bg-blue-50" : "bg-white"
+                }`}
               >
                 {/* Date Cell */}
                 <div

@@ -319,8 +319,11 @@ export async function transformApiResponseToDayMeals(
 
   // Step 3: Transform the data using the pre-fetched food information
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
+    const currentDate = new Date(dateStr); // Get the date object for this day
+    currentDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight for consistency
+
     const dayMeal: DayMeals = {
-      date: new Date(dateStr),
+      date: currentDate, // Use the normalized date object
       meals: [],
     };
 
@@ -383,6 +386,7 @@ export async function transformApiResponseToDayMeals(
           foods: mealFoods,
           nutritionalInfo: mealNutritionalInfo,
           diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
+          date: currentDate,
         });
       } catch (error) {
         console.error(`Error processing meal ${meal._id} on ${dateStr}:`, error);

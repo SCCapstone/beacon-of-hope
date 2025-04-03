@@ -70,7 +70,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     DayRecommendations[]
   >([]);
   const [currentLevel, setCurrentLevel] =
-    useState<VisualizationLevel["type"]>("meal");
+    useState<VisualizationLevel["type"]>("food");
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   const [selectedIngredient, setSelectedIngredient] =
@@ -570,7 +570,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     // Pass the full weekData for lookups if needed inside MealView
                     allData={weekData}
                     recommendationData={recommendationData}
-                    selectedDate={selectedDate} // Still needed for context
+                    selectedDate={selectedDate}
                     onMealSelect={handleMealSelect}
                     selectedMeal={selectedMeal}
                     onRecommendationSelect={handleRecommendationSelect}
@@ -585,9 +585,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     allData={weekData} // Pass full data for lookups
                     onFoodSelect={setSelectedFood}
                     selectedFood={selectedFood}
-                    mealBinNames={mealBinNames} // Pass bin names
-                    onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
-                    // Add other necessary props like recommendationData if needed
+                    mealBinNames={mealBinNames}
+                    onMealBinUpdate={handleMealBinNamesUpdate}
+                    selectedRecommendation={selectedRecommendation}
+                    selectedDate={selectedDate}
                   />
                 )}
                 {currentLevel === "ingredient" && (
@@ -598,9 +599,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     )}
                     onIngredientSelect={setSelectedIngredient}
                     selectedIngredient={selectedIngredient}
-                    mealBinNames={mealBinNames} // Pass bin names
-                    onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
-                    // Add other necessary props
+                    mealBinNames={mealBinNames}
+                    onMealBinUpdate={handleMealBinNamesUpdate}
+                    selectedRecommendation={selectedRecommendation}
+                    selectedDate={selectedDate}
                   />
                 )}
               </div>
@@ -611,8 +613,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               <MealDetailsPanel
                 // Pass all selected items, let the panel decide what to show
                 meal={selectedMeal}
-                food={selectedFood} // Pass selected food
-                ingredient={selectedIngredient} // Pass selected ingredient
+                food={selectedFood}
+                ingredient={selectedIngredient}
                 recommendation={selectedRecommendation}
                 onClose={() => {
                   setSelectedMeal(null);

@@ -1,8 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DayMeals, Food } from "../types";
+import { DayMeals, Food, MealRecommendation } from "../types";
 import { format, isSameDay } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
+
 const normalizeDate = (date: Date): Date => {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
@@ -16,26 +17,43 @@ interface FoodViewProps {
   selectedFood: Food | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
+  selectedRecommendation: MealRecommendation | null;
+  selectedDate: Date;
 }
 
-// Placeholder Food Card Component
+// Food Card Component
 const FoodCard: React.FC<{
   food: Food;
   isSelected: boolean;
+  isRecommended: boolean;
   onClick: () => void;
-}> = ({ food, isSelected, onClick }) => {
+}> = ({ food, isSelected, isRecommended, onClick }) => {
+  const totalTime = food.preparationTime + food.cookingTime;
+  const timeIndicator =
+    totalTime <= 15
+      ? { text: "<15m", color: "bg-green-100 text-green-800" }
+      : totalTime <= 30
+      ? { text: "15-30m", color: "bg-yellow-100 text-yellow-800" }
+      : { text: ">30m", color: "bg-red-100 text-red-800" };
+
   return (
     <motion.div
       key={`food-${food.id}`}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`p-3 mb-2 rounded-lg cursor-pointer text-xs
+      className={`relative p-3 mb-2 rounded-lg cursor-pointer text-xs
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-purple-500" : "border border-gray-200"}
+        ${isRecommended ? "border-green-400 border-l-4 pl-2" : ""} // Recommended style
         flex items-center space-x-2`}
       onClick={onClick}
     >
+      {isRecommended && (
+        <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full z-10">
+          Rec
+        </span>
+      )}
       <FoodTypeIcon
         type={food.type}
         className="w-4 h-4 text-gray-600 flex-shrink-0"
@@ -46,15 +64,22 @@ const FoodCard: React.FC<{
           {food.type.replace("_", " ")}
         </p>
       </div>
-      <div className="text-right flex-shrink-0">
+      <div className="text-right flex-shrink-0 space-y-1">
         <div className="text-gray-700 font-medium">
           {food.nutritionalInfo.calories} cal
         </div>
-        {food.diabetesFriendly && (
-          <span className="mt-1 inline-block px-1 py-0.5 bg-green-100 text-green-800 text-[10px] rounded-full">
-            DF
-          </span>
-        )}
+        <div className="flex items-center justify-end space-x-1">
+          {food.diabetesFriendly && (
+            <span className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full" title="Diabetes Friendly">
+              DF
+            </span>
+          )}
+          {totalTime > 0 && (
+             <span className={`inline-block px-1 py-0.5 ${timeIndicator.color} text-[10px] rounded-full`} title={`Prep+Cook: ${totalTime}min`}>
+              {timeIndicator.text}
+            </span>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -67,7 +92,22 @@ export const FoodView: React.FC<FoodViewProps> = ({
   selectedFood,
   mealBinNames,
   onMealBinUpdate,
+  selectedRecommendation,
+  selectedDate,
 }) => {
+    // Memoize the set of recommended food IDs for the selected date
+    const recommendedFoodIds = useMemo(() => {
+      const ids = new Set<string>();
+      if (
+        selectedRecommendation &&
+        selectedRecommendation.meal.date &&
+        isSameDay(normalizeDate(selectedRecommendation.meal.date), normalizeDate(selectedDate)) // Compare recommendation's date with the currently selected view date
+      ) {
+        selectedRecommendation.meal.foods.forEach((food) => ids.add(food.id));
+      }
+      return ids;
+    }, [selectedRecommendation, selectedDate]);
+
   // Helper to get all unique foods for a given date and potentially bin
   // For simplicity now, let's get all foods for the date first
   const getFoodsForDate = useCallback(
@@ -78,7 +118,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
       if (!dayData) return [];
 
       const allFoods: Food[] = [];
-      const foodIds = new Set<string>(); // Track unique food IDs
+      const foodIds = new Set<string>();
 
       dayData.meals.forEach((meal) => {
         meal.foods.forEach((food) => {
@@ -93,8 +133,6 @@ export const FoodView: React.FC<FoodViewProps> = ({
     [allData]
   );
 
-  // TODO: Implement logic to distribute foods into bins if needed, similar to organizeMealsIntoBins
-  // For now, we'll just list all foods in the first bin for simplicity.
   const organizeFoodsIntoBins = useCallback(
     (date: Date) => {
       const foods = getFoodsForDate(date);
@@ -108,18 +146,17 @@ export const FoodView: React.FC<FoodViewProps> = ({
       if (mealBinNames.length > 0) {
         bins[mealBinNames[0]] = foods;
       }
-      // More complex logic needed here to distribute based on meal time or type
 
-      // Check if bin count needs update (similar to MealView)
-      if (foods.length > mealBinNames.length && mealBinNames.length > 0) {
-        // Simplified: just check total foods vs bins
-        const requiredBins = Math.ceil(foods.length / 5); // Example: 5 foods per bin max
+      // Auto-adjust bin count (simplified)
+      if (foods.length > mealBinNames.length * 5 && mealBinNames.length > 0) { // Example: 5 foods per bin max
+        const requiredBins = Math.ceil(foods.length / 5);
         if (requiredBins > mealBinNames.length) {
           const newNames = [...mealBinNames];
           while (newNames.length < requiredBins) {
             newNames.push(`Bin ${newNames.length + 1}`);
           }
-          onMealBinUpdate(newNames);
+          // Defer update to avoid state change during render
+          setTimeout(() => onMealBinUpdate(newNames), 0);
         }
       }
 
@@ -142,7 +179,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
               index > 0 ? "border-l" : ""
             }`}
           >
-            {binName} {/* Or maybe Food Category? */}
+            {binName}
           </div>
         ))}
       </div>
@@ -150,23 +187,27 @@ export const FoodView: React.FC<FoodViewProps> = ({
       {/* Scrollable container */}
       <div className="flex-1 overflow-auto bg-gray-50">
         <div className="min-h-full flex flex-col">
-          {datesToDisplay.map((currentDate) => {
-            const bins = organizeFoodsIntoBins(currentDate.date);
+          {datesToDisplay.map((currentDateData) => {
+            const currentDate = currentDateData.date; // Get the date object
+            const bins = organizeFoodsIntoBins(currentDate);
+            // Check against the date being currently rendered in the loop
+            const isCurrentDateSelectedForRecCheck = selectedRecommendation?.meal.date && isSameDay(normalizeDate(selectedRecommendation.meal.date), normalizeDate(currentDate));
+
             return (
               <div
-                key={currentDate.date.toISOString()}
+                key={currentDate.toISOString()}
                 className="flex flex-1 min-h-[150px] border-b last:border-b-0 bg-white"
               >
                 {/* Date Cell */}
                 <div className="w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start">
                   <div className="font-semibold text-gray-800">
-                    {format(currentDate.date, "EEE")}
+                    {format(currentDate, "EEE")}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {format(currentDate.date, "MMM d")}
+                    {format(currentDate, "MMM d")}
                   </div>
                   <div className="text-xs text-gray-400">
-                    {format(currentDate.date, "yyyy")}
+                    {format(currentDate, "yyyy")}
                   </div>
                 </div>
 
@@ -174,8 +215,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
                 <div className="flex flex-1">
                   {mealBinNames.map((binName, index) => (
                     <div
-                      key={`${currentDate.date.toISOString()}-${binName}`}
-                      className={`flex-1 p-4 overflow-y-auto ${
+                      key={`${currentDate.toISOString()}-${binName}`}
+                      className={`flex-1 p-2 overflow-y-auto ${
                         index > 0 ? "border-l" : ""
                       }`}
                     >
@@ -185,6 +226,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
                             key={food.id}
                             food={food}
                             isSelected={selectedFood?.id === food.id}
+                            // Check if food is recommended for the selected date
+                            isRecommended={!!isCurrentDateSelectedForRecCheck && recommendedFoodIds.has(food.id)}
                             onClick={() =>
                               onFoodSelect(
                                 selectedFood?.id === food.id ? null : food

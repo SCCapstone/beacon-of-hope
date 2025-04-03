@@ -1,15 +1,22 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Meal, Food, Ingredient, VisualizationLevel } from "../types";
+import {
+  Meal,
+  Food,
+  Ingredient,
+  MealRecommendation,
+  NutritionalInfo,
+  VisualizationLevel,
+} from "../types";
+import { format, isSameDay } from "date-fns";
+import { FoodTypeIcon } from "./FoodTypeIcon";
 import { COLOR_SCHEMES } from "../constants";
-import { MealRecommendation } from "../types";
 
 interface MealDetailsPanelProps {
   meal: Meal | null;
   food: Food | null;
   ingredient: Ingredient | null;
   recommendation: MealRecommendation | null;
-  currentLevel: VisualizationLevel["type"];
   onClose: () => void;
   nutritionalGoals: {
     dailyCalories: number;
@@ -30,7 +37,268 @@ interface MealDetailsPanelProps {
     fiber: number;
   };
   selectedDate: Date;
+  currentLevel: VisualizationLevel["type"];
 }
+
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+// --- Helper Components for Detail Panel ---
+
+const DetailHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  isRecommendation?: boolean;
+  score?: number;
+  onClose: () => void;
+}> = ({ title, subtitle, isRecommendation, score, onClose }) => (
+  <div className="p-4 border-b bg-gray-50 relative">
+    {isRecommendation && (
+      <span className="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
+        Recommended {score && `(${score})`}
+      </span>
+    )}
+    <button
+      onClick={onClose}
+      className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+      aria-label="Close details"
+    >
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
+    <h3 className="text-lg font-semibold text-gray-800 mt-4">{title}</h3>
+    {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+  </div>
+);
+
+const NutritionalBreakdown: React.FC<{
+  info: NutritionalInfo;
+  impact?: MealRecommendation["nutritionalImpact"];
+}> = ({ info, impact }) => {
+  const formatImpact = (value: number | undefined): string => {
+    if (value === undefined) return "";
+    const prefix = value > 0 ? "+" : "";
+    return ` (${prefix}${value})`;
+  };
+
+  return (
+    <div className="p-4 border-b">
+      <h4 className="text-sm font-medium text-gray-700 mb-3">
+        Nutritional Information
+      </h4>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Calories:</span>{" "}
+          <span className="font-medium">
+            {info.calories}
+            {impact && (
+              <span
+                className={
+                  impact.calories > 0 ? "text-green-600" : "text-red-600"
+                }
+              >
+                {formatImpact(impact.calories)}
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Protein:</span>{" "}
+          <span className="font-medium">
+            {info.protein}g
+            {impact && (
+              <span
+                className={
+                  impact.protein > 0 ? "text-green-600" : "text-red-600"
+                }
+              >
+                {formatImpact(impact.protein)}g
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Carbs:</span>{" "}
+          <span className="font-medium">
+            {info.carbs}g
+            {impact && (
+              <span
+                className={impact.carbs > 0 ? "text-green-600" : "text-red-600"}
+              >
+                {formatImpact(impact.carbs)}g
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Fat:</span> <span className="font-medium">{info.fat}g</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Fiber:</span>{" "}
+          <span className="font-medium">
+            {info.fiber}g
+            {impact && (
+              <span
+                className={impact.fiber > 0 ? "text-green-600" : "text-red-600"}
+              >
+                {formatImpact(impact.fiber)}g
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Sugar:</span>{" "}
+          <span className="font-medium">
+            {info.sugarContent?.toFixed(1) ?? "N/A"}g
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Glycemic Index:</span>{" "}
+          <span className="font-medium">
+            {info.glycemicIndex?.toFixed(1) ?? "N/A"}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Glycemic Load:</span>{" "}
+          <span className="font-medium">{info.glycemicLoad ?? "N/A"}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const IngredientList: React.FC<{ ingredients: Ingredient[] }> = ({
+  ingredients,
+}) => (
+  <div className="p-4 border-b">
+    <h4 className="text-sm font-medium text-gray-700 mb-2">Ingredients</h4>
+    <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-gray-600">
+      {ingredients.map((ing) => (
+        <li key={ing.id || ing.name}>
+          {ing.name} ({ing.amount} {ing.unit})
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
+const FoodList: React.FC<{ foods: Food[] }> = ({ foods }) => (
+  <div className="p-4 border-b">
+    <h4 className="text-sm font-medium text-gray-700 mb-2">Foods Included</h4>
+    <div className="space-y-2">
+      {foods.map((food) => (
+        <div
+          key={food.id}
+          className="flex items-center justify-between bg-gray-50 p-2 rounded"
+        >
+          <div className="flex items-center text-sm">
+            <FoodTypeIcon
+              type={food.type}
+              className="w-4 h-4 mr-2 text-gray-500"
+            />
+            <span className="font-medium text-gray-800">{food.name}</span>
+          </div>
+          <span className="text-xs text-gray-500 capitalize">
+            {food.type.replace("_", " ")}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const InstructionSteps: React.FC<{ instructions: string[] }> = ({
+  instructions,
+}) => (
+  <div className="p-4 border-b">
+    <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions</h4>
+    <ol className="space-y-2 text-sm list-decimal list-inside text-gray-700">
+      {instructions.map((step, index) => (
+        <li key={index}>{step}</li>
+      ))}
+    </ol>
+  </div>
+);
+
+const GeneralInfo: React.FC<{
+  label: string;
+  value: string | number | undefined;
+  unit?: string;
+}> = ({ label, value, unit }) => {
+  if (value === undefined || value === null || value === 0 || value === "")
+    return null;
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-gray-600">{label}:</span>
+      <span className="font-medium text-gray-800">
+        {value}
+        {unit}
+      </span>
+    </div>
+  );
+};
+
+const TagsList: React.FC<{ label: string; tags: string[] | undefined }> = ({
+  label,
+  tags,
+}) => {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <div>
+      <h5 className="text-xs font-semibold text-gray-500 mb-1">{label}</h5>
+      <div className="flex flex-wrap gap-1">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs"
+          >
+            {tag.replace("_", " ")}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RecommendationReasons: React.FC<{
+  reasons?: string[];
+  benefits?: string[];
+}> = ({ reasons, benefits }) => (
+  <div className="p-4 border-b space-y-3">
+    {reasons && reasons.length > 0 && (
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">
+          Why Recommended?
+        </h4>
+        <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-blue-700">
+          {reasons.map((reason, index) => (
+            <li key={`reason-${index}`}>{reason}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+    {benefits && benefits.length > 0 && (
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">
+          Health Benefits
+        </h4>
+        <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-green-700">
+          {benefits.map((benefit, index) => (
+            <li key={`benefit-${index}`}>{benefit}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+);
 
 // Helper to render Nutritional Info Grid (reusable)
 const NutritionalInfoGrid: React.FC<{ nutritionalInfo: any }> = ({
@@ -50,7 +318,7 @@ const NutritionalInfoGrid: React.FC<{ nutritionalInfo: any }> = ({
   );
 
   return (
-    <div>
+    <div className="p-4 border-b">
       <h4 className="text-sm font-medium text-gray-700 mb-3">
         Nutritional Values
       </h4>
@@ -98,374 +366,206 @@ const NutritionalInfoGrid: React.FC<{ nutritionalInfo: any }> = ({
   );
 };
 
+// --- Main Panel Component ---
+
 export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   meal,
-  food, // Use selected food
-  ingredient, // Use selected ingredient
+  food,
+  ingredient,
   recommendation,
-  currentLevel, // Use current level
   onClose,
   nutritionalGoals,
   currentNutritionalValues,
-  // baseNutritionalValues,
+  baseNutritionalValues,
   selectedDate,
+  currentLevel,
 }) => {
-  // Determine what to display based on selection priority: Rec > Meal > Food > Ingredient
-  const displayItem = recommendation
+  // Determine what to display based on selection priority: Recommendation > Ingredient > Food > Meal
+  const displayItem = recommendation || ingredient || food || meal;
+  const displayType = recommendation
     ? "recommendation"
-    : meal
-    ? "meal"
-    : food
-    ? "food"
     : ingredient
     ? "ingredient"
-    : "guide";
-  // const itemData = recommendation || meal || food || ingredient;
+    : food
+    ? "food"
+    : meal
+    ? "meal"
+    : "none";
+
+  const renderContent = () => {
+    if (!displayItem) {
+      return (
+        <div className="p-6 text-center text-gray-500">
+          <p>Select an item from the calendar to see details.</p>
+          <p className="mt-2 text-sm">
+            Currently viewing:{" "}
+            <span className="font-medium capitalize">{currentLevel}</span> level
+            for {format(selectedDate, "MMM d, yyyy")}
+          </p>
+        </div>
+      );
+    }
+
+    switch (displayType) {
+      case "recommendation": {
+        const rec = displayItem as MealRecommendation;
+        // Use recommendation date if available, otherwise use selected date
+        const recDate = rec.meal.date || selectedDate;
+        return (
+          <>
+            <DetailHeader
+              title={rec.meal.name}
+              subtitle={`Recommended ${rec.meal.type} for ${format(
+                recDate,
+                "MMM d"
+              )}`}
+              isRecommendation
+              score={rec.score}
+              onClose={onClose}
+            />
+            <RecommendationReasons
+              reasons={rec.reasons}
+              benefits={rec.healthBenefits}
+            />
+            <NutritionalBreakdown
+              info={rec.meal.nutritionalInfo}
+              impact={rec.nutritionalImpact}
+            />
+            <FoodList foods={rec.meal.foods} />
+            {/* Add more recommendation-specific details if needed */}
+          </>
+        );
+      }
+      case "meal": {
+        const m = displayItem as Meal;
+        const mealDate = m.date || selectedDate;
+        return (
+          <>
+            <DetailHeader
+              title={m.name}
+              subtitle={`${
+                m.type.charAt(0).toUpperCase() + m.type.slice(1)
+              } on ${format(mealDate, "MMM d")}`} // Use mealDate
+              onClose={onClose}
+            />
+            <NutritionalBreakdown info={m.nutritionalInfo} />
+            <FoodList foods={m.foods} />
+            <div className="p-4 border-b space-y-2">
+              {/* <GeneralInfo label="Time" value={m.time} /> */}
+              <TagsList label="Cultural Tips" tags={m.culturalTips} />
+              <TagsList label="Health Benefits" tags={m.healthBenefits} />
+            </div>
+          </>
+        );
+      }
+      case "food": {
+        const f = displayItem as Food;
+        // Determine if this food belongs to the selected recommendation (if any)
+        const isRecommendedFood =
+          (recommendation?.meal.date && // Check rec date
+            isSameDay(
+              normalizeDate(recommendation.meal.date),
+              normalizeDate(selectedDate)
+            ) && // Check if rec is for selected date
+            recommendation?.meal.foods.some(
+              (recFood) => recFood.id === f.id
+            )) ||
+          false; // Default to false
+        return (
+          <>
+            <DetailHeader
+              title={f.name}
+              subtitle={`${f.type.replace("_", " ")}`}
+              isRecommendation={isRecommendedFood}
+              onClose={onClose}
+            />
+            <NutritionalBreakdown info={f.nutritionalInfo} />
+            <IngredientList ingredients={f.ingredients} />
+            {f.instructions && f.instructions.length > 0 && (
+              <InstructionSteps instructions={f.instructions} />
+            )}
+            <div className="p-4 border-b space-y-2">
+              <GeneralInfo
+                label="Prep Time"
+                value={f.preparationTime}
+                unit=" min"
+              />
+              <GeneralInfo
+                label="Cook Time"
+                value={f.cookingTime}
+                unit=" min"
+              />
+              <TagsList label="Cultural Origin" tags={f.culturalOrigin} />
+              <TagsList label="Allergens" tags={f.allergens} />
+              <TagsList label="Tips" tags={f.tips} />
+            </div>
+          </>
+        );
+      }
+      case "ingredient": {
+        const i = displayItem as Ingredient;
+        // Determine if this ingredient belongs to the selected recommendation (if any)
+        const isRecommendedIngredient =
+          (recommendation?.meal.date && // Check rec date
+            isSameDay(
+              normalizeDate(recommendation.meal.date),
+              normalizeDate(selectedDate)
+            ) && // Check if rec is for selected date
+            recommendation?.meal.foods.some((recFood) =>
+              recFood.ingredients.some((ing) => ing.id === i.id)
+            )) ||
+          false; // Default to false
+        const categoryColor =
+          COLOR_SCHEMES.ingredient[
+            i.category as keyof typeof COLOR_SCHEMES.ingredient
+          ] || "#cccccc";
+        return (
+          <>
+            <DetailHeader
+              title={i.name}
+              subtitle={`Ingredient (${i.amount} ${i.unit})`}
+              isRecommendation={isRecommendedIngredient}
+              onClose={onClose}
+            />
+            <div className="p-4 border-b flex items-center space-x-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: categoryColor }}
+              ></div>
+              <span className="text-sm font-medium text-gray-700 capitalize">
+                Category: {i.category}
+              </span>
+            </div>
+            <NutritionalBreakdown info={i.nutritionalInfo} />
+            <div className="p-4 border-b space-y-2">
+              <TagsList label="Cultural Origin" tags={i.culturalOrigin} />
+              <TagsList label="Allergens" tags={i.allergens} />
+              <TagsList label="Substitutes" tags={i.substitutes} />
+            </div>
+            {/* Add more ingredient-specific details: common uses, storage, etc. */}
+          </>
+        );
+      }
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Scrollable Content Area */}
+    <div className="h-full flex flex-col bg-white border-l border-gray-200">
+      {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="pb-24">
-          {" "}
-          {/* Padding for bottom nutritional goals */}
-          <AnimatePresence mode="wait">
-            {/* --- Recommendation Details --- */}
-            {displayItem === "recommendation" && recommendation && (
-              <motion.div
-                key="recommendation-details"
-                /* ... animation props ... */ className="h-full"
-              >
-                {/* Header */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  <div className="flex justify-between items-center p-4 border-b">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        Recommended Meal
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        {recommendation.meal.name}
-                      </p>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <svg
-                        className="w-6 h-6 text-gray-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                {/* Recommendation Content (Keep existing) */}
-                <div className="p-6 space-y-8">
-                  {/* ... score, reasons, nutritional impact, benefits ... */}
-                </div>
-              </motion.div>
-            )}
-
-            {/* --- Meal Details --- */}
-            {displayItem === "meal" && meal && (
-              <motion.div
-                key="meal-details"
-                /* ... animation props ... */ className="h-full"
-              >
-                {/* Header (Keep existing) */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  {/* ... meal header ... */}
-                </div>
-                {/* Foods Section (Keep existing) */}
-                <div className="p-6 space-y-8">
-                  {meal.foods.map(
-                    (
-                      f // Use different variable name
-                    ) => (
-                      <div
-                        key={f.id}
-                        className="bg-gray-50 rounded-lg p-6 space-y-6"
-                      >
-                        {/* ... food details within meal (keep existing) ... */}
-                        <NutritionalInfoGrid
-                          nutritionalInfo={f.nutritionalInfo}
-                        />
-                        {/* ... ingredients, instructions, etc. ... */}
-                      </div>
-                    )
-                  )}
-                </div>
-                {/* Footer Actions (Keep existing) */}
-                <div className="flex-shrink-0 bg-white border-t p-4 flex justify-end space-x-3">
-                  {/* ... buttons ... */}
-                </div>
-              </motion.div>
-            )}
-
-            {/* --- Food Details --- */}
-            {displayItem === "food" && food && (
-              <motion.div
-                key="food-details"
-                /* ... animation props ... */ className="h-full"
-              >
-                {/* Header */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  <div className="flex justify-between items-center p-4 border-b">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {food.name}
-                      </h2>
-                      <p className="text-sm text-gray-500 capitalize">
-                        {food.type.replace("_", " ")}
-                      </p>
-                    </div>
-                    <button onClick={onClose} /* ... close button ... */>
-                      {" "}
-                      {/* ... svg ... */}{" "}
-                    </button>
-                  </div>
-                </div>
-                {/* Food Content */}
-                <div className="p-6 space-y-6">
-                  {/* Nutritional Info */}
-                  <NutritionalInfoGrid nutritionalInfo={food.nutritionalInfo} />
-
-                  {/* Ingredients */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">
-                      Ingredients
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {food.ingredients.map((ing) => (
-                        <div
-                          key={ing.id}
-                          className="flex items-center space-x-2 p-2 rounded-md"
-                          style={{
-                            backgroundColor: `${
-                              COLOR_SCHEMES.ingredient[
-                                ing.category as keyof typeof COLOR_SCHEMES.ingredient
-                              ]
-                            }20`,
-                          }}
-                        >
-                          <span className="text-sm">
-                            {ing.name}
-                            <span className="text-gray-500 text-xs ml-1">
-                              ({ing.amount} {ing.unit})
-                            </span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Instructions */}
-                  {food.instructions && food.instructions.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">
-                        Instructions
-                      </h4>
-                      <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
-                        {food.instructions.map((step, i) => (
-                          <li key={i}>{step}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-
-                  {/* Other Info */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-                    <span>Prep: {food.preparationTime}min</span>
-                    <span>Cook: {food.cookingTime}min</span>
-                    {food.diabetesFriendly !== undefined && (
-                      <span
-                        className={`font-medium ${
-                          food.diabetesFriendly
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {food.diabetesFriendly
-                          ? "Diabetes-Friendly"
-                          : "High GI/Check"}
-                      </span>
-                    )}
-                    {food.allergens.length > 0 && (
-                      <span className="text-red-600">
-                        Contains: {food.allergens.join(", ")}
-                      </span>
-                    )}
-                    {food.culturalOrigin && food.culturalOrigin.length > 0 && (
-                      <span>Origin: {food.culturalOrigin.join(", ")}</span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* --- Ingredient Details --- */}
-            {displayItem === "ingredient" && ingredient && (
-              <motion.div
-                key="ingredient-details"
-                /* ... animation props ... */ className="h-full"
-              >
-                {/* Header */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  <div className="flex justify-between items-center p-4 border-b">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {ingredient.name}
-                      </h2>
-                      <p className="text-sm text-gray-500 capitalize">
-                        {ingredient.category}
-                      </p>
-                    </div>
-                    <button onClick={onClose} /* ... close button ... */>
-                      {" "}
-                      {/* ... svg ... */}{" "}
-                    </button>
-                  </div>
-                </div>
-                {/* Ingredient Content */}
-                <div className="p-6 space-y-6">
-                  {/* Amount */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <span className="text-sm text-gray-600">
-                      Amount Used (Typical):{" "}
-                    </span>
-                    <span className="text-lg font-medium text-gray-800">
-                      {ingredient.amount} {ingredient.unit}
-                    </span>
-                  </div>
-
-                  {/* Nutritional Info */}
-                  <NutritionalInfoGrid
-                    nutritionalInfo={ingredient.nutritionalInfo}
-                  />
-
-                  {/* Other Info */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-                    {ingredient.allergens &&
-                      ingredient.allergens.length > 0 && (
-                        <span className="text-red-600">
-                          Potential Allergen: {ingredient.allergens.join(", ")}
-                        </span>
-                      )}
-                    {ingredient.culturalOrigin &&
-                      ingredient.culturalOrigin.length > 0 && (
-                        <span>
-                          Cultural Origin:{" "}
-                          {ingredient.culturalOrigin.join(", ")}
-                        </span>
-                      )}
-                    {ingredient.substitutes &&
-                      ingredient.substitutes.length > 0 && (
-                        <span>
-                          Substitutes: {ingredient.substitutes.join(", ")}
-                        </span>
-                      )}
-                    {ingredient.diabetesFriendly !== undefined && (
-                      <span
-                        className={`font-medium ${
-                          ingredient.diabetesFriendly
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {ingredient.diabetesFriendly
-                          ? "Generally Diabetes-Friendly"
-                          : "Use with Caution"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* --- Guide View (Default) --- */}
-            {displayItem === "guide" && (
-              <motion.div
-                key="guide-view"
-                /* ... animation props ... */ className="h-full"
-              >
-                {/* ... Existing guide content ... */}
-                <div className="p-6 space-y-6">
-                  {/* Logo and Title */}
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-800">
-                      Meal Explorer
-                    </h2>
-                    <p className="text-gray-500 mt-2">
-                      Select an item from the {currentLevel} view or a
-                      recommendation.
-                    </p>
-                  </div>
-
-                  {/* Quick Guide */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-800 mb-2">
-                      Getting Started
-                    </h3>
-                    <ul className="space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          1
-                        </span>
-                        Click on any meal card in the calendar
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          2
-                        </span>
-                        View detailed nutritional information
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          3
-                        </span>
-                        Explore ingredients and preparation steps
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Keyboard Shortcuts */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-800 mb-2">
-                      Keyboard Shortcuts
-                    </h3>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center justify-between">
-                        <span>Toggle Left Panel</span>
-                        <span className="flex space-x-1">
-                          <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                            [
-                          </kbd>
-                          <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                            ]
-                          </kbd>
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Close Meal Details</span>
-                        <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                          Esc
-                        </kbd>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={displayType + (displayItem as any)?.id + currentLevel}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Nutritional Goals Progress */}
