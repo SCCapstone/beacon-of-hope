@@ -1,17 +1,7 @@
 # TODO Fix to not use csrf_exempt for safety purposes
 from django.shortcuts import render
 from django.http import JsonResponse, HttpRequest, HttpResponse
-from .models import UserPreference, MenuItem
-
-import random
 from django.views.decorators.csrf import csrf_exempt
-from datetime import datetime, timedelta
-from bson import ObjectId
-import logging
-
-import json
-
-import time
 
 from .recommendation_helpers import (
     configure_bandit,
@@ -23,10 +13,18 @@ from .recommendation_helpers import (
 )
 from .firebase import FirebaseManager
 
-firebaseManager = FirebaseManager()
+import random
+from datetime import datetime, timedelta
+from bson import ObjectId
+import logging
+import json
+import time
+
+
+firebaseManager = FirebaseManager()  # DB manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-logger = logging.getLogger(__name__)  # neccesary to generate meal plan
+logger = logging.getLogger(__name__)
 
 
 """Recommendation API Endpoints"""
@@ -215,7 +213,7 @@ def bandit_recommendation(request: HttpRequest):
 
             ...
         print(f"User ID: {user_id}")
-       
+
         logger.info("User data parsed")
 
         # Update user
@@ -226,9 +224,7 @@ def bandit_recommendation(request: HttpRequest):
                 if status != 200:
                     logger.info(user)
                     return JsonResponse(
-                        {
-                            "Error": user
-                        },
+                        {"Error": user},
                         status=status,
                     )
 
@@ -410,103 +406,95 @@ def regenerate_partial_meal_plan(request: HttpRequest):
         return JsonResponse({"error": "Incorrect HTTP method"}, status=400)
     try:
         data: dict = json.loads(request.body)
-        
-        required_fields = ["user_id", "dates_to_regenerate", "meal_plan_config"]
-        if not all(field in data for field in required_fields):
-            return JsonResponse(
-                {"error": "Request body is missing required fields: user_id, dates_to_regenerate, or meal_plan_config"},
-                status=403,
-            )
+
+        required_fields = ["user_id", "dates_to_regenerate"]
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse(
+                    {"error": f"Request body is missing required field: {field}"},
+                    status=403,
+                )
 
         user_id = data["user_id"]
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in retrieving the user: {user}"},
+                status=500,
+            )
+
+        user_preferences = user.get_numerical_preferences()
+        meal_plan_config = user.get_meal_plan_config()
+
         dates_to_regenerate = data["dates_to_regenerate"]
         meal_plan_config = data["meal_plan_config"]
-        user_preferences = data.get("user_preferences", {})
-
-        if "dairy" in user_preferences:
-            user_preferences = {
-                "dairyPreference": user_preferences["dairy"],
-                "meatPreference": user_preferences["meat"],
-                "nutsPreference": user_preferences["nuts"]
-            }
-        elif "dairyPreference" not in user_preferences:
-            # If neither format is present, use default preferences
-            user_preferences = {
-                "dairyPreference": 0,
-                "meatPreference": 0,
-                "nutsPreference": 0
-            }
-
-        # Ensure preferences are integers (-1, 0, or 1)
-        for key in user_preferences:
-            if isinstance(user_preferences[key], float):
-                user_preferences[key] = round(user_preferences[key])
-
-        # Convert meal configs to expected format if needed
-        if meal_plan_config.get("meal_configs"):
-            meal_plan_config["meal_configs"] = [
-                {
-                    "meal_name": config["meal_name"].lower(),
-                    "meal_types": {
-                        "beverage": config.get("beverage", False),
-                        "main_course": config.get("main_course", False),
-                        "side": config.get("side", False),
-                        "dessert": config.get("dessert", False)
-                    }
-                }
-                for config in meal_plan_config["meal_configs"]
-            ]
 
         # Get the user's current meal plan
         meal_plan = data.get("meal_plan")
         if not meal_plan:
-            meal_plan, status = firebaseManager.get_latest_user_meal_plan(user_id=user_id)
+            meal_plan, status = firebaseManager.get_latest_user_meal_plan(
+                user_id=user_id
+            )
             if status != 200:
-             return JsonResponse({"error": "Failed to retrieve current meal plan"}, status=status)
+                return JsonResponse(
+                    {"error": "Failed to retrieve current meal plan"}, status=status
+                )
 
-
-        
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
-            return JsonResponse({"error": "Failed to retrieve user data"}, status=status)
+            return JsonResponse(
+                {"error": "Failed to retrieve user data"}, status=status
+            )
 
         bandit_counter = user["bandit_counter"]
         need_to_train = True
 
-        if bandit_counter % 5 != 0 and user.get("favorite_items") and all(
-            user["favorite_items"][key] for key in ["Beverage", "Main Course", "Side", "Dessert"]
+        if (
+            bandit_counter % 5 != 0
+            and user.get("favorite_items")
+            and all(
+                user["favorite_items"][key]
+                for key in ["Beverage", "Main Course", "Side", "Dessert"]
+            )
         ):
             need_to_train = False
             favorite_items = user["favorite_items"]
-            
+
             # Increment bandit counter
             msg, status = firebaseManager.update_user_attr(
                 user_id, "bandit_counter", bandit_counter + 1
             )
             if status != 200:
-                return JsonResponse({"error": "Failed to update bandit counter"}, status=status)
+                return JsonResponse(
+                    {"error": "Failed to update bandit counter"}, status=status
+                )
         else:
             logger.info("Retraining bandit for new recommendations...")
 
         if need_to_train:
             # Train bandit
             try:
-                bandit_trial_path, trial_num = configure_bandit(len(dates_to_regenerate))
+                bandit_trial_path, trial_num = configure_bandit(
+                    len(dates_to_regenerate)
+                )
                 if not train_bandit(bandit_trial_path):
                     return JsonResponse({"error": "Failed to train bandit"}, status=500)
                 if not test_bandit(bandit_trial_path):
                     return JsonResponse({"error": "Failed to test bandit"}, status=500)
-                
+
                 favorite_items = get_favorite_items(trial_num, user_preferences)
-                
-                
+
                 msg, status = firebaseManager.update_user_attr(
                     user_id, "favorite_items", favorite_items
                 )
                 if status != 200:
-                    return JsonResponse({"error": "Failed to update favorite items"}, status=status)
+                    return JsonResponse(
+                        {"error": "Failed to update favorite items"}, status=status
+                    )
             except Exception as e:
-                return JsonResponse({"error": f"Bandit training failed: {str(e)}"}, status=500)
+                return JsonResponse(
+                    {"error": f"Bandit training failed: {str(e)}"}, status=500
+                )
 
         # new recommendations for specified dates = num of days of mp
         try:
@@ -514,10 +502,13 @@ def regenerate_partial_meal_plan(request: HttpRequest):
                 favorite_items,
                 len(dates_to_regenerate),
                 meal_plan_config["meal_configs"],
-                datetime.strptime(dates_to_regenerate[0], "%Y-%m-%d")
+                datetime.strptime(dates_to_regenerate[0], "%Y-%m-%d"),
             )
         except Exception as e:
-            return JsonResponse({"error": f"Failed to generate new recommendations: {str(e)}"}, status=500)
+            return JsonResponse(
+                {"error": f"Failed to generate new recommendations: {str(e)}"},
+                status=500,
+            )
 
         # Update meal plan with regenerated recommendations
         success_messages = []
@@ -527,13 +518,16 @@ def regenerate_partial_meal_plan(request: HttpRequest):
                 new_day_plan["meal_plan_id"] = meal_plan["_id"]
                 msg, status = firebaseManager.add_dayplan(user_id, date, new_day_plan)
                 if status != 200:
-                    return JsonResponse({"error": f"Failed to update day plan for {date}"}, status=status)
-                
+                    return JsonResponse(
+                        {"error": f"Failed to update day plan for {date}"},
+                        status=status,
+                    )
+
                 meal_plan["days"][date] = new_day_plan
                 success_messages.append(f"Successfully regenerated meals for {date}")
 
-        #TODO fix scores for the regenerated meal plan
-        
+        # TODO fix scores for the regenerated meal plan
+
         # scores = calculate_goodness(meal_plan, meal_plan_config["meal_configs"], user_preferences)
         # meal_plan["scores"] = scores
 
@@ -542,15 +536,15 @@ def regenerate_partial_meal_plan(request: HttpRequest):
         if status != 200:
             return JsonResponse({"error": "Failed to update meal plan"}, status=status)
 
-        return JsonResponse({
-            "success": True,
-            "meal_plan": meal_plan,
-            "messages": success_messages
-        }, status=200)
+        return JsonResponse(
+            {"success": True, "meal_plan": meal_plan, "messages": success_messages},
+            status=200,
+        )
 
     except Exception as e:
         logger.exception("An error occurred while regenerating the meal plan")
         return JsonResponse({"error": str(e)}, status=500)
+
 
 @csrf_exempt
 def edit_meal_plan(request: HttpRequest):
@@ -567,11 +561,12 @@ def edit_meal_plan(request: HttpRequest):
         # required_fields = ["user_id", "date", "meal_name", "updates"]
         # New required fields with meal_plan
         required_fields = ["user_id", "date", "meal_name", "updates", "meal_plan"]
-        if not all(k in data for k in required_fields):
-            return JsonResponse(
-                {"error": "Missing one or more required fields: user_id, date, meal_name, updates, meal_plan"},
-                status=400,
-            )
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse(
+                    {"error": f"Missing required fields: {field}"},
+                    status=400,
+                )
 
         user_id = data["user_id"]
         date = data["date"]
@@ -584,7 +579,9 @@ def edit_meal_plan(request: HttpRequest):
         valid_meal_types = {"beverage", "main_course", "side", "dessert"}
         if not all(key in valid_meal_types for key in updates.keys()):
             return JsonResponse(
-                {"error": f"Invalid meal type in updates. Valid types are: {', '.join(valid_meal_types)}"},
+                {
+                    "error": f"Invalid meal type in updates. Valid types are: {', '.join(valid_meal_types)}"
+                },
                 status=400,
             )
 
@@ -594,7 +591,9 @@ def edit_meal_plan(request: HttpRequest):
         #     return JsonResponse({"error": "Could not retrieve user's meal plan"}, status=status)
 
         if date not in meal_plan.get("days", {}):
-            return JsonResponse({"error": f"No meal plan exists for date: {date}"}, status=404)
+            return JsonResponse(
+                {"error": f"No meal plan exists for date: {date}"}, status=404
+            )
 
         day_plan = meal_plan["days"][date]
         meals = day_plan.get("meals", [])
@@ -605,7 +604,7 @@ def edit_meal_plan(request: HttpRequest):
             if meal.get("meal_name", "").lower() == meal_name:
                 meal_found = True
                 meal_types = meal.setdefault("meal_types", {})
-                
+
                 # Update meal types
                 for key, val in updates.items():
                     if val is None:
@@ -616,31 +615,32 @@ def edit_meal_plan(request: HttpRequest):
                             beverage, _ = firebaseManager.get_single_beverage(val)
                             if isinstance(beverage, Exception):
                                 return JsonResponse(
-                                    {"error": f"Invalid beverage ID: {val}"},
-                                    status=400
+                                    {"error": f"Invalid beverage ID: {val}"}, status=400
                                 )
                         else:
                             food, _ = firebaseManager.get_single_r3(val)
                             if isinstance(food, Exception):
                                 return JsonResponse(
                                     {"error": f"Invalid food item ID: {val}"},
-                                    status=400
+                                    status=400,
                                 )
                         meal_types[key] = val
                 break
 
         if not meal_found:
-            return JsonResponse({"error": f"Meal '{meal_name}' not found on {date}"}, status=404)
+            return JsonResponse(
+                {"error": f"Meal '{meal_name}' not found on {date}"}, status=404
+            )
 
         # Update day plan in Firebase
         day_plan["user_id"] = user_id
         day_plan["meal_plan_id"] = meal_plan["_id"]
         msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
         if status != 200:
-            return JsonResponse({
-                "error": f"Failed to update day plan for {date}",
-                "details": msg
-            }, status=status)
+            return JsonResponse(
+                {"error": f"Failed to update day plan for {date}", "details": msg},
+                status=status,
+            )
 
         # Update meal plan in Firebase
         meal_plan["days"][date] = day_plan
@@ -648,15 +648,19 @@ def edit_meal_plan(request: HttpRequest):
         if status != 200:
             return JsonResponse({"error": "Failed to update meal plan"}, status=status)
 
-        return JsonResponse({
-            "success": True, 
-            "updated_day_plan": day_plan,
-            "message": f"Successfully updated {meal_name} for {date}"
-        }, status=200)
+        return JsonResponse(
+            {
+                "success": True,
+                "updated_day_plan": day_plan,
+                "message": f"Successfully updated {meal_name} for {date}",
+            },
+            status=200,
+        )
 
     except Exception as e:
         logger.exception("edit_meal_plan failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
 
 """User Account API Endpoints"""
 

@@ -6,42 +6,42 @@ class User:
         for key, value in user.items():
             setattr(self, key, value)
 
-    def get_id(self):
+    def get_id(self) -> str:
         return self._id
 
-    def get_name(self):
+    def get_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
-    def get_first_name(self):
+    def get_first_name(self) -> str:
         return self.first_name
 
-    def get_last_name(self):
+    def get_last_name(self) -> str:
         return self.last_name
 
-    def get_email(self):
+    def get_email(self) -> str:
         return self.email
 
-    def get_plan_ids(self):
+    def get_plan_ids(self) -> List[str]:
         return self.plan_ids
 
-    def get_preferences(self):
+    def get_preferences(self) -> List[str]:
         """Returns [vegan, kosher, ...]"""
         return self.dietary_preferences["preferences"]
 
-    def get_numerical_preferences(self):
+    def get_numerical_preferences(self) -> Dict[str, int]:
         """Returns {dairyPreference:0, ...}"""
         return self.dietary_preferences["numerical_preferences"]
 
-    def get_allergies(self):
+    def get_allergies(self) -> List[str]:
         return self.health_info["allergies"]
 
-    def get_conditions(self):
+    def get_conditions(self) -> List[str]:
         return self.health_info["conditions"]
 
-    def get_demographic_info(self):
+    def get_demographic_info(self) -> Dict:
         return self.demographicsInfo
 
-    def get_meal_plan_config(self):
+    def get_meal_plan_config(self) -> Dict:
         return self.meal_plan_config
 
     def get_account_creation_date(self):
@@ -50,10 +50,10 @@ class User:
     def get_account_update_date(self):
         return self.updated_at
 
-    def get_day_plans(self):
+    def get_day_plans(self) -> Dict[str, str]:
         return self.day_plans
 
-    def get_bandit_counter(self):
+    def get_bandit_counter(self) -> int:
         return self.bandit_counter
 
     def get_favorite_main_courses(self) -> List[str]:
