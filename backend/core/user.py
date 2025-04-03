@@ -1,10 +1,13 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
+from .firebase import FirebaseManager
 
 
 class User:
+
     def __init__(self, user: Dict):
         for key, value in user.items():
             setattr(self, key, value)
+        self.firebaseManager = FirebaseManager()
 
     def get_id(self) -> str:
         return self._id
@@ -55,6 +58,28 @@ class User:
 
     def get_bandit_counter(self) -> int:
         return self.bandit_counter
+
+    def increment_bandit_counter(self) -> Tuple[str, int]:
+        return self.firebaseManager.update_user_attr(
+            self.get_id(), "bandit_counter", self.get_bandit_counter() + 1
+        )
+
+    def has_favorite_items(self) -> bool:
+        """Checks if the user has favorite items from bandit training"""
+        return (
+            self.get_favorite_main_courses()
+            and self.get_favorite_sides()
+            and self.get_favorite_desserts()
+            and self.get_favorite_bevs()
+        )
+
+    def get_favorite_items(self) -> Dict[str, List[str]]:
+        return self.favorite_items
+
+    def set_favorite_items(self, favorite_items: Dict[str, List[str]]):
+        return self.firebaseManager.update_user_attr(
+            self.get_id(), "favorite_items", favorite_items
+        )
 
     def get_favorite_main_courses(self) -> List[str]:
         return self.favorite_items["Main Course"]
