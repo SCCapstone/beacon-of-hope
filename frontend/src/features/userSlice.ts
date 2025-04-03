@@ -134,7 +134,7 @@ export const userSlice = createSlice({
             
             // Create a minimal guest user object
             state.user = {
-                _id: "",
+                _id: "67ee9325af31921234bf1241",
                 name: "Guest User",
                 first_name: "Guest",
                 last_name: "User",

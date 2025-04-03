@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const location = useLocation();
   const userData = useSelector((state: RootState) => state.user.user);
-  const isGuest = !userData?._id;
+  const isGuest = userData?._id === "67ee9325af31921234bf1241";
 
   return (
     <header
@@ -82,11 +82,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             </div>
           </Link>
 
-          {/* <div className="h-12 w-px bg-[#FF9F1C]/20" /> */}
-
-          <div>
-            <h1 className="text-2xl font-bold text-[#FF9F1C]">{title}</h1>
-            <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
+          <div className="flex items-center space-x-8">
+            <div>
+              <h1 className="text-2xl font-bold text-[#FF9F1C]">{title}</h1>
+              <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
+            </div>
+            <div className="text-xl font-medium text-[#1A1A1A]">
+              {!isGuest ? `Welcome, ${userData?.first_name}!` : "You are currently in Guest Mode. Log In to access more"}
+            </div>
           </div>
         </div>
 
