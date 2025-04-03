@@ -181,7 +181,7 @@ export function getDefaultMealTime(mealName: string): string {
 }
 
 // Helper function to calculate combined nutritional info for a Meal
-function calculateCombinedMealNutritionalInfo(foods: Food[]): NutritionalInfo {
+export function calculateCombinedMealNutritionalInfo(foods: Food[]): NutritionalInfo {
   const initial: NutritionalInfo = {
     calories: 0,
     protein: 0,
