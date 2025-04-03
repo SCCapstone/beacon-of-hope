@@ -11,6 +11,7 @@ import {
 } from "../utils/mealPlanTransformer";
 import { ApiError } from "../utils/errorHandling";
 
+
 const BACKEND_URL = "http://127.0.0.1:8000";
 const mealDataCache = new Map<string, any>();
 
@@ -69,6 +70,7 @@ export async function fetchBeverageInfo(bevId: string) {
 
 export async function fetchMealDays(userId: string, dates: string[]) {
   try {
+    console.log(userId);
     const response = await axios.post<ApiResponse>(
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
