@@ -6,6 +6,7 @@ import UserInformation from "../components/FoodPreferencesCards/UserInformation"
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
 import MealPlanConfigCard from "../components/FoodPreferencesCards/MealPlanConfigCard";
 import MealSpecificOptionsCard from "../components/FoodPreferencesCards/MealSpecificOptionsCard";
+import NutritionalGoalsCard from "../components/FoodPreferencesCards/NutritionalGoalsCard";
 import { MainLayout } from "../components/Layouts/MainLayout";
 import { personas } from "./personas";
 import { motion, AnimatePresence } from "framer-motion";
@@ -94,6 +95,12 @@ const FoodPreferencesPage: React.FC = () => {
   const [loadingStage, setLoadingStage] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Add new state variables for nutritional goals
+  const [calories, setCalories] = useState<number>(2000);
+  const [carbs, setCarbs] = useState<number>(250);
+  const [protein, setProtein] = useState<number>(100);
+  const [fiber, setFiber] = useState<number>(30);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -229,7 +236,13 @@ const FoodPreferencesPage: React.FC = () => {
         meatPreference: meat,
         nutsPreference: nuts,
       },
-      user_id: userState.user._id,
+      daily_goals: {
+        calories: calories,
+        carbs: carbs,
+        protein: protein,
+        fiber: fiber,
+      },
+      user_id: userState.user?._id,
     };
 
     // console.log("Request body:", JSON.stringify(requestBody, null, 2));
@@ -509,6 +522,18 @@ const FoodPreferencesPage: React.FC = () => {
               setDiabetes={setDiabetes}
               setVegetarian={setVegetarian}
               setVegan={setVegan}
+            />
+
+            {/* Nutritional Goals Card */}
+            <NutritionalGoalsCard
+              calories={calories}
+              carbs={carbs}
+              protein={protein}
+              fiber={fiber}
+              setCalories={setCalories}
+              setCarbs={setCarbs}
+              setProtein={setProtein}
+              setFiber={setFiber}
             />
 
             {/* Meal Plan Configuration Card */}

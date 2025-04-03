@@ -12,6 +12,9 @@ import {
   transformApiResponseToDayMeals,
 } from "../services/recipeService";
 import { subDays, addDays, format } from "date-fns";
+import { useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
+import { RootState } from "../app/store";
 
 const nutritionalGoals = {
   dailyCalories: 1800,
@@ -37,7 +40,10 @@ export const MealTimelinePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const userId = JSON.parse(localStorage.user)._id || "";
+  const dispatch = useDispatch();
+  const userData = useSelector((state: RootState) => state.user.user);
+
+  const userId = userData?._id || "";
   const [userPreferences] = useState<UserPreferences>({
     diabetesFriendly: true,
     culturalPreferences: ["african_american"],
@@ -108,7 +114,7 @@ export const MealTimelinePage: React.FC = () => {
       console.log("Dates to fetch:", datesToFetch);
       setIsLoading(true);
 
-      const userId = JSON.parse(localStorage.user)._id || "";
+      //const userId = JSON.parse(localStorage.user)._id || "";
 
       // Fetch meal data from API only for dates we need
       const response = await fetchMealDays(userId, datesToFetch);
