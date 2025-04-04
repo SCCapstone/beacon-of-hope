@@ -133,6 +133,12 @@ const FoodPreferencesPage: React.FC = () => {
     setVegetarian(persona.dietaryPreferences.vegetarian);
     setVegan(persona.dietaryPreferences.vegan);
 
+    // Set Nutritional Goals
+    setCalories(persona.nutritionalGoals.calories);
+    setCarbs(persona.nutritionalGoals.carbs);
+    setProtein(persona.nutritionalGoals.protein);
+    setFiber(persona.nutritionalGoals.fiber);
+
     // Update Meal Plan Configuration
     setMealPlanLength(persona.mealPlanConfig.mealPlanLength);
     setMealsPerDay(persona.mealPlanConfig.mealsPerDay);

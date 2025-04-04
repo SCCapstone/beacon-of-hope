@@ -667,3 +667,75 @@ def get_beverage_info(request: HttpRequest, beverage_id):
     if isinstance(bev, Exception):
         return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
     return JsonResponse(bev, status=200)
+
+@csrf_exempt
+def exit_default(request: HttpRequest):
+    """
+    Reset a user's data to default values while preserving their user ID.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        if "user_id" not in data:
+            return JsonResponse({"error": "Missing required field: user_id"}, status=400)
+
+        user_id = data["user_id"]
+
+        default_user = {
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "password": "",
+            "plan_ids": [],
+            "dietary_preferences": {
+                "preferences": [""],
+                "numerical_preferences": {
+                    "dairy": 0,
+                    "nuts": 0,
+                    "meat": 0,
+                },
+            },
+            "health_info": {
+                "allergies": [""],
+                "conditions": [""],
+            },
+            "demographicsInfo": {},
+            "meal_plan_config": {},
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+            "day_plans": {},
+            "bandit_counter": 1,
+            "favorite_items": {
+                "Main Course": [],
+                "Side": [],
+                "Dessert": [],
+                "Beverage": [],
+            },
+            "nutritional_goals": {
+                "calories": 0,
+                "carbs": 0,
+                "protein": 0,
+                "fiber": 0
+            }
+        }
+
+        # Update each attribute individually using the helper method.
+        for field, value in default_user.items():
+            msg, field_status = firebaseManager.update_user_attr(user_id, field, value)
+            if field_status != 200:
+                return JsonResponse(
+                    {"error": f"Failed to update field '{field}': {msg}"},
+                    status=field_status
+                )
+
+        return JsonResponse({
+            "success": True,
+            "message": "Successfully reset user data to default values",
+            "user_id": user_id
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("exit_default failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
