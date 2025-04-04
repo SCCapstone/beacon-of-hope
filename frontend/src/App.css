@@ -1,5 +1,9 @@
-body {
-  margin: 0%;
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
   font-family: "Nunito Sans";
 }
 
@@ -9,36 +13,53 @@ h1, h2, p {
 }
 
 #root {
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   font-family: "Nunito Sans", sans-serif;
 }
 
 /****LOGIN PAGE****/
 #login--page {
+  width: 100vw;
   height: 100vh;
   display: flex;
   flex-direction: row;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 #login--left {
-  flex: 1.45;
-  max-height: 100%;
+  flex: 0.6;
+  width: 60%;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 #login--left img {
-  max-height: 100%;
-  max-width: fit-content;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 #login--right {
-  flex: 1;
+  flex: 0.4;
+  width: 40%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 0px;
-  gap: 3%;
-  max-height: 100vh;
+  padding: 2vh;
+  gap: 1.5vh;
+  overflow: hidden;
+  margin: 0;
 }
 
 #login--header {
@@ -49,10 +70,6 @@ h1, h2, p {
   max-height: 50%;
   padding: 0px;
   gap: 3px;
-}
-
-#sign--in {
-  margin-left: 83px;
 }
 
 #login--header button {
@@ -70,13 +87,34 @@ h1, h2, p {
   border-radius: 5px;
 }
 
+#sign--in {
+  margin-left: 83px;
+  width: 100%;
+  height: 16px;
+  font-weight: 600;
+  font-size: 12px;
+  color: #DDDDDD;
+  text-align: center;
+}
+
+#login--content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  padding: 0 20px;
+  gap: 1vh;
+}
+
 .login--input {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  height: 6%;
+  width: 100%;
   padding: 0px;
-  gap: 4px;
+  gap: 0.5vh;
+  margin-bottom: 0.5vh;
 }
 
 .login--input input {
@@ -84,12 +122,11 @@ h1, h2, p {
   display: flex;
   flex-direction: row;
   align-items: center;
-  padding: 13px 10px;
-  gap: 13px;
-  width: 420px;
-  height: 4%;
+  padding: 1vh;
+  width: 100%;
   border: 1px solid #DEd2d9;
   border-radius: 5px;
+  font-size: clamp(12px, 1.2vw, 14px);
 }
 
 .login--input input::placeholder {
@@ -152,16 +189,6 @@ input[type="checkbox"]:checked {
   gap: 10px;
 }
 
-#guest--account {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  margin-top: 5%;
-  padding: 0px;
-  gap: 10px;
-}
-
 .error-message {
   color: #ff0000;
   background-color: #ffe6e6;
@@ -171,40 +198,71 @@ input[type="checkbox"]:checked {
   font-size: 14px;
 }
 
+.google-login-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  margin-bottom: 8px;
+}
+
+.google-login-button img {
+  width: 20px;
+  height: 20px;
+}
+
 /****WELCOME PAGE****/
 
 #welcome--page {
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: row;
-  height: 100vh;
+  overflow: hidden;
 }
 
 #welcome--left {
-  flex: 1.45;
-  max-height: 100%;
+  flex: 0.6;
+  width: 60vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
 }
 
 #welcome--left img {
-  max-height: 100%;
-  max-width: fit-content;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 #welcome--right {
-  flex: 1;
+  flex: 0.4;
+  width: 40vw;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  gap: 20px;
+  align-items: center;
+  padding: 2vh;
+  gap: 1.5vh;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 #welcome--header {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  width: 100%;
   padding: 0px;
-  gap: 3px;
+  gap: 0.5vh;
+  margin-bottom: 2vh;
 }
 
 .welcome--button {
@@ -215,9 +273,10 @@ input[type="checkbox"]:checked {
   box-shadow: 10px 2px 32px rgba(0, 0, 0, 0.25);
   border-radius: 20px;
   border: 0px;
-  width: 400px;
-  height: 17%;
-  padding: 20px; /* Add padding to create buffer space */
+  width: 100%;
+  max-width: 400px;
+  padding: 2vh;
+  margin-bottom: 1.5vh;
 }
 
 .welcome--button:hover {
@@ -227,9 +286,11 @@ input[type="checkbox"]:checked {
 #button--one {
   background-color: #FFE6C9;
 }
+
 #button--two {
   background-color: #e8e8e8;
 }
+
 #button--three {
   background-color: #9a4678;
 }

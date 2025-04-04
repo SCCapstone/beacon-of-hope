@@ -12,6 +12,9 @@ import {
   transformApiResponseToDayMeals,
 } from "../services/recipeService";
 import { subDays, addDays, format, isSameDay } from "date-fns";
+import { useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
+import { RootState } from "../app/store";
 
 const nutritionalGoals = {
   dailyCalories: 1800,
@@ -55,7 +58,10 @@ export const MealTimelinePage: React.FC = () => {
   const isFetchingRef = useRef(false);
   const initialLoadAttemptedRef = useRef(false); // Track if initial fetch has been tried
 
-  const userId = JSON.parse(localStorage.user)._id || "";
+  const dispatch = useDispatch();
+  const userData = useSelector((state: RootState) => state.user.user);
+
+  const userId = userData?._id || "";
   const [userPreferences] = useState<UserPreferences>({
     diabetesFriendly: true,
     culturalPreferences: ["african_american"],
