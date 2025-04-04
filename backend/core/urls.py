@@ -3,11 +3,6 @@ from . import views
 
 urlpatterns = [
     path(
-        "recommendation/random",
-        views.random_recommendation,
-        name="random_recommendation",
-    ),
-    path(
         "recommendation/bandit",
         views.bandit_recommendation,
         name="bandit_recommendation",

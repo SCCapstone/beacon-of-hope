@@ -185,12 +185,20 @@ def bandit_recommendation(request: HttpRequest):
         execution_time = end - start
         logger.info(f"Generating Rec: {execution_time:.4f} seconds")
 
-        start = time.time()
-        scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
-        meal_plan["scores"] = scores
-        end = time.time()
-        execution_time = end - start
-        logger.info(f"Evaluating Rec: {execution_time:.4f} seconds")
+        try:
+            start = time.time()
+            scores = calculate_goodness(
+                meal_plan["days"], meal_configs, user_preferences
+            )
+            meal_plan["scores"] = scores
+            end = time.time()
+            execution_time = end - start
+            logger.info(f"Evaluating Rec: {execution_time:.4f} seconds")
+        except Exception as e:
+            return JsonResponse(
+                {"Error": f"There was an error evaluating the recommendation: {e}"},
+                status=500,
+            )
 
         logger.info(f"Saving meal plan to firebase")
         try:
@@ -220,7 +228,7 @@ def bandit_recommendation(request: HttpRequest):
             return JsonResponse(meal_plan, status=201)
     except:
         return JsonResponse(
-            {"Error": "There was an error in generating the meal plan x"},
+            {"Error": "There was an error in generating the meal plan"},
             status=500,
         )
 
