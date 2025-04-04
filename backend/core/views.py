@@ -658,6 +658,9 @@ def edit_meal_plan(request: HttpRequest):
         logger.exception("edit_meal_plan failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
 
+
+
+
 """User Account API Endpoints"""
 
 
@@ -908,3 +911,88 @@ def get_beverage_info(request: HttpRequest, beverage_id):
     if isinstance(bev, Exception):
         return JsonResponse({"Error": "Error retrieving beverage"}, status=400)
     return JsonResponse(bev, status=200)
+
+
+@csrf_exempt
+def set_nutritional_goals(request: HttpRequest):
+    """
+    Set nutritional goals for a user.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        required_fields = ["user_id", "daily_goals"]
+        if not all(k in data for k in required_fields):
+            return JsonResponse(
+                {"error": "Missing required fields: user_id or daily_goals"},
+                status=400,
+            )
+
+        user_id = data["user_id"]
+        daily_goals = data["daily_goals"]
+
+       
+        required_nutrients = ["calories", "carbs", "protein", "fiber"]
+        if not all(nutrient in daily_goals for nutrient in required_nutrients):
+            return JsonResponse(
+                {"error": "Missing required nutrients in daily_goals"},
+                status=400,
+            )
+
+        
+        for nutrient, value in daily_goals.items():
+            if not isinstance(value, (int, float)) or value < 0:
+                return JsonResponse(
+                    {"error": f"Invalid value for {nutrient}. Must be a positive number."},
+                    status=400,
+                )
+
+        # Update firebase
+        msg, status = firebaseManager.update_user_attr(
+            user_id, "nutritional_goals", daily_goals
+        )
+        if status != 200:
+            return JsonResponse({"error": f"Failed to update nutritional goals: {msg}"}, status=status)
+
+        return JsonResponse({
+            "success": True,
+            "message": "Successfully updated nutritional goals",
+            "daily_goals": daily_goals
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("set_nutritional_goals failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
+
+@csrf_exempt
+def get_nutritional_goals(request: HttpRequest, user_id: str):
+    """
+    Get nutritional goals for a user.
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid request method. Use GET."}, status=400)
+
+    try:
+        # Get user data from Firebase
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse({"error": "Failed to retrieve user data"}, status=status)
+
+        nutritional_goals = user.get("nutritional_goals", {
+            "calories": 0,
+            "carbs": 0,
+            "protein": 0,
+            "fiber": 0
+        })
+
+        return JsonResponse({
+            "success": True,
+            "daily_goals": nutritional_goals
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("get_nutritional_goals failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)

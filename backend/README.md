@@ -794,3 +794,58 @@ poetry run coverage report
     - user_id: PyMongo ObjectId type
   - Returns
     - Status code 204 if successful
+
+- #### `<backend_ip>/beacon/user/nutritional-goals`
+  - HTTP Method: `POST`
+  - Description: Set nutritional goals for a user
+  - Request body:
+    - Content-type: application/json
+    - JSON Schema:
+    ```json
+    {
+      "user_id": "674f7d4c5b4425639bef8cd6",
+      "daily_goals": {
+        "calories": 2000,
+        "carbs": 250,
+        "protein": 150,
+        "fiber": 30
+      }
+    }
+    ```
+  - Response:
+    - (200) Successfully updated goals
+    ```json
+    {
+      "success": true,
+      "message": "Successfully updated nutritional goals",
+      "daily_goals": {
+        "calories": 2000,
+        "carbs": 250,
+        "protein": 150,
+        "fiber": 30
+      }
+    }
+    ```
+    - (400) Missing or invalid input
+    - (500) Internal Server error
+
+- #### `<backend_ip>/beacon/user/nutritional-goals/<str:user_id>`
+  - HTTP Method: `GET`
+  - Description: Get nutritional goals for a user
+  - Parameters:
+    - `user_id`: str
+  - Response:
+    - (200) Successfully retrieved goals
+    ```json
+    {
+      "success": true,
+      "daily_goals": {
+        "calories": 2000,
+        "carbs": 250,
+        "protein": 150,
+        "fiber": 30
+      }
+    }
+    ```
+    - (400) Invalid request method
+    - (500) Internal Server error

@@ -49,4 +49,14 @@ urlpatterns = [
     path("user/login", views.login_user, name="login_user"),
     path("user/delete/<str:user_id>", views.delete_account, name="delete_account"),
     path("user/update/<str:user_id>", views.update_user, name="update_user"),
+    path(
+        "user/nutritional-goals",
+        views.set_nutritional_goals,
+        name="set_nutritional_goals",
+    ),
+    path(
+        "user/nutritional-goals/<str:user_id>",
+        views.get_nutritional_goals,
+        name="get_nutritional_goals",
+    ),
 ]
