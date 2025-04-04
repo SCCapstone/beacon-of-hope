@@ -8,7 +8,7 @@ import {
   NutritionalInfo,
   VisualizationLevel,
 } from "../types";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { COLOR_SCHEMES } from "../constants";
 
@@ -376,18 +376,21 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   onClose,
   nutritionalGoals,
   currentNutritionalValues,
-  baseNutritionalValues,
+  // baseNutritionalValues,
   selectedDate,
   currentLevel,
 }) => {
-  // Determine what to display based on selection priority: Recommendation > Ingredient > Food > Meal
-  const displayItem = recommendation || ingredient || food || meal;
-  const displayType = recommendation
-    ? "recommendation"
-    : ingredient
+  // Determine what to display based on selection priority:
+  // If a specific food/ingredient is selected, prioritize it.
+  // If only a recommendation is selected, show the recommendation summary.
+  // If only a meal is selected, show the meal.
+  const displayItem = ingredient || food || recommendation || meal;
+  const displayType = ingredient
     ? "ingredient"
     : food
     ? "food"
+    : recommendation
+    ? "recommendation" // Full recommendation view
     : meal
     ? "meal"
     : "none";
@@ -408,8 +411,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
 
     switch (displayType) {
       case "recommendation": {
+        // This case now only triggers if ONLY a recommendation is selected (no specific food/ingredient)
         const rec = displayItem as MealRecommendation;
-        // Use recommendation date if available, otherwise use selected date
         const recDate = rec.meal.date || selectedDate;
         return (
           <>
@@ -419,7 +422,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                 recDate,
                 "MMM d"
               )}`}
-              isRecommendation
+              isRecommendation // Always true here
               score={rec.score}
               onClose={onClose}
             />
@@ -429,7 +432,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             />
             <NutritionalBreakdown
               info={rec.meal.nutritionalInfo}
-              impact={rec.nutritionalImpact}
+              impact={rec.nutritionalImpact} // Show full impact when viewing the whole recommendation
             />
             <FoodList foods={rec.meal.foods} />
             {/* Add more recommendation-specific details if needed */}
@@ -437,6 +440,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         );
       }
       case "meal": {
+        // This case handles selected TRACE meals (recommendation would be null)
         const m = displayItem as Meal;
         const mealDate = m.date || selectedDate;
         return (
@@ -445,7 +449,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               title={m.name}
               subtitle={`${
                 m.type.charAt(0).toUpperCase() + m.type.slice(1)
-              } on ${format(mealDate, "MMM d")}`} // Use mealDate
+              } on ${format(mealDate, "MMM d")}`}
+              isRecommendation={false} // Trace meals are not recommendations
               onClose={onClose}
             />
             <NutritionalBreakdown info={m.nutritionalInfo} />
@@ -460,25 +465,44 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       }
       case "food": {
         const f = displayItem as Food;
-        // Determine if this food belongs to the selected recommendation (if any)
+        // Check if this selected food belongs to the currently selected recommendation (if any)
         const isRecommendedFood =
-          (recommendation?.meal.date && // Check rec date
-            isSameDay(
-              normalizeDate(recommendation.meal.date),
-              normalizeDate(selectedDate)
-            ) && // Check if rec is for selected date
-            recommendation?.meal.foods.some(
-              (recFood) => recFood.id === f.id
-            )) ||
-          false; // Default to false
+          recommendation !== null && // A recommendation must be selected
+          recommendation.meal.foods.some((recFood) => recFood.id === f.id);
+
         return (
           <>
             <DetailHeader
               title={f.name}
               subtitle={`${f.type.replace("_", " ")}`}
-              isRecommendation={isRecommendedFood}
+              isRecommendation={isRecommendedFood} // Pass flag to header
               onClose={onClose}
             />
+            {/* Recommendation Context */}
+            {isRecommendedFood && recommendation && (
+              <div className="p-4 border-b bg-green-50">
+                <h4 className="text-sm font-medium text-green-800 mb-1">
+                  Recommendation Context
+                </h4>
+                <p className="text-xs text-green-700">
+                  Part of the '
+                  <span className="font-semibold">
+                    {recommendation.meal.name}
+                  </span>
+                  ' recommendation (Score: {recommendation.score}).
+                </p>
+                {/* Optional: Link to view full recommendation? */}
+                {/* Optional: Show reasons specific to this food if available */}
+                {recommendation.reasons &&
+                  recommendation.reasons.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Reason: {recommendation.reasons[0]}
+                    </p> // Show first reason as example
+                  )}
+              </div>
+            )}
+
+            {/* Standard Food Details */}
             <NutritionalBreakdown info={f.nutritionalInfo} />
             <IngredientList ingredients={f.ingredients} />
             {f.instructions && f.instructions.length > 0 && (
@@ -504,29 +528,61 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       }
       case "ingredient": {
         const i = displayItem as Ingredient;
-        // Determine if this ingredient belongs to the selected recommendation (if any)
+        // Check if this selected ingredient belongs to the currently selected recommendation (if any)
         const isRecommendedIngredient =
-          (recommendation?.meal.date && // Check rec date
-            isSameDay(
-              normalizeDate(recommendation.meal.date),
-              normalizeDate(selectedDate)
-            ) && // Check if rec is for selected date
-            recommendation?.meal.foods.some((recFood) =>
-              recFood.ingredients.some((ing) => ing.id === i.id)
-            )) ||
-          false; // Default to false
+          recommendation !== null && // A recommendation must be selected
+          recommendation.meal.foods.some(
+            (recFood) =>
+              recFood.ingredients.some(
+                (ing) =>
+                  ing.id === i.id || (!ing.id && !i.id && ing.name === i.name)
+              ) // Handle missing IDs
+          );
+
         const categoryColor =
           COLOR_SCHEMES.ingredient[
             i.category as keyof typeof COLOR_SCHEMES.ingredient
           ] || "#cccccc";
+
         return (
           <>
             <DetailHeader
               title={i.name}
               subtitle={`Ingredient (${i.amount} ${i.unit})`}
-              isRecommendation={isRecommendedIngredient}
+              isRecommendation={isRecommendedIngredient} // Pass flag to header
               onClose={onClose}
             />
+            {/* --- Recommendation Context (NEW) --- */}
+            {isRecommendedIngredient && recommendation && (
+              <div className="p-4 border-b bg-green-50">
+                <h4 className="text-sm font-medium text-green-800 mb-1">
+                  Recommendation Context
+                </h4>
+                <p className="text-xs text-green-700">
+                  Used within the '
+                  <span className="font-semibold">
+                    {recommendation.meal.name}
+                  </span>
+                  ' recommendation.
+                </p>
+                {/* Optional: List foods it's in? */}
+                {/* {recommendation.meal.foods.filter(food => food.ingredients.some(ing => ing.id === i.id)).map(food => <span key={food.id}>{food.name}</span>)} */}
+                {/* Optional: Highlight nutritional contribution */}
+                {i.nutritionalInfo.fiber > 2 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Contributes fiber to the meal.
+                  </p>
+                )}
+                {i.nutritionalInfo.protein > 5 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Adds protein to the meal.
+                  </p>
+                )}
+              </div>
+            )}
+            {/* --- End Recommendation Context --- */}
+
+            {/* Standard Ingredient Details */}
             <div className="p-4 border-b flex items-center space-x-2">
               <div
                 className="w-3 h-3 rounded-full"
@@ -557,7 +613,12 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
-            key={displayType + (displayItem as any)?.id + currentLevel}
+            key={
+              displayType +
+              (displayItem as any)?.id +
+              currentLevel +
+              (recommendation ? "rec" : "trace")
+            }
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}

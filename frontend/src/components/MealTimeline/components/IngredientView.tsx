@@ -13,7 +13,7 @@ import { COLOR_SCHEMES } from "../constants";
 interface IngredientViewProps {
   selectedDateData: DayMeals | undefined;
   recommendationData: DayRecommendations[];
-  onIngredientSelect: (ingredient: Ingredient | null) => void;
+  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
   selectedIngredient: Ingredient | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -29,7 +29,7 @@ const normalizeDate = (date: Date): Date => {
 
 interface IngredientViewProps {
   selectedDateData: DayMeals | undefined;
-  onIngredientSelect: (ingredient: Ingredient | null) => void;
+  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
   selectedIngredient: Ingredient | null;
   mealBinNames: string[]; // Keep prop for potential future use, but logic uses categories
   onMealBinUpdate: (newBinNames: string[]) => void; // Keep prop
@@ -83,7 +83,7 @@ const IngredientCard: React.FC<{
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.1 }}
-      className={`relative p-1.5 mb-1.5 rounded cursor-pointer text-xs flex items-center space-x-2
+      className={`ingredient-card-item relative p-1.5 mb-1.5 rounded cursor-pointer text-xs flex items-center space-x-2
         ${
           isRecommended
             ? "bg-green-50/50 border border-dashed border-green-200"
@@ -128,7 +128,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   recommendationData, // Destructure the new prop
   onIngredientSelect,
   selectedIngredient,
-  selectedRecommendation,
+  // selectedRecommendation,
 }) => {
   const getCombinedIngredientsForDay = useCallback((): Array<
     Ingredient & { isRecommended: boolean }
@@ -349,27 +349,32 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                 }`}
               >
                 <AnimatePresence>
-                  {binContent?.map((ingredient) => (
-                    <IngredientCard
-                      key={`${ingredient.id || ingredient.name}-${
-                        ingredient.isRecommended
-                      }`}
-                      ingredient={ingredient}
-                      isSelected={
-                        selectedIngredient?.id === ingredient.id || // Check ID first
-                        (!selectedIngredient?.id && !ingredient.id && selectedIngredient?.name === ingredient.name) // Fallback to name if IDs missing
-                      }
-                      isRecommended={ingredient.isRecommended} // This is now correctly determined
-                      onClick={() =>
-                        onIngredientSelect(
-                          (selectedIngredient?.id === ingredient.id ||
-                          (!selectedIngredient?.id && !ingredient.id && selectedIngredient?.name === ingredient.name))
-                            ? null
-                            : ingredient
-                        )
-                      }
-                    />
-                  ))}
+                  {binContent?.map((ingredient) => { // ingredient here includes isRecommended
+                    const isCurrentlySelected =
+                      selectedIngredient?.id === ingredient.id ||
+                      (!selectedIngredient?.id &&
+                        !ingredient.id &&
+                        selectedIngredient?.name === ingredient.name);
+
+                    return (
+                      <IngredientCard
+                        key={`${ingredient.id || ingredient.name}-${
+                          ingredient.isRecommended
+                        }`}
+                        ingredient={ingredient}
+                        isSelected={isCurrentlySelected}
+                        isRecommended={ingredient.isRecommended} // Pass isRecommended status
+                        onClick={() => {
+                          console.log(`IngredientView: Clicked on ${ingredient.name} (Recommended: ${ingredient.isRecommended}). Current selected: ${selectedIngredient?.id || selectedIngredient?.name}. Calling onIngredientSelect.`);
+                          // Toggle selection
+                          onIngredientSelect(
+                            isCurrentlySelected ? null : ingredient,
+                            ingredient.isRecommended // Pass the flag here
+                          );
+                        }}
+                      />
+                    );
+                  })}
                 </AnimatePresence>
 
                 {/* Empty State */}

@@ -14,7 +14,7 @@ interface FoodViewProps {
   datesToDisplay: DayMeals[];
   allData: DayMeals[];
   recommendationData: DayRecommendations[];
-  onFoodSelect: (food: Food | null) => void;
+  onFoodSelect: (food: Food | null, isRecommended?: boolean) => void;
   selectedFood: Food | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -47,7 +47,7 @@ const FoodCard: React.FC<{
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
       transition={{ duration: 0.15 }}
-      className={`relative p-2.5 mb-2 rounded-lg cursor-pointer text-xs
+      className={`food-card-item relative p-2.5 mb-2 rounded-lg cursor-pointer text-xs
         ${
           isRecommended
             ? "bg-green-50/60 border border-dashed border-green-300" // Rec style
@@ -106,7 +106,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   selectedFood,
   mealBinNames,
   onMealBinUpdate,
-  selectedRecommendation, // Kept for highlighting/simulation
+  // selectedRecommendation, // Kept for highlighting/simulation
 }) => {
   const getCombinedFoodsForDate = useCallback(
     (targetDate: Date): Array<Food & { isRecommended: boolean }> => {
@@ -335,17 +335,20 @@ export const FoodView: React.FC<FoodViewProps> = ({
                         }`}
                       >
                         <AnimatePresence>
-                          {binContent?.map((food) => (
+                          {binContent?.map((food) => ( // food here includes isRecommended
                             <FoodCard
-                              key={`${food.id}-${food.isRecommended}`} // Unique key
+                              key={`${food.id}-${food.isRecommended}`}
                               food={food}
                               isSelected={selectedFood?.id === food.id}
-                              isRecommended={food.isRecommended}
-                              onClick={() =>
+                              isRecommended={food.isRecommended} // Pass isRecommended status
+                              onClick={() => {
+                                console.log(`FoodView: Clicked on ${food.name} (Recommended: ${food.isRecommended}). Current selected: ${selectedFood?.id}. Calling onFoodSelect.`);
+                                // Toggle selection: if already selected, pass null, otherwise pass the food and its recommended status
                                 onFoodSelect(
-                                  selectedFood?.id === food.id ? null : food
-                                )
-                              }
+                                  selectedFood?.id === food.id ? null : food,
+                                  food.isRecommended // Pass the flag here
+                                );
+                              }}
                             />
                           ))}
                         </AnimatePresence>

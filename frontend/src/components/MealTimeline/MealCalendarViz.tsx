@@ -290,41 +290,139 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // --- Selection Handlers (Keep as they are) ---
   const handleMealSelect = (meal: Meal | null) => {
-    if (meal && meal !== selectedMeal) handleRecommendationSelect(null);
+    // if (meal && meal !== selectedMeal) handleRecommendationSelect(null);
+    // Selecting a trace meal clears everything else
     setSelectedMeal(meal);
     setSelectedFood(null);
     setSelectedIngredient(null);
-  };
-  const handleFoodSelect = (food: Food | null) => {
-    if (food && food !== selectedFood) handleRecommendationSelect(null);
-    setSelectedFood(food);
-    setSelectedMeal(null);
-    setSelectedIngredient(null);
+    setSelectedRecommendation(null); // Clear recommendation too
+    if (!meal) setCurrentNutritionalValues(baseNutritionalValues); // Reset nutrition if deselecting
   };
 
-  // Ingredient selection handler
-  const handleIngredientSelect = (ingredient: Ingredient | null) => {
-    if (ingredient && ingredient !== selectedIngredient)
-      handleRecommendationSelect(null);
-    setSelectedIngredient(ingredient);
-    setSelectedMeal(null);
-    setSelectedFood(null);
+  // UPDATED handleFoodSelect
+  const handleFoodSelect = (food: Food | null, isRecommended?: boolean) => {
+    // If a recommended food is clicked, find and select its parent recommendation
+    if (food && isRecommended) {
+      const normalizedSelected = normalizeDate(selectedDate);
+      const dayRecs = recommendationData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizedSelected)
+      );
+      const parentRecommendation = dayRecs?.recommendations.find((rec) =>
+        rec.meal.foods.some((f) => f.id === food.id)
+      );
+
+      if (parentRecommendation) {
+        console.log(
+          "Viz: Recommended food clicked, selecting parent recommendation:",
+          parentRecommendation.meal.name
+        );
+        handleRecommendationSelect(parentRecommendation); // This sets recommendation and clears others
+        return; // Exit early
+      } else {
+        // Fallback if parent recommendation not found (shouldn't normally happen)
+        console.warn(
+          "Viz: Recommended food clicked, but couldn't find parent recommendation. Selecting food only."
+        );
+        setSelectedFood(food);
+        setSelectedMeal(null);
+        setSelectedIngredient(null);
+        setSelectedRecommendation(null); // Ensure recommendation is cleared
+      }
+    } else {
+      // Handle trace food selection or deselection
+      console.log("Viz: Trace food clicked or deselecting food.");
+      setSelectedFood(food);
+      setSelectedMeal(null);
+      setSelectedIngredient(null);
+      setSelectedRecommendation(null); // Clear recommendation on trace select/deselect
+    }
+
+    // Reset nutrition only if nothing is selected at all
+    if (
+      !food &&
+      !selectedMeal &&
+      !selectedIngredient &&
+      !selectedRecommendation
+    ) {
+      setCurrentNutritionalValues(baseNutritionalValues);
+    }
   };
+
+  // UPDATED handleIngredientSelect
+  const handleIngredientSelect = (
+    ingredient: Ingredient | null,
+    isRecommended?: boolean
+  ) => {
+    // If a recommended ingredient is clicked, find and select its parent recommendation
+    if (ingredient && isRecommended) {
+      const normalizedSelected = normalizeDate(selectedDate);
+      const dayRecs = recommendationData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizedSelected)
+      );
+      const parentRecommendation = dayRecs?.recommendations.find((rec) =>
+        rec.meal.foods.some((food) =>
+          food.ingredients.some(
+            (ing) =>
+              ing.id === ingredient.id ||
+              (!ing.id && !ingredient.id && ing.name === ingredient.name) // Handle missing IDs
+          )
+        )
+      );
+
+      if (parentRecommendation) {
+        console.log(
+          "Viz: Recommended ingredient clicked, selecting parent recommendation:",
+          parentRecommendation.meal.name
+        );
+        handleRecommendationSelect(parentRecommendation); // This sets recommendation and clears others
+        return; // Exit early
+      } else {
+        // Fallback if parent recommendation not found
+        console.warn(
+          "Viz: Recommended ingredient clicked, but couldn't find parent recommendation. Selecting ingredient only."
+        );
+        setSelectedIngredient(ingredient);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedRecommendation(null); // Ensure recommendation is cleared
+      }
+    } else {
+      // Handle trace ingredient selection or deselection
+      console.log("Viz: Trace ingredient clicked or deselecting ingredient.");
+      setSelectedIngredient(ingredient);
+      setSelectedMeal(null);
+      setSelectedFood(null);
+      setSelectedRecommendation(null); // Clear recommendation on trace select/deselect
+    }
+
+    // Reset nutrition only if nothing is selected at all
+    if (
+      !ingredient &&
+      !selectedMeal &&
+      !selectedFood &&
+      !selectedRecommendation
+    ) {
+      setCurrentNutritionalValues(baseNutritionalValues);
+    }
+  };
+
+  // handleRecommendationSelect remains the same
   const handleRecommendationSelect = (
     recommendation: MealRecommendation | null
   ) => {
+    // Selecting a recommendation clears specific trace selections
     setSelectedRecommendation(recommendation);
     setSelectedMeal(null);
     setSelectedFood(null);
     setSelectedIngredient(null);
 
-    // Reset to base values if deselecting
+    // Reset to base values if deselecting recommendation
     if (!recommendation) {
       setCurrentNutritionalValues(baseNutritionalValues);
       return;
     }
 
-    // Update nutritional values with recommendation impact (relative to the day's base)
+    // Update nutritional values with recommendation impact
     setCurrentNutritionalValues({
       calories:
         baseNutritionalValues.calories +
@@ -344,22 +442,36 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   // Click handler for the main visualization area to deselect items
   const handleMainAreaClick = (event: React.MouseEvent) => {
     const target = event.target as HTMLElement;
+    // Check if the click was directly on the background elements
     const isBackgroundClick =
       target.classList.contains("meal-view-background") ||
       target.classList.contains("food-view-background") ||
       target.classList.contains("ingredient-view-background") ||
       target.classList.contains("viz-main-area"); // Add a class to the main container div
 
+    // Check if the click was inside a known interactive element that handles its own selection
     const isInteractiveElementClick = target.closest(
-      ".meal-card, .recommendation-card, .level-selector, button, .food-card, .ingredient-card, .week-selector-container, input[type='date']" // Add date input
+      ".meal-card, .recommendation-card, .level-selector, button, .food-card-item, .ingredient-card-item, .week-selector-container, input[type='date']"
     );
 
+    // Deselect only if the click was on the background OR if it wasn't inside any known interactive element
     if (isBackgroundClick || !isInteractiveElementClick) {
-      console.log("Viz: Deselecting items due to click on:", target);
-      handleRecommendationSelect(null);
-      setSelectedMeal(null);
-      setSelectedFood(null);
-      setSelectedIngredient(null);
+      // Check if the click target is outside the details panel as well before deselecting
+      if (
+        !(event.target as HTMLElement).closest(".meal-details-panel-container")
+      ) {
+        handleRecommendationSelect(null);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedIngredient(null);
+      } else {
+        console.log("Viz: Click was inside details panel, not deselecting.");
+      }
+    } else {
+      console.log(
+        "Viz: Click was on an interactive element, not deselecting.",
+        target
+      );
     }
   };
 
