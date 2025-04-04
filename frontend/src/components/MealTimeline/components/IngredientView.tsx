@@ -1,351 +1,393 @@
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
-import * as d3 from "d3";
-import { Ingredient, DayMeals } from "../types";
+import React, { useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  DayMeals,
+  Ingredient,
+  MealRecommendation,
+  NutritionalInfo,
+  DayRecommendations,
+} from "../types";
+import { format, isSameDay } from "date-fns";
 import { COLOR_SCHEMES } from "../constants";
 
 interface IngredientViewProps {
-  weekData: DayMeals[];
-  onIngredientSelect: (ingredient: Ingredient) => void;
+  selectedDateData: DayMeals | undefined;
+  recommendationData: DayRecommendations[];
+  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
   selectedIngredient: Ingredient | null;
+  mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
+  selectedRecommendation: MealRecommendation | null; // Kept for highlighting/simulation
+  selectedDate: Date;
 }
 
-interface IngredientAnalysis {
-  id: string;
-  name: string;
-  category: string;
-  frequency: number;
-  averageAmount: number;
-  unit: string;
-  nutritionalAverage: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    fiber: number;
-  };
-  mealAppearances: Set<string>;
-  timeAppearances: Set<string>;
-  allergens: Set<string>;
-  data: Ingredient;
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+interface IngredientViewProps {
+  selectedDateData: DayMeals | undefined;
+  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
+  selectedIngredient: Ingredient | null;
+  mealBinNames: string[]; // Keep prop for potential future use, but logic uses categories
+  onMealBinUpdate: (newBinNames: string[]) => void; // Keep prop
+  selectedRecommendation: MealRecommendation | null;
+  // selectedDate, // Keep prop
 }
 
-export const IngredientView: React.FC<IngredientViewProps> = ({
-  weekData,
-  onIngredientSelect,
-  selectedIngredient,
-}) => {
-  // Process ingredients data with error handling
-  const { ingredientAnalysis, maxFrequency } = useMemo(() => {
-    const analysis = new Map<string, IngredientAnalysis>();
+const getPrimaryNutrient = (
+  nutritionalInfo: NutritionalInfo | undefined // Allow undefined
+): string | null => {
+  if (!nutritionalInfo) return null; // Handle undefined case
+  const { protein = 0, carbs = 0, fat = 0, fiber = 0 } = nutritionalInfo; // Default values
+  if (fiber > 3) return "Fiber Source"; // Prioritize fiber
+  const macros = { protein, carbs, fat };
+  let primary: keyof typeof macros | null = null;
+  let maxValue = 0;
 
-    weekData.forEach((day) => {
-      day.meals.forEach((meal) => {
-        meal.foods.forEach((food) => {
-          food.ingredients.forEach((ing) => {
-            if (!analysis.has(ing.id)) {
-              analysis.set(ing.id, {
-                id: ing.id,
-                name: ing.name,
-                category: ing.category,
-                frequency: 0,
-                averageAmount: 0,
-                unit: ing.unit,
-                nutritionalAverage: {
-                  calories: 0,
-                  protein: 0,
-                  carbs: 0,
-                  fat: 0,
-                  fiber: 0,
-                },
-                mealAppearances: new Set(),
-                timeAppearances: new Set(),
-                allergens: new Set(ing.allergens || []),
-                data: ing,
-              });
-            }
+  for (const key in macros) {
+    if (macros[key as keyof typeof macros] > maxValue) {
+      maxValue = macros[key as keyof typeof macros];
+      primary = key as keyof typeof macros;
+    }
+  }
+  if (primary && maxValue > 5) {
+    // Only show if significant amount
+    return `${primary.charAt(0).toUpperCase() + primary.slice(1)} Source`;
+  }
+  return null;
+};
 
-            const current = analysis.get(ing.id)!;
-            current.frequency += 1;
-            current.averageAmount += ing.amount;
-            current.mealAppearances.add(meal.type);
-            current.timeAppearances.add(meal.time);
+// Ingredient Card
+const IngredientCard: React.FC<{
+  ingredient: Ingredient;
+  isSelected: boolean;
+  isRecommended: boolean;
+  onClick: () => void;
+}> = ({ ingredient, isSelected, isRecommended, onClick }) => {
+  const categoryColor =
+    COLOR_SCHEMES.ingredient[
+      ingredient.category as keyof typeof COLOR_SCHEMES.ingredient
+    ] || "#cccccc";
 
-            // Update nutritional averages
-            Object.keys(current.nutritionalAverage).forEach((key) => {
-              const nutritionKey = key as keyof typeof current.nutritionalAverage;
-              current.nutritionalAverage[nutritionKey] +=
-                ing.nutritionalInfo[nutritionKey];
-            });
-          });
-        });
-      });
-    });
-
-    // Calculate averages
-    analysis.forEach((value) => {
-      value.averageAmount = value.averageAmount / value.frequency;
-      Object.keys(value.nutritionalAverage).forEach((key) => {
-        const nutritionKey = key as keyof typeof value.nutritionalAverage;
-        value.nutritionalAverage[nutritionKey] =
-          value.nutritionalAverage[nutritionKey] / value.frequency;
-      });
-    });
-
-    const maxFreq = Math.max(...Array.from(analysis.values()).map((v) => v.frequency));
-
-    return {
-      ingredientAnalysis: analysis,
-      maxFrequency: maxFreq,
-    };
-  }, [weekData]);
-
-  // Create treemap layout
-  const treeData = useMemo(() => {
-    const categories = new Map<string, Ingredient[]>();
-    
-    ingredientAnalysis.forEach((analysis) => {
-      if (!categories.has(analysis.category)) {
-        categories.set(analysis.category, []);
-      }
-      categories.get(analysis.category)!.push(analysis.data);
-    });
-
-    const hierarchyData = {
-      name: "ingredients",
-      value: 0,
-      children: Array.from(categories.entries()).map(([category, ingredients]) => ({
-        name: category,
-        value: 0,
-        children: ingredients.map((ing) => ({
-          name: ing.name,
-          value: ingredientAnalysis.get(ing.id)?.frequency || 1,
-          data: ing,
-          analysis: ingredientAnalysis.get(ing.id),
-        })),
-      })),
-    };
-
-    return d3
-      .treemap<any>()
-      .size([800, 600])
-      .padding(1)
-      .round(true)(d3.hierarchy(hierarchyData).sum((d) => d.value));
-  }, [ingredientAnalysis]);
-
-  const getHealthStatus = (ingredient: Ingredient) => {
-    const analysis = ingredientAnalysis.get(ingredient.id);
-    if (!analysis) return null;
-
-    const gi = ingredient.nutritionalInfo.glycemicIndex;
-    const isLowGI = gi ? gi < 55 : null;
-    const hasHighFiber = ingredient.nutritionalInfo.fiber > 3;
-
-    return {
-      isHealthy: isLowGI !== false && hasHighFiber,
-      details: [
-        gi ? `GI: ${gi}` : null,
-        hasHighFiber ? "High Fiber" : null,
-        ingredient.diabetesFriendly ? "Diabetes-Friendly" : null,
-      ].filter(Boolean),
-    };
-  };
+  const primaryNutrient = getPrimaryNutrient(ingredient.nutritionalInfo);
+  // Defensive check for nutritionalInfo
+  const calories = ingredient.nutritionalInfo?.calories ?? 0;
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      <svg width="100%" height="100%" className="overflow-visible">
-        {/* Categories */}
-        {treeData.children?.map((category: d3.HierarchyRectangularNode<any>) => (
-          <g key={category.data.name} className="category-group">
-            {/* Category Label */}
-            <text
-              x={category.x0 + 8}
-              y={category.y0 + 20}
-              className="font-medium text-sm fill-gray-700"
-            >
-              {category.data.name}
-            </text>
-
-            {/* Ingredients */}
-            {category.children?.map((leaf: d3.HierarchyRectangularNode<any>) => {
-              const analysis = leaf.data.analysis;
-              if (!analysis) return null;
-
-              const healthStatus = getHealthStatus(leaf.data.data);
-              
-              return (
-                <motion.g
-                  key={leaf.data.data.id}
-                  className="cursor-pointer"
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => onIngredientSelect(leaf.data.data)}
-                >
-                  {/* Background */}
-                  <rect
-                    x={leaf.x0}
-                    y={leaf.y0}
-                    width={leaf.x1 - leaf.x0}
-                    height={leaf.y1 - leaf.y0}
-                    rx={4}
-                    fill={COLOR_SCHEMES.ingredient[category.data.name as keyof typeof COLOR_SCHEMES.ingredient]}
-                    opacity={selectedIngredient?.id === leaf.data.data.id ? 1 : 0.7}
-                    className="transition-opacity duration-200"
-                  />
-
-                  {/* Content */}
-                  <g transform={`translate(${leaf.x0 + 8}, ${leaf.y0 + 16})`}>
-                    {/* Name */}
-                    <text className="text-sm font-medium fill-white">
-                      {leaf.data.data.name}
-                    </text>
-
-                    {/* Frequency */}
-                    <text y={20} className="text-xs fill-white opacity-75">
-                      {analysis.frequency}x used
-                    </text>
-
-                    {/* Health Indicators */}
-                    {healthStatus?.details.map((detail, index) => (
-                      <text
-                        key={detail}
-                        y={36 + index * 16}
-                        className="text-xs fill-white opacity-90"
-                      >
-                        {detail}
-                      </text>
-                    ))}
-                  </g>
-                </motion.g>
-              );
-            })}
-          </g>
-        ))}
-      </svg>
-
-      {/* Selected Ingredient Details */}
-      {selectedIngredient && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute right-4 top-4 w-80 bg-white rounded-lg shadow-lg p-4"
-        >
-          <div className="space-y-4">
-            {/* Header */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-800">
-                {selectedIngredient.name}
-              </h3>
-              <p className="text-sm text-gray-500 capitalize">
-                {selectedIngredient.category}
-              </p>
-            </div>
-
-            {/* Usage Statistics */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Usage</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-gray-50 p-2 rounded">
-                  <div className="text-lg font-medium text-gray-800">
-                    {ingredientAnalysis.get(selectedIngredient.id)?.frequency || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">Times Used</div>
-                </div>
-                <div className="bg-gray-50 p-2 rounded">
-                  <div className="text-lg font-medium text-gray-800">
-                    {ingredientAnalysis
-                      .get(selectedIngredient.id)
-                      ?.mealAppearances.size || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">Different Meals</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Nutritional Information */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">
-                Nutritional Info (per {selectedIngredient.unit})
-              </h4>
-              <div className="grid grid-cols-3 gap-2">
-                {Object.entries(selectedIngredient.nutritionalInfo)
-                  .filter(([key]) => key !== "glycemicIndex")
-                  .map(([key, value]) => (
-                    <div key={key} className="bg-gray-50 p-2 rounded text-center">
-                      <div className="text-sm font-medium text-gray-800">
-                        {Math.round(value * 10) / 10}
-                      </div>
-                      <div className="text-xs text-gray-500 capitalize">
-                        {key.replace(/([A-Z])/g, " $1").trim()}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Health Indicators */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">
-                Health Indicators
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {selectedIngredient.nutritionalInfo.glycemicIndex && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    GI: {selectedIngredient.nutritionalInfo.glycemicIndex}
-                  </span>
-                )}
-                {selectedIngredient.diabetesFriendly && (
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                    Diabetes-Friendly
-                  </span>
-                )}
-                {selectedIngredient.allergens.length > 0 && (
-                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                    Contains Allergens
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Allergens */}
-            {selectedIngredient.allergens.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Allergens</h4>
-                <div className="flex flex-wrap gap-1">
-                  {selectedIngredient.allergens.map((allergen) => (
-                    <span
-                      key={allergen}
-                      className="px-2 py-1 bg-red-50 text-red-700 text-xs rounded-full"
-                    >
-                      {allergen}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cultural Origin */}
-            {(selectedIngredient.culturalOrigin ?? []).length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">
-                  Cultural Origin
-                </h4>
-                <div className="flex flex-wrap gap-1">
-                  {(selectedIngredient.culturalOrigin ?? []).map((origin) => (
-                    <span
-                      key={origin}
-                      className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full"
-                    >
-                      {origin.replace("_", " ")}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
+    <motion.div
+      key={`ingredient-${ingredient.id}-${isRecommended}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.1 }}
+      className={`ingredient-card-item relative p-1.5 mb-1.5 rounded cursor-pointer text-xs flex items-center space-x-2
+        ${
+          isRecommended
+            ? "bg-green-50/50 border border-dashed border-green-200"
+            : "bg-gray-50 border border-transparent hover:bg-gray-100"
+        }
+        ${isSelected ? "ring-1 ring-orange-400 bg-white" : ""}
+      `}
+      onClick={onClick}
+    >
+      {isRecommended && (
+        <span className="absolute -top-1 -left-1 text-[8px] bg-green-500 text-white px-1 py-0.5 rounded-full z-10 shadow-sm">
+          Rec
+        </span>
       )}
-    </div>
+      <div
+        className="w-1.5 h-5 rounded-sm flex-shrink-0"
+        style={{ backgroundColor: categoryColor }}
+        title={`Category: ${ingredient.category}`}
+      ></div>
+      <div className="flex-grow overflow-hidden">
+        <h5 className="font-medium text-gray-800 truncate">
+          {ingredient.name}
+        </h5>
+        <p className="text-gray-500">
+          {ingredient.amount} {ingredient.unit}
+        </p>
+      </div>
+      <div className="text-right flex-shrink-0 space-y-0.5">
+        <div className="text-gray-600 text-[11px]">{calories} cal</div>
+        {primaryNutrient && (
+          <span className="inline-block px-1 py-0.5 bg-purple-100 text-purple-800 text-[9px] rounded-full">
+            {primaryNutrient}
+          </span>
+        )}
+      </div>
+    </motion.div>
   );
 };
 
-export default IngredientView;
+export const IngredientView: React.FC<IngredientViewProps> = ({
+  selectedDateData,
+  recommendationData, // Destructure the new prop
+  onIngredientSelect,
+  selectedIngredient,
+  // selectedRecommendation,
+}) => {
+  const getCombinedIngredientsForDay = useCallback((): Array<
+    Ingredient & { isRecommended: boolean }
+  > => {
+    if (!selectedDateData) {
+      console.log(
+        "IngredientView: getCombinedIngredientsForDay - No selectedDateData"
+      );
+      return [];
+    }
+    // Defensive check for valid date
+    if (
+      !(selectedDateData.date instanceof Date) ||
+      isNaN(selectedDateData.date.getTime())
+    ) {
+      console.error(
+        "IngredientView: Invalid date in selectedDateData",
+        selectedDateData.date
+      );
+      return [];
+    }
+    const targetDate = selectedDateData.date;
+    const normalizedTargetDate = normalizeDate(targetDate);
+    console.log(`IngredientView: getCombinedIngredientsForDay for ${format(targetDate, "yyyy-MM-dd")}`);
+
+    // 1. Get Trace Ingredients
+    const traceIngredients: Ingredient[] = [];
+    const traceIngredientKeys = new Set<string>(); // Use uniqueKey
+    (selectedDateData.meals || []).forEach((meal) => {
+      (meal.foods || []).forEach((food) => {
+        (food.ingredients || []).forEach((ingredient) => {
+          if (ingredient && (ingredient.id || ingredient.name)) {
+            const uniqueKey = ingredient.id || ingredient.name.toLowerCase();
+            if (!traceIngredientKeys.has(uniqueKey)) {
+              traceIngredients.push(ingredient);
+              traceIngredientKeys.add(uniqueKey);
+            }
+          }
+        });
+      });
+    });
+    console.log(` -> Found ${traceIngredients.length} trace ingredients.`);
+
+    // 2. Get ALL Recommended Ingredients for this date from recommendationData
+    const dayRecommendations = recommendationData.find((dayRec) =>
+      isSameDay(normalizeDate(new Date(dayRec.date)), normalizedTargetDate)
+    );
+
+    const allRecommendedIngredientsForDate: Ingredient[] = [];
+    const allRecommendedIngredientKeysForDate = new Set<string>(); // Use uniqueKey
+
+    if (dayRecommendations) {
+      (dayRecommendations.recommendations || []).forEach((rec) => {
+        (rec.meal.foods || []).forEach((food) => {
+          (food.ingredients || []).forEach((ing) => {
+            if (ing && (ing.id || ing.name)) {
+               const uniqueKey = ing.id || ing.name.toLowerCase();
+               allRecommendedIngredientKeysForDate.add(uniqueKey);
+               // Add to list only if not already added
+               if (!allRecommendedIngredientsForDate.some(i => (i.id || i.name.toLowerCase()) === uniqueKey)) {
+                   allRecommendedIngredientsForDate.push(ing);
+               }
+            }
+          });
+        });
+      });
+    }
+    console.log(` -> Found ${allRecommendedIngredientsForDate.length} unique recommended ingredients for this date from recommendationData.`);
+
+    // 3. Filter recommended ingredients to only include those *not* already in traces
+    const uniqueNewRecommendedIngredients = allRecommendedIngredientsForDate.filter(
+        (ing) => ing && (ing.id || ing.name) && !traceIngredientKeys.has(ing.id || ing.name.toLowerCase()) // Add defensive checks
+    );
+    console.log(` -> Found ${uniqueNewRecommendedIngredients.length} recommended ingredients not present in trace.`);
+
+    // 4. Combine and Mark
+    const combinedIngredients = [
+      ...traceIngredients.map((ing) => ({
+        ...ing,
+        isRecommended: allRecommendedIngredientKeysForDate.has(
+          ing.id || ing.name.toLowerCase()
+        ),
+      })),
+      ...uniqueNewRecommendedIngredients.map((ing) => ({
+        ...ing,
+        isRecommended: true,
+      })),
+    ];
+    console.log(` -> Total combined ingredients for ${format(targetDate, "yyyy-MM-dd")}: ${combinedIngredients.length}`);
+
+
+    combinedIngredients.sort((a, b) => {
+      if (a.category !== b.category) return (a.category || "z").localeCompare(b.category || "z");
+      return a.name.localeCompare(b.name);
+    });
+
+    return combinedIngredients;
+  }, [selectedDateData, recommendationData]
+  );
+
+  const ingredients = getCombinedIngredientsForDay();
+
+  // organizeIngredientsIntoBins remains the same, uses the result of the updated getCombinedIngredientsForDay
+  const organizeIngredientsIntoBins = useCallback(() => {
+    // ... (logic remains the same, uses the 'ingredients' variable from above)
+    const bins: Record<string, Array<Ingredient & { isRecommended: boolean }>> = {};
+    const categories = [
+      ...new Set(ingredients.map((ing) => ing.category || "other")),
+    ].sort();
+    const displayBinNames = categories.map(
+      (cat) => cat.charAt(0).toUpperCase() + cat.slice(1)
+    );
+    displayBinNames.forEach((name) => (bins[name] = []));
+    if (!displayBinNames.includes("Other") && categories.includes("other")) {
+      bins["Other"] = [];
+    }
+    ingredients.forEach((ing) => {
+      const categoryName =
+        (ing.category || "Other").charAt(0).toUpperCase() +
+        (ing.category || "other").slice(1);
+      if (bins[categoryName]) {
+        bins[categoryName].push(ing);
+      } else if (bins["Other"]) {
+        bins["Other"].push(ing);
+      }
+    });
+    return { bins, displayBinNames };
+  }, [ingredients]);
+
+  const { bins, displayBinNames } = organizeIngredientsIntoBins();
+
+  console.log(
+    `IngredientView: Rendering component. Date: ${
+      selectedDateData ? format(selectedDateData.date, "yyyy-MM-dd") : "N/A"
+    }. Bins to display: ${displayBinNames.length}`
+  );
+  if (!selectedDateData) {
+    console.warn("IngredientView: No selectedDateData provided.");
+    return (
+      <div className="p-4 text-center text-gray-500">
+        Select a date to view ingredients.
+      </div>
+    );
+  }
+  // Add check for valid date object again before rendering
+  if (
+    !(selectedDateData.date instanceof Date) ||
+    isNaN(selectedDateData.date.getTime())
+  ) {
+    console.error(
+      "IngredientView: Invalid date in selectedDateData before render",
+      selectedDateData.date
+    );
+    return (
+      <div className="p-4 text-center text-red-500">
+        Error: Invalid date selected.
+      </div>
+    );
+  }
+  const currentDate = selectedDateData.date;
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {/* Fixed header for bins (categories) */}
+      <div className="flex border-b bg-white z-10 sticky top-0">
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
+          {format(currentDate, "MMM d, yyyy")}
+        </div>
+        {displayBinNames.map((binName, index) => (
+          <div
+            key={binName}
+            className={`flex-1 p-4 text-center font-medium text-gray-700 capitalize ${
+              index > 0 ? "border-l" : ""
+            }`}
+          >
+            {binName}
+          </div>
+        ))}
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 flex overflow-hidden bg-gray-50">
+        {/* Optional: Sidebar */}
+        <div className="w-32 flex-shrink-0 p-4 border-r bg-white">
+          <h4 className="font-medium text-sm mb-2">Day Summary</h4>
+          <p className="text-xs text-gray-600">
+            Unique Ingredients: {ingredients.length}
+          </p>
+          {/* Add more summary info */}
+        </div>
+
+        {/* Ingredient Bins */}
+        <div className="flex flex-1 overflow-x-auto">
+          {" "}
+          {/* Allow horizontal scroll if many categories */}
+          {displayBinNames.map((binName, index) => {
+            const binContent = bins[binName];
+            console.log(
+              ` -> Rendering Bin '${binName}'. Items: ${binContent?.length ?? 0}`
+            );
+            if (binContent && binContent.length > 0) {
+              console.log(
+                "   -> Bin Content:",
+                binContent.map((i) => ({
+                  name: i.name,
+                  id: i.id,
+                  isRec: i.isRecommended,
+                }))
+              );
+            }
+
+            return (
+              <div
+                key={`${selectedDateData?.date.toISOString()}-${binName}`} // Use optional chaining
+                className={`flex-1 p-1.5 overflow-y-auto min-w-[150px] ${
+                  // Set min-width for bins
+                  index > 0 ? "border-l" : ""
+                }`}
+              >
+                <AnimatePresence>
+                  {binContent?.map((ingredient) => { // ingredient here includes isRecommended
+                    const isCurrentlySelected =
+                      selectedIngredient?.id === ingredient.id ||
+                      (!selectedIngredient?.id &&
+                        !ingredient.id &&
+                        selectedIngredient?.name === ingredient.name);
+
+                    return (
+                      <IngredientCard
+                        key={`${ingredient.id || ingredient.name}-${
+                          ingredient.isRecommended
+                        }`}
+                        ingredient={ingredient}
+                        isSelected={isCurrentlySelected}
+                        isRecommended={ingredient.isRecommended} // Pass isRecommended status
+                        onClick={() => {
+                          console.log(`IngredientView: Clicked on ${ingredient.name} (Recommended: ${ingredient.isRecommended}). Current selected: ${selectedIngredient?.id || selectedIngredient?.name}. Calling onIngredientSelect.`);
+                          // Toggle selection
+                          onIngredientSelect(
+                            isCurrentlySelected ? null : ingredient,
+                            ingredient.isRecommended // Pass the flag here
+                          );
+                        }}
+                      />
+                    );
+                  })}
+                </AnimatePresence>
+
+                {/* Empty State */}
+                {(!binContent || binContent.length === 0) && (
+                  <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                    -
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};

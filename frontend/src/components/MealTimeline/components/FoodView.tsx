@@ -1,347 +1,373 @@
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
-import { DayMeals, Food, NutritionalInfo } from "../types";
-import { format } from "date-fns";
+import React, { useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { DayMeals, Food, MealRecommendation, DayRecommendations } from "../types";
+import { format, isSameDay } from "date-fns";
+import { FoodTypeIcon } from "./FoodTypeIcon";
+
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
 
 interface FoodViewProps {
-  weekData: DayMeals[];
-  onFoodSelect: (food: Food | null) => void;
+  datesToDisplay: DayMeals[];
+  allData: DayMeals[];
+  recommendationData: DayRecommendations[];
+  onFoodSelect: (food: Food | null, isRecommended?: boolean) => void;
   selectedFood: Food | null;
+  mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
+  selectedRecommendation: MealRecommendation | null; // Kept for highlighting/simulation
+  selectedDate: Date;
 }
 
-export const FoodView: React.FC<FoodViewProps> = ({
-  weekData,
-  onFoodSelect,
-  selectedFood,
-}) => {
-  // Helper function to get food cultural info
-  const getFoodCulturalInfo = (food: Food): string[] => {
-    if (food.culturalOrigin?.length) return food.culturalOrigin;
-    
-    // Try to infer from ingredients
-    const cultures = new Set<string>();
-    food.ingredients.forEach(ing => {
-      ing.culturalOrigin?.forEach(culture => cultures.add(culture));
-    });
-    return Array.from(cultures);
-  };
+// Food Card Component
+const FoodCard: React.FC<{
+  food: Food;
+  isSelected: boolean;
+  isRecommended: boolean;
+  onClick: () => void;
+}> = ({ food, isSelected, isRecommended, onClick }) => {
+  const totalTime = food.preparationTime + food.cookingTime;
+  const timeIndicator =
+    totalTime <= 15
+      ? { text: "<15m", color: "bg-green-100 text-green-800" }
+      : totalTime <= 30
+      ? { text: "15-30m", color: "bg-yellow-100 text-yellow-800" }
+      : { text: ">30m", color: "bg-red-100 text-red-800" };
 
-  // Helper function to calculate diabetes friendliness
-  const calculateDiabetesFriendliness = (food: Food): {
-    isDiabetesFriendly: boolean;
-    reason: string;
-  } => {
-    if (food.diabetesFriendly !== undefined) {
-      return {
-        isDiabetesFriendly: food.diabetesFriendly,
-        reason: food.diabetesFriendly 
-          ? "Marked as diabetes-friendly"
-          : "Not marked as diabetes-friendly"
-      };
-    }
-
-    // Calculate based on nutritional values
-    const carbsPerServing = food.nutritionalInfo.carbs;
-    const fiberContent = food.nutritionalInfo.fiber || 0;
-    const avgGI = food.nutritionalInfo.glycemicIndex || 
-      food.ingredients.reduce((sum, ing) => 
-        sum + (ing.nutritionalInfo.glycemicIndex || 70), 0) / food.ingredients.length;
-
-    const isDiabetesFriendly = 
-      carbsPerServing <= 30 && 
-      fiberContent >= 3 && 
-      avgGI < 55;
-
-    return {
-      isDiabetesFriendly,
-      reason: isDiabetesFriendly
-        ? "Based on nutritional profile"
-        : "Consider portion control"
-    };
-  };
-
-  // Analyze food patterns across the week
-  const foodAnalysis = useMemo(() => {
-    const allFoods = weekData.flatMap((day) =>
-      day.meals.flatMap((meal) => meal.foods)
-    );
-
-    // Count food occurrences and calculate averages
-    const foodStats = new Map<
-      string,
-      {
-        count: number;
-        pattern: string[];
-        avgNutrition: NutritionalInfo;
-        diabetesFriendly?: boolean;
-        culturalInfo: string[];
-        mealTypes: Set<string>;
-        timeSlots: Set<string>;
-      }
-    >();
-
-    allFoods.forEach((food) => {
-      const existing = foodStats.get(food.id) || {
-        count: 0,
-        pattern: [],
-        avgNutrition: { ...food.nutritionalInfo },
-        diabetesFriendly: food.diabetesFriendly,
-        culturalInfo: getFoodCulturalInfo(food),
-        mealTypes: new Set<string>(),
-        timeSlots: new Set<string>(),
-      };
-
-      // Determine food patterns
-      const patterns: string[] = [];
-      const n = food.nutritionalInfo;
-      if (n.protein > 20) patterns.push("high_protein");
-      if (n.carbs > 40) patterns.push("high_carb");
-      if (n.fiber && n.fiber > 5) patterns.push("high_fiber");
-      if (n.calories < 300) patterns.push("low_calorie");
-
-      // Update existing stats
-      existing.count += 1;
-      existing.pattern = patterns;
-      existing.mealTypes.add(food.type);
-
-      foodStats.set(food.id, existing);
-    });
-
-    return foodStats;
-  }, [weekData]);
-
-  // Get pattern color
-  const getPatternColor = (patterns: string[]): string => {
-    if (patterns.length === 0) return "#f3f4f6";
-
-    const colorMap = {
-      high_protein: "#ef4444",
-      high_carb: "#f59e0b",
-      high_fiber: "#10b981",
-      low_calorie: "#8b5cf6",
-    };
-
-    return colorMap[patterns[0] as keyof typeof colorMap] || "#f3f4f6";
-  };
+  // Defensive check for nutritionalInfo
+  const calories = food.nutritionalInfo?.calories ?? 0;
 
   return (
-    <div className="p-4">
-      {/* Pattern Summary */}
-      <div className="mb-6 grid grid-cols-4 gap-4">
-        {["high_protein", "high_carb", "high_fiber", "low_calorie"].map(
-          (pattern) => (
-            <div
-              key={pattern}
-              className="p-3 rounded-lg bg-white shadow-sm"
-              style={{ borderLeft: `4px solid ${getPatternColor([pattern])}` }}
-            >
-              <div className="text-sm font-medium capitalize">
-                {pattern.replace("_", " ")}
-              </div>
-              <div className="text-2xl font-bold">
-                {
-                  Array.from(foodAnalysis.values()).filter((stats) =>
-                    stats.pattern.includes(pattern)
-                  ).length
-                }
-              </div>
-            </div>
-          )
-        )}
+    <motion.div
+      key={`food-${food.id}-${isRecommended}`}
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -5 }}
+      transition={{ duration: 0.15 }}
+      className={`food-card-item relative p-2.5 mb-2 rounded-lg cursor-pointer text-xs
+        ${
+          isRecommended
+            ? "bg-green-50/60 border border-dashed border-green-300" // Rec style
+            : "bg-white shadow-sm border border-gray-200" // Trace style
+        }
+        ${isSelected ? "ring-2 ring-purple-500" : ""} // Selection style
+        hover:shadow-md transition-all duration-200
+        flex items-center space-x-2`}
+      onClick={onClick}
+    >
+      {isRecommended && (
+        <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full z-10 shadow-sm">
+          Rec
+        </span>
+      )}
+      <FoodTypeIcon
+        type={food.type}
+        className="w-5 h-5 text-gray-600 flex-shrink-0"
+      />
+      <div className="flex-grow overflow-hidden">
+        <h4 className="font-medium text-gray-800 truncate">{food.name}</h4>
+        <p className="text-gray-500 capitalize">
+          {food.type.replace("_", " ")}
+        </p>
       </div>
+      <div className="text-right flex-shrink-0 space-y-1">
+        <div className="text-gray-700 font-medium">{calories} cal</div>
+        <div className="flex items-center justify-end space-x-1">
+          {food.diabetesFriendly && (
+            <span
+              className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
+              title="Diabetes Friendly"
+            >
+              DF
+            </span>
+          )}
+          {totalTime > 0 && (
+            <span
+              className={`inline-block px-1 py-0.5 ${timeIndicator.color} text-[10px] rounded-full`}
+              title={`Prep+Cook: ${totalTime}min`}
+            >
+              {timeIndicator.text}
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
-      {/* Weekly Calendar View */}
-      <div className="grid grid-cols-7 gap-4">
-        {weekData.map((day) => (
-          <div key={day.date.toString()} className="space-y-2">
-            <div className="text-sm font-medium">
-              {format(new Date(day.date), "EEE, MMM d")}
-            </div>
+export const FoodView: React.FC<FoodViewProps> = ({
+  datesToDisplay,
+  allData,
+  recommendationData, // Destructure the new prop
+  onFoodSelect,
+  selectedFood,
+  mealBinNames,
+  onMealBinUpdate,
+  // selectedRecommendation, // Kept for highlighting/simulation
+}) => {
+  const getCombinedFoodsForDate = useCallback(
+    (targetDate: Date): Array<Food & { isRecommended: boolean }> => {
+      console.log(`FoodView: getCombinedFoodsForDate for ${format(targetDate, "yyyy-MM-dd")}`);
+      const normalizedTargetDate = normalizeDate(targetDate);
 
-            {day.meals.map((meal) => (
-              <div key={meal.id} className="p-2 rounded-lg bg-white shadow-sm">
-                <div className="text-xs text-gray-500 mb-1">
-                  {meal.time} - {meal.type}
-                </div>
+      // 1. Get Trace Foods
+      const dayData = allData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizedTargetDate)
+      );
+      const traceFoods: Food[] = [];
+      const traceFoodIds = new Set<string>();
+      if (dayData) {
+        (dayData.meals || []).forEach((meal) => {
+          (meal.foods || []).forEach((food) => {
+            if (food && food.id && !traceFoodIds.has(food.id)) {
+              traceFoods.push(food);
+              traceFoodIds.add(food.id);
+            }
+          });
+        });
+      }
+      console.log(` -> Found ${traceFoods.length} trace foods.`);
 
-                {meal.foods.map((food) => {
-                  const stats = foodAnalysis.get(food.id);
-                  const patterns = stats?.pattern || [];
-                  const diabetesProfile = calculateDiabetesFriendliness(food);
-                  const culturalInfo = getFoodCulturalInfo(food);
+      // 2. Get ALL Recommended Foods for this date from recommendationData
+      const dayRecommendations = recommendationData.find((dayRec) =>
+        isSameDay(normalizeDate(new Date(dayRec.date)), normalizedTargetDate)
+      );
 
-                  return (
-                    <motion.div
-                      key={food.id}
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => onFoodSelect(food)}
-                      className={`p-2 rounded cursor-pointer ${
-                        selectedFood?.id === food.id
-                          ? "ring-2 ring-blue-500"
-                          : ""
-                      }`}
-                      style={{
-                        backgroundColor: getPatternColor(patterns),
-                        opacity: patterns.length ? 0.8 : 0.5,
-                      }}
-                    >
-                      {/* Food Name and Type */}
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="text-sm font-medium text-gray-800">
-                            {food.name}
-                          </div>
-                          <div className="text-xs text-gray-500 capitalize">
-                            {food.type.replace("_", " ")}
-                          </div>
-                        </div>
-                        
-                        {/* Diabetes Friendliness Indicator */}
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            diabetesProfile.isDiabetesFriendly
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {diabetesProfile.isDiabetesFriendly ? "DF" : "Monitor"}
-                        </span>
-                      </div>
+      const allRecommendedFoodsForDate: Food[] = [];
+      const allRecommendedFoodIdsForDate = new Set<string>();
 
-                      {/* Nutritional Quick View */}
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
-                        <div>
-                          Calories: {food.nutritionalInfo.calories}
-                        </div>
-                        <div>
-                          Carbs: {food.nutritionalInfo.carbs}g
-                        </div>
-                        {food.nutritionalInfo.glycemicIndex && (
-                          <div>
-                            GI: {food.nutritionalInfo.glycemicIndex}
-                          </div>
-                        )}
-                        {food.nutritionalInfo.fiber && (
-                          <div>
-                            Fiber: {food.nutritionalInfo.fiber}g
-                          </div>
-                        )}
-                      </div>
+      if (dayRecommendations) {
+        (dayRecommendations.recommendations || []).forEach((rec) => {
+          (rec.meal.foods || []).forEach((food) => {
+            if (food && food.id) {
+              allRecommendedFoodIdsForDate.add(food.id);
+              // Add to list only if not already added from another recommendation for the same date
+              if (!allRecommendedFoodsForDate.some(f => f.id === food.id)) {
+                 allRecommendedFoodsForDate.push(food);
+              }
+            }
+          });
+        });
+      }
+      console.log(` -> Found ${allRecommendedFoodsForDate.length} unique recommended foods for this date from recommendationData.`);
 
-                      {/* Patterns and Tags */}
-                      {patterns.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {patterns.map((pattern) => (
-                            <span
-                              key={pattern}
-                              className="text-xs px-1.5 py-0.5 rounded-full bg-white/50"
-                            >
-                              {pattern.replace("_", " ")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
 
-                      {/* Cultural Information */}
-                      {culturalInfo.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {culturalInfo.map((culture) => (
-                            <span
-                              key={culture}
-                              className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800"
-                            >
-                              {culture.replace("_", " ")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ))}
+      // 3. Filter recommended foods to only include those *not* already in traces
+      const uniqueNewRecommendedFoods = allRecommendedFoodsForDate.filter(
+          (food) => food && food.id && !traceFoodIds.has(food.id) // Add defensive check for food.id
+      );
+      console.log(` -> Found ${uniqueNewRecommendedFoods.length} recommended foods not present in trace.`);
+
+
+      // 4. Combine and Mark
+      const combinedFoods = [
+        ...traceFoods.map((food) => ({
+          ...food,
+          // Mark as recommended if its ID exists in the full set of recommended IDs for the date
+          isRecommended: allRecommendedFoodIdsForDate.has(food.id),
+        })),
+        ...uniqueNewRecommendedFoods.map((food) => ({
+          ...food,
+          isRecommended: true, // It's inherently recommended
+        })),
+      ];
+      console.log(` -> Total combined foods for ${format(targetDate, "yyyy-MM-dd")}: ${combinedFoods.length}`);
+
+      combinedFoods.sort((a, b) => {
+        if (a.type !== b.type) return a.type.localeCompare(b.type);
+        return a.name.localeCompare(b.name);
+      });
+
+      return combinedFoods;
+    },
+    [allData, recommendationData]
+  );
+
+  // organizeFoodsIntoBins remains largely the same, but uses the result of the updated getCombinedFoodsForDate
+  const organizeFoodsIntoBins = useCallback(
+    (date: Date) => {
+      const foods = getCombinedFoodsForDate(date); // Use the combined list
+      const bins: Record<string, Array<Food & { isRecommended: boolean }>> = {};
+
+      mealBinNames.forEach((name) => {
+        bins[name] = [];
+      });
+
+      // Simple distribution: put all foods in the first bin for now
+      // TODO: Implement better binning if needed
+      if (mealBinNames.length > 0 && foods.length > 0) {
+        bins[mealBinNames[0]] = foods;
+        console.log(
+          `FoodView: Distributed ${foods.length} foods into bin '${
+            mealBinNames[0]
+          }' for ${format(date, "yyyy-MM-dd")}`
+        );
+      } else if (foods.length > 0) {
+        console.warn(
+          `FoodView: No meal bins available to distribute ${
+            foods.length
+          } foods for ${format(date, "yyyy-MM-dd")}`
+        );
+      }
+
+      // TODO: Auto-adjust bin count (simplified)
+      if (foods.length > mealBinNames.length * 5 && mealBinNames.length > 0) {
+        // Example: 5 foods per bin max
+        const requiredBins = Math.ceil(foods.length / 5);
+        if (requiredBins > mealBinNames.length) {
+          const newNames = [...mealBinNames];
+          while (newNames.length < requiredBins) {
+            newNames.push(`Bin ${newNames.length + 1}`);
+          }
+          // Defer update to avoid state change during render
+          setTimeout(() => onMealBinUpdate(newNames), 0);
+        }
+      }
+
+      return bins;
+    },
+    [getCombinedFoodsForDate, mealBinNames, onMealBinUpdate]
+  );
+
+  console.log(
+    `FoodView: Rendering component. Dates to display: ${
+      datesToDisplay.length
+    }, Bins: ${mealBinNames.join(", ")}`
+  );
+  if (!datesToDisplay || datesToDisplay.length === 0) {
+    console.warn("FoodView: No datesToDisplay provided.");
+  }
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden box-border">
+      {/* Fixed header for bins */}
+      <div className="flex border-b bg-white z-10 sticky top-0">
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
+          Date
+        </div>
+        {mealBinNames.map((binName, index) => (
+          <div
+            key={binName}
+            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
+              index > 0 ? "border-l" : ""
+            }`}
+          >
+            {binName}
           </div>
         ))}
       </div>
 
-      {/* Selected Food Details */}
-      {selectedFood && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-lg p-4"
-        >
-          <h3 className="font-medium text-lg mb-2">{selectedFood.name}</h3>
+      {/* Scrollable container */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="min-h-full flex flex-col">
+          {datesToDisplay.map((currentDateData) => {
+            // Defensive check for valid date object
+            if (
+              !currentDateData ||
+              !(currentDateData.date instanceof Date) ||
+              isNaN(currentDateData.date.getTime())
+            ) {
+              console.error(
+                "FoodView: Invalid date object encountered in datesToDisplay",
+                currentDateData
+              );
+              return null; // Skip rendering for invalid date
+            }
+            const currentDate = currentDateData.date;
+            const bins = organizeFoodsIntoBins(currentDate);
+            console.log(
+              `FoodView: Rendering row for date ${format(
+                currentDate,
+                "yyyy-MM-dd"
+              )}. Bins object keys:`,
+              Object.keys(bins)
+            );
 
-          <div className="space-y-4">
-            {/* Nutritional Information */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Nutritional Information
-              </h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Calories: {selectedFood.nutritionalInfo.calories}</div>
-                <div>Protein: {selectedFood.nutritionalInfo.protein}g</div>
-                <div>Carbs: {selectedFood.nutritionalInfo.carbs}g</div>
-                {selectedFood.nutritionalInfo.fiber && (
-                  <div>Fiber: {selectedFood.nutritionalInfo.fiber}g</div>
-                )}
-                {selectedFood.nutritionalInfo.glycemicIndex && (
-                  <div>
-                    Glycemic Index: {selectedFood.nutritionalInfo.glycemicIndex}
+            return (
+              <div
+                key={currentDate.toISOString()}
+                className="flex flex-1 min-h-[150px] border-b last:border-b-0 bg-white"
+              >
+                {/* Date Cell */}
+                <div className="w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start">
+                  <div className="font-semibold text-gray-800">
+                    {format(currentDate, "EEE")}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Ingredients */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Ingredients
-              </h4>
-              <div className="flex flex-wrap gap-1">
-                {selectedFood.ingredients.map((ing) => (
-                  <span
-                    key={ing.id}
-                    className="px-2 py-1 bg-gray-100 rounded-full text-xs"
-                  >
-                    {ing.name} ({ing.amount}{ing.unit})
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Preparation Info */}
-            <div className="flex gap-4 text-sm text-gray-600">
-              <div>Prep: {selectedFood.preparationTime}min</div>
-              <div>Cook: {selectedFood.cookingTime}min</div>
-            </div>
-
-            {/* Health Information */}
-            <div className="space-y-2">
-              {/* Diabetes Friendliness */}
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-1 text-xs rounded-full ${
-                    calculateDiabetesFriendliness(selectedFood).isDiabetesFriendly
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {calculateDiabetesFriendliness(selectedFood).reason}
-                </span>
-              </div>
-
-              {/* Allergens */}
-              {selectedFood.allergens.length > 0 && (
-                <div className="text-sm text-red-600">
-                  Contains: {selectedFood.allergens.join(", ")}
+                  <div className="text-sm text-gray-500">
+                    {format(currentDate, "MMM d")}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {format(currentDate, "yyyy")}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+
+                {/* Food Bins */}
+                <div className="flex flex-1">
+                  {mealBinNames.map((binName, index) => {
+                    // Log the content of the specific bin being rendered
+                    const binContent = bins[binName];
+                    console.log(
+                      ` -> Rendering Bin '${binName}' for ${format(
+                        currentDate,
+                        "yyyy-MM-dd"
+                      )}. Items: ${binContent?.length ?? 0}`
+                    );
+                    if (binContent && binContent.length > 0) {
+                      console.log(
+                        "   -> Bin Content:",
+                        binContent.map((f) => ({
+                          name: f.name,
+                          id: f.id,
+                          isRec: f.isRecommended,
+                        }))
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={`${currentDate.toISOString()}-${binName}`}
+                        className={`flex-1 p-2 overflow-y-auto ${
+                          // Vertical list layout
+                          index > 0 ? "border-l" : ""
+                        }`}
+                      >
+                        <AnimatePresence>
+                          {binContent?.map((food) => ( // food here includes isRecommended
+                            <FoodCard
+                              key={`${food.id}-${food.isRecommended}`}
+                              food={food}
+                              isSelected={selectedFood?.id === food.id}
+                              isRecommended={food.isRecommended} // Pass isRecommended status
+                              onClick={() => {
+                                console.log(`FoodView: Clicked on ${food.name} (Recommended: ${food.isRecommended}). Current selected: ${selectedFood?.id}. Calling onFoodSelect.`);
+                                // Toggle selection: if already selected, pass null, otherwise pass the food and its recommended status
+                                onFoodSelect(
+                                  selectedFood?.id === food.id ? null : food,
+                                  food.isRecommended // Pass the flag here
+                                );
+                              }}
+                            />
+                          ))}
+                        </AnimatePresence>
+
+                        {/* Empty State */}
+                        {(!binContent || binContent.length === 0) && (
+                          <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                            No foods
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

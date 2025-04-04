@@ -181,7 +181,7 @@ export function getDefaultMealTime(mealName: string): string {
 }
 
 // Helper function to calculate combined nutritional info for a Meal
-function calculateCombinedMealNutritionalInfo(foods: Food[]): NutritionalInfo {
+export function calculateCombinedMealNutritionalInfo(foods: Food[]): NutritionalInfo {
   const initial: NutritionalInfo = {
     calories: 0,
     protein: 0,
@@ -308,8 +308,11 @@ export async function transformMealPlanToRecommendations(
 
   // Iterate through each day in the meal plan
   for (const [dateStr, dayData] of Object.entries(mealPlan.days)) {
+    const currentDate = parse(dateStr, "yyyy-MM-dd", new Date()); // Get Date object
+    currentDate.setUTCHours(0, 0, 0, 0); // Normalize
+
     const dayRecommendations: DayRecommendations = {
-      date: parse(dateStr, "yyyy-MM-dd", new Date()),
+      date: currentDate,
       recommendations: [],
     };
 
@@ -374,6 +377,7 @@ export async function transformMealPlanToRecommendations(
         // TODO: Populate culturalTips and healthBenefits if available/calculable
         culturalTips: [],
         healthBenefits: [],
+        date: currentDate, // *** Assign the date to the recommended meal ***
       };
 
       // Create a single MealRecommendation for this complete meal
