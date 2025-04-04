@@ -30,134 +30,6 @@ logger = logging.getLogger(__name__)
 """Recommendation API Endpoints"""
 
 
-# @csrf_exempt
-# def random_recommendation(request: HttpRequest):
-#     if request.method != "POST":
-#         return JsonResponse({"Error": "Invalid request method"}, status=405)
-#     try:
-#         data: dict = json.loads(request.body)
-#         meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
-
-#         if "starting_date" not in data:
-#             starting_date = datetime.now()
-#         else:
-#             starting_date = datetime.strptime(data["starting_date"], "%Y-%m-%d")
-
-#         if "meal_plan_config" not in data:
-#             return JsonResponse(
-#                 {"Error": "Request body is missing key 'meal_plan_config'"},
-#                 status=403,
-#             )
-
-#         meal_plan_config = data["meal_plan_config"]
-
-#         if (
-#             "num_meals" not in meal_plan_config
-#             or "num_days" not in meal_plan_config
-#             or "meal_configs" not in meal_plan_config
-#         ):
-#             return JsonResponse(
-#                 {
-#                     "Error": "meal_plan_config key is missing key 'meal_configs' or 'num_days'"
-#                 },
-#                 status=403,
-#             )
-
-#         num_days = meal_plan_config["num_days"]
-#         num_meals = meal_plan_config["num_meals"]
-#         meal_configs = meal_plan_config["meal_configs"]
-
-#         if "user_preferences" not in data or "user_id" not in data:
-#             return JsonResponse(
-#                 {
-#                     "Error": "Request body is missing key 'user_preferences' or 'user_id'"
-#                 },
-#                 status=403,
-#             )
-#         user_preferences = data["user_preferences"]
-#         user_id = data["user_id"]
-
-#         # Retrieve food and beverage data
-#         food_items, _ = firebaseManager.get_r3()
-#         beverages, _ = firebaseManager.get_beverages()
-
-#         if isinstance(food_items, Exception):
-#             logger.error(f"Error retrieving food items: {food_items}")
-#             return JsonResponse({"Error": "Error retrieving food items."}, status=500)
-
-#         if isinstance(beverages, Exception):
-#             logger.error(f"Error retrieving beverages: {beverages}")
-#             return JsonResponse({"Error": "Error retrieving beverages."}, status=500)
-
-#         # Generate meal plan
-#         logger.info("Generating meal plan...")
-#         days = {}
-
-#         for day_index in range(num_days):
-#             meals = []
-#             for meal_config in meal_configs:
-#                 meal_types = {}
-
-#                 # Add beverage if required
-#                 if meal_config["meal_types"]["beverage"]:
-#                     meal_types["beverage"] = random.choice(list(beverages.keys()))
-
-#                 # Add main course if required
-#                 if meal_config["meal_types"]["main_course"]:
-#                     meal_types["main_course"] = random.choice(list(food_items.keys()))
-
-#                 # Add side dish if required
-#                 if meal_config["meal_types"]["side"]:
-#                     meal_types["side_dish"] = random.choice(list(food_items.keys()))
-
-#                 # Add dessert if required
-
-#                 if meal_config["meal_types"]["dessert"]:
-#                     meal_types["dessert"] = random.choice(list(food_items.keys()))
-#                 meal = {
-#                     "_id": str(ObjectId()),  # Unique ID for the meal
-#                     # "meal_time": meal_config.get("meal_time", ""),
-#                     "meal_name": meal_config.get("meal_name", ""),
-#                     "meal_types": meal_types,
-#                 }
-#                 meals.append(meal)
-#             date_str = (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d")
-#             days[date_str] = {"_id": str(ObjectId()), "meals": meals}
-
-#         # Construct meal plan object
-#         meal_plan = {
-#             "_id": str(ObjectId()),  # Unique ID for the meal plan
-#             "user_id": user_id,  # Link to the specific user
-#             "name": meal_plan_name,
-#             "days": days,
-#         }
-
-#         scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
-#         meal_plan["scores"] = scores
-#         # save meal plan to firebase
-
-#         try:
-#             for date, day_plan in meal_plan["days"].items():
-#                 day_plan["user_id"] = user_id
-
-#                 msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
-#                 if status != 200:
-#                     print(msg)
-
-#             msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
-#             if status != 200:
-#                 print(msg)
-#             return JsonResponse(meal_plan, status=200)
-#         except Exception as e:
-#             print(
-#                 f"Error while saving meal plan to database. Here is a copy of the generated meal plan: {e}"
-#             )
-#             return JsonResponse(meal_plan, status=201)
-#     except Exception as e:
-#         logger.exception("An error occurred while generating the meal plan.")
-#         return JsonResponse({"Error": f"{e}"}, status=500)
-
-
 @csrf_exempt
 def bandit_recommendation(request: HttpRequest):
     """
@@ -213,81 +85,46 @@ def bandit_recommendation(request: HttpRequest):
             # TODO, handle default case
 
             ...
-        print(f"User ID: {user_id}")
+        logger.info(f"User ID: {user_id}")
 
-        logger.info("User data parsed")
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": user},
+                status=status,
+            )
 
-        # Update user
-        need_to_train = True  # training flag
-        if user_id:
-            try:
-                user, status = firebaseManager.get_user_by_id(user_id)
-                if status != 200:
-                    logger.info(user)
-                    return JsonResponse(
-                        {"Error": user},
-                        status=status,
-                    )
+        bandit_counter = user.get_bandit_counter()
+        need_to_train = not (bandit_counter % 5 and user.has_favorite_items())
+        logger.info(f"User bandit counter: {bandit_counter}")
 
-                bandit_counter = user["bandit_counter"]
-                logger.info(f"User bandit counter: {bandit_counter}")
-                if (
-                    bandit_counter % 5 != 0
-                    and user.get("favorite_items")
-                    and all(
-                        user["favorite_items"][key]
-                        for key in ["Beverage", "Main Course", "Side", "Dessert"]
-                    )
-                ):
-                    # flip flag
-                    need_to_train = False
+        # Increment bandit counter
+        msg, status = user.increment_bandit_counter()
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"Failed to update bandit counter: {msg}"}, status=status
+            )
 
-                    # increment the user's bandit counter
-                    msg, status = firebaseManager.update_user_attr(
-                        user_id, "bandit_counter", bandit_counter + 1
-                    )
-                    if status != 200:
-                        logger.info(msg)
-                        return JsonResponse(
-                            {
-                                "Error": "There was an error in incrementing the bandit counter"
-                            },
-                            status=status,
-                        )
-
-                    favorite_items = user["favorite_items"]
-                    logger.info("User past favorite items retrieved")
-                else:
-                    logger.info(
-                        "User favorite items will be replaced, bandit being retrained ..."
-                    )
-            except:
-                # TODO, error message
-                return JsonResponse(
-                    {
-                        "Error": "There was an error in retrieving the user's past favorite items"
-                    },
-                    status=500,
-                )
-
-        start = time.time()
         if need_to_train:
-            # Configure bandit
+            logger.info("Retraining bandit for new recommendations...")
+
+            # Train bandit
+
             try:
+                start = time.time()
                 bandit_trial_path, trial_num = configure_bandit(num_days)
+                end = time.time()
+                execution_time = end - start
+                logger.info(f"Configuring bandit: {execution_time:.4f} seconds")
             except:
                 return JsonResponse(
                     {"Error": "There was an error in configuring the bandit setup"},
                     status=500,
                 )
-            end = time.time()
-            execution_time = end - start
-            logger.info(f"Configuring bandit: {execution_time:.4f} seconds")
 
             # Train Bandit
             start = time.time()
-            success = train_bandit(bandit_trial_path)
-            if not success:
+            if not train_bandit(bandit_trial_path):
                 return JsonResponse(
                     {"Error": "There was an error in training the boosted bandit"},
                     status=500,
@@ -298,8 +135,7 @@ def bandit_recommendation(request: HttpRequest):
 
             # Test Bandit
             start = time.time()
-            success = test_bandit(bandit_trial_path)
-            if not success:
+            if not test_bandit(bandit_trial_path):
                 return JsonResponse(
                     {"Error": "There was an error in testing the boosted bandit"},
                     status=500,
@@ -308,15 +144,19 @@ def bandit_recommendation(request: HttpRequest):
             execution_time = end - start
             logger.info(f"Testing bandit: {execution_time:.4f} seconds")
 
+            logger.info("Fetching recommended favorite items")
             # get the favorite items recommended by the bandit and save them to firebase
-            favorite_items = get_favorite_items(trial_num, user_preferences)
-            if user_id:
-                msg, status = firebaseManager.update_user_attr(
-                    user_id, "favorite_items", favorite_items
-                )
-                if status != 200:
-                    logger.info(msg)
-                    return JsonResponse({"Error": msg}, status)
+            favorite_items = get_bandit_favorite_items(trial_num, user_preferences)
+
+            # update user favorite items
+            logger.info("Caching favorite items in DB")
+            msg, status = user.set_favorite_items(favorite_items)
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status)
+        else:
+            logger.info("Fetching user favorite items")
+            favorite_items = user.get_favorite_items()
 
         # Generate Bandit Recommendation
         start = time.time()
@@ -363,25 +203,13 @@ def bandit_recommendation(request: HttpRequest):
                         logger.info(msg)
                         return JsonResponse({"Error": msg}, status=status)
 
-                # save meal plan to firebase
-                msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
-                if status != 200:
-                    logger.info(msg)
-                    return JsonResponse({"Error": msg}, status=status)
-
                 # update user meal config and update user dietary preferences
-                msg, status = firebaseManager.update_user_attr(
-                    user_id, "meal_plan_config", meal_plan_config
-                )
+                msg, status = user.set_meal_plan_config(meal_plan_config)
                 if status != 200:
                     logger.info(msg)
                     return JsonResponse({"Error": msg}, status=status)
 
-                msg, status = firebaseManager.update_user_attr(
-                    user_id,
-                    "dietary_preferences.numerical_preferences",
-                    user_preferences,
-                )
+                msg, status = user.set_numerical_preferences(user_preferences)
                 if status != 200:
                     logger.info(msg)
                     return JsonResponse({"Error": msg}, status=status)
@@ -406,7 +234,7 @@ def regenerate_partial_meal_plan(request: HttpRequest):
         return JsonResponse({"Error": "Incorrect HTTP method"}, status=400)
     try:
         logger.info("Regenerate Meal Plan API Endpoint Called ...")
-        logger.info("Loading Data...")
+        logger.info("Parsing Request Body...")
         data: dict = json.loads(request.body)
 
         required_fields = ["user_id", "dates_to_regenerate"]
@@ -433,6 +261,7 @@ def regenerate_partial_meal_plan(request: HttpRequest):
 
         bandit_counter = user.get_bandit_counter()
         need_to_train = not (bandit_counter % 5 and user.has_favorite_items())
+        logger.info(f"User bandit counter: {bandit_counter}")
 
         # Increment bandit counter
         msg, status = user.increment_bandit_counter()
@@ -471,10 +300,10 @@ def regenerate_partial_meal_plan(request: HttpRequest):
                     {"Error": f"Bandit training failed: {str(e)}"}, status=500
                 )
         else:
-            logger.info("Fetching user favorite items and incrementing bandit counter")
+            logger.info("Fetching user favorite items")
             favorite_items = user.get_favorite_items()
 
-        # new recommendations for specified dates = num of days of mp
+        # Generate Bandit Recommendation
         try:
             logger.info("Generating Recommendation ...")
             days = gen_bandit_rec(
@@ -637,9 +466,6 @@ def edit_meal_plan(request: HttpRequest):
         return JsonResponse({"Error": f"Unexpected error: {str(e)}"}, status=500)
 
 
-
-
-
 """User Account API Endpoints"""
 
 
@@ -739,6 +565,8 @@ def update_user(request: HttpRequest, user_id: str):
     if request.method != "PATCH":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
+        logger.info("Update User API Endpoint called ...")
+        logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
         if "name" not in data:
             return JsonResponse({"Error": "Missing attribute 'name'"}, status=401)
@@ -799,8 +627,7 @@ def update_user(request: HttpRequest, user_id: str):
             logger.info(msg)
             return JsonResponse({"Error": user}, status=500)
 
-        return JsonResponse(user, status=status)
-
+        return JsonResponse(user.to_dict(), status=status)
     except:
         return JsonResponse(
             {"Error": "There was some error in updating the user"}, status=500
@@ -912,7 +739,6 @@ def set_nutritional_goals(request: HttpRequest):
         user_id = data["user_id"]
         daily_goals = data["daily_goals"]
 
-       
         required_nutrients = ["calories", "carbs", "protein", "fiber"]
         if not all(nutrient in daily_goals for nutrient in required_nutrients):
             return JsonResponse(
@@ -920,11 +746,12 @@ def set_nutritional_goals(request: HttpRequest):
                 status=400,
             )
 
-        
         for nutrient, value in daily_goals.items():
             if not isinstance(value, (int, float)) or value < 0:
                 return JsonResponse(
-                    {"error": f"Invalid value for {nutrient}. Must be a positive number."},
+                    {
+                        "error": f"Invalid value for {nutrient}. Must be a positive number."
+                    },
                     status=400,
                 )
 
@@ -933,13 +760,18 @@ def set_nutritional_goals(request: HttpRequest):
             user_id, "nutritional_goals", daily_goals
         )
         if status != 200:
-            return JsonResponse({"error": f"Failed to update nutritional goals: {msg}"}, status=status)
+            return JsonResponse(
+                {"error": f"Failed to update nutritional goals: {msg}"}, status=status
+            )
 
-        return JsonResponse({
-            "success": True,
-            "message": "Successfully updated nutritional goals",
-            "daily_goals": daily_goals
-        }, status=200)
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Successfully updated nutritional goals",
+                "daily_goals": daily_goals,
+            },
+            status=200,
+        )
 
     except Exception as e:
         logger.exception("set_nutritional_goals failed")
@@ -958,19 +790,17 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
         # Get user data from Firebase
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
-            return JsonResponse({"error": "Failed to retrieve user data"}, status=status)
+            return JsonResponse(
+                {"error": "Failed to retrieve user data"}, status=status
+            )
 
-        nutritional_goals = user.get("nutritional_goals", {
-            "calories": 0,
-            "carbs": 0,
-            "protein": 0,
-            "fiber": 0
-        })
+        nutritional_goals = user.get(
+            "nutritional_goals", {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0}
+        )
 
-        return JsonResponse({
-            "success": True,
-            "daily_goals": nutritional_goals
-        }, status=200)
+        return JsonResponse(
+            {"success": True, "daily_goals": nutritional_goals}, status=200
+        )
 
     except Exception as e:
         logger.exception("get_nutritional_goals failed")

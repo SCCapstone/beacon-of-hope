@@ -35,6 +35,13 @@ class User:
         """Returns {dairyPreference:0, ...}"""
         return self.dietary_preferences["numerical_preferences"]
 
+    def set_numerical_preferences(self, numerical_preferences) -> Tuple[str, str]:
+        return self.firebaseManager.update_user_attr(
+            self.get_id(),
+            "dietary_preferences.numerical_preferences",
+            numerical_preferences,
+        )
+
     def get_allergies(self) -> List[str]:
         return self.health_info["allergies"]
 
@@ -46,6 +53,11 @@ class User:
 
     def get_meal_plan_config(self) -> Dict:
         return self.meal_plan_config
+
+    def set_meal_plan_config(self, meal_plan_config: Dict) -> Dict:
+        return self.firebaseManager.update_user_attr(
+            self.get_id(), "meal_plan_config", meal_plan_config
+        )
 
     def get_account_creation_date(self):
         return self.created_at
@@ -95,3 +107,6 @@ class User:
 
     def __repr__(self):
         return f"User({self.__dict__})"
+
+    def to_dict(self):
+        return self.__dict__
