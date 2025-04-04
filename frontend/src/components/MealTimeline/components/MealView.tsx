@@ -4,7 +4,7 @@ import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
-import { FoodTypeIcon } from "./FoodTypeIcon";
+// No FoodTypeIcon as we won't list foods here
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -25,6 +25,85 @@ const normalizeDate = (date: Date): Date => {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
+};
+
+const TraceMealCard: React.FC<{
+  meal: Meal;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ meal, isSelected, onClick }) => {
+  const { nutritionalInfo, diabetesFriendly } = meal;
+  const totalMacros =
+    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fat;
+  const carbPercent =
+    totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
+  const proteinPercent =
+    totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
+  const fatPercent =
+    totalMacros > 0 ? (nutritionalInfo.fat / totalMacros) * 100 : 0;
+
+  return (
+    <motion.div
+      key={`meal-${meal.id}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className={`meal-card p-3 mb-3 rounded-lg cursor-pointer
+        bg-white shadow-sm hover:shadow transition-all duration-300
+        ${
+          isSelected
+            ? "ring-2 ring-blue-500"
+            : "border border-gray-200"
+        }
+        flex flex-col min-h-[160px]`} // Adjusted padding and min-height
+      onClick={onClick}
+    >
+      {/* Header */}
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
+          {meal.name}
+        </h3>
+        <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+          {nutritionalInfo.calories} cal
+        </div>
+      </div>
+
+      {/* Macro Visualization */}
+      <div className="flex h-1.5 rounded-full overflow-hidden my-2">
+        <div
+          className="bg-blue-400"
+          style={{ width: `${carbPercent}%` }}
+          title={`Carbs: ${nutritionalInfo.carbs}g`}
+        />
+        <div
+          className="bg-purple-400"
+          style={{ width: `${proteinPercent}%` }}
+          title={`Protein: ${nutritionalInfo.protein}g`}
+        />
+        <div
+          className="bg-yellow-400"
+          style={{ width: `${fatPercent}%` }}
+          title={`Fat: ${nutritionalInfo.fat}g`}
+        />
+      </div>
+
+      {/* Footer Indicators */}
+      <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
+        <span className="text-gray-500 capitalize">{meal.type}</span>
+        <div className="flex items-center space-x-2">
+          {diabetesFriendly && (
+            <span
+              className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
+              title="Diabetes Friendly"
+            >
+              DF
+            </span>
+          )}
+          {/* Optional: Add other simple indicators if needed */}
+        </div>
+      </div>
+    </motion.div>
+  );
 };
 
 export const MealView: React.FC<MealViewProps> = ({
@@ -211,150 +290,12 @@ export const MealView: React.FC<MealViewProps> = ({
   const renderMealCard = (meal: Meal, date: Date) => {
     // Pass date for unique key
     return (
-      <motion.div
+      <TraceMealCard
         key={`meal-${meal.id}-${date.toISOString()}`}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        className={`meal-card p-4 mb-4 rounded-lg cursor-pointer
-          bg-white shadow-sm hover:shadow transition-all duration-300
-          ${
-            isMealSelected(meal)
-              ? "ring-2 ring-blue-500"
-              : "border border-gray-200"
-          }
-          flex flex-col h-full`}
+        meal={meal}
+        isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
-      >
-        {/* Header with meal name and time */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
-              {meal.name}
-            </h3>
-          </div>
-          <div className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">
-            {meal.nutritionalInfo.calories} cal
-          </div>
-        </div>
-
-        {/* Macronutrient bars - visual representation */}
-        <div className="mt-3 space-y-2">
-          {/* Carbs bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600">Carbs</span>
-              <span className="text-gray-700 font-medium">
-                {meal.nutritionalInfo.carbs}g
-              </span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-400 rounded-full"
-                style={{
-                  width: `${Math.min(meal.nutritionalInfo.carbs, 100)}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Protein bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600">Protein</span>
-              <span className="text-gray-700 font-medium">
-                {meal.nutritionalInfo.protein}g
-              </span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-purple-400 rounded-full"
-                style={{
-                  width: `${Math.min(meal.nutritionalInfo.protein * 2, 100)}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Fat bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600">Fat</span>
-              <span className="text-gray-700 font-medium">
-                {meal.nutritionalInfo.fat}g
-              </span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-yellow-400 rounded-full"
-                style={{
-                  width: `${Math.min(meal.nutritionalInfo.fat * 2, 100)}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Food items in the meal */}
-        {meal.foods.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100 flex-grow">
-            <h4 className="text-xs font-medium text-gray-700 mb-2">
-              Includes:
-            </h4>
-            <div className="grid grid-cols-1 gap-2">
-              {meal.foods.map((food) => (
-                <div
-                  key={food.id}
-                  className="flex items-center justify-between bg-gray-50 px-2 py-1.5 rounded text-xs"
-                >
-                  <div className="flex items-center">
-                    <FoodTypeIcon
-                      type={food.type}
-                      className="w-4 h-4 mr-1.5 text-gray-600"
-                    />
-                    <span className="text-gray-800">{food.name}</span>
-                  </div>{" "}
-                  <span className="text-gray-500 capitalize">
-                    {food.type.replace("_", " ")}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Health indicators */}
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <div className="grid grid-cols-3 gap-2">
-            {meal.nutritionalInfo.glycemicIndex !== undefined && (
-              <div className="bg-blue-50 rounded p-1.5 text-center">
-                <div className="text-xs text-gray-500">GI</div>
-                <div className="text-sm font-medium text-blue-700">
-                  {meal.nutritionalInfo.glycemicIndex.toFixed(1)}
-                </div>
-              </div>
-            )}
-
-            {meal.nutritionalInfo.glycemicLoad !== undefined && (
-              <div className="bg-green-50 rounded p-1.5 text-center">
-                <div className="text-xs text-gray-500">GL</div>
-                <div className="text-sm font-medium text-green-700">
-                  {meal.nutritionalInfo.glycemicLoad}
-                </div>
-              </div>
-            )}
-
-            {meal.nutritionalInfo.fiber > 0 && (
-              <div className="bg-purple-50 rounded p-1.5 text-center">
-                <div className="text-xs text-gray-500">Fiber</div>
-                <div className="text-sm font-medium text-purple-700">
-                  {meal.nutritionalInfo.fiber}g
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
+      />
     );
   };
 
@@ -394,7 +335,7 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`flex flex-1 min-h-[150px] border-b last:border-b-0  ${
+                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${ // Adjusted min-height
                   isSelected ? "bg-blue-50" : "bg-white"
                 }`}
               >
@@ -430,15 +371,16 @@ export const MealView: React.FC<MealViewProps> = ({
 
                 {/* Meal Bins for this date */}
                 <div className="flex flex-1">
-                  {mealBinNames.map((binName) => {
+                  {mealBinNames.map((binName, index) => {
                     const bin = bins[binName];
                     return (
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
-                          flex-1 p-4 border-l overflow-y-auto flex flex-col
+                          flex-1 p-2 overflow-y-auto flex flex-col 
+                          ${index > 0 ? "border-l" : ""}
                           ${isSelected ? "border-blue-200" : "border-gray-200"}
-                        `} // Adjust border color
+                        `}
                       >
                         {/* Meals */}
                         <AnimatePresence>
@@ -453,7 +395,7 @@ export const MealView: React.FC<MealViewProps> = ({
                               key={`rec-${
                                 recommendation.meal.id
                               }-${currentDate.toISOString()}`}
-                              className="my-2 flex-shrink-0" // Adjust margin/sizing
+                              className="my-1.5 flex-shrink-0"
                               recommendation={recommendation}
                               onClick={() =>
                                 onRecommendationSelect(recommendation)

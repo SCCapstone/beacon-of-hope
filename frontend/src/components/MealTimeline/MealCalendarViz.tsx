@@ -47,7 +47,6 @@ const isSameNormalizedDay = (
   return isSameDay(date1, date2);
 };
 
-
 // Define the type for the callback to parent
 type FetchRequestHandler = (payload: {
   datesToFetch: string[]; // Only the dates that *need* fetching
@@ -107,8 +106,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Keep mealDataRef updated without causing effect re-runs based on mealData itself
   useEffect(() => {
-      mealDataRef.current = mealData;
-    }, [mealData]);
+    mealDataRef.current = mealData;
+  }, [mealData]);
 
   const handleMealBinNamesUpdate = (newNames: string[]) => {
     setMealBinNames(newNames);
@@ -433,35 +432,53 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // 3. useEffect to Trigger Data Fetch on Date or Level Change
   useEffect(() => {
-    console.log(`Viz Effect: Checking fetch for level=${currentLevel}, date=${format(selectedDate, 'yyyy-MM-dd')}`);
+    console.log(
+      `Viz Effect: Checking fetch for level=${currentLevel}, date=${format(
+        selectedDate,
+        "yyyy-MM-dd"
+      )}`
+    );
 
-    const { requiredStartDate, requiredEndDate } = getRequiredRange(currentLevel, selectedDate);
-    const requiredDates = eachDayOfInterval({ start: requiredStartDate, end: requiredEndDate });
+    const { requiredStartDate, requiredEndDate } = getRequiredRange(
+      currentLevel,
+      selectedDate
+    );
+    const requiredDates = eachDayOfInterval({
+      start: requiredStartDate,
+      end: requiredEndDate,
+    });
 
     // Use the ref for the most current mealData within the effect closure
     const currentMealData = mealDataRef.current;
     const existingDates = new Set(
-        currentMealData.map((day) => format(normalizeDate(new Date(day.date)), "yyyy-MM-dd"))
+      currentMealData.map((day) =>
+        format(normalizeDate(new Date(day.date)), "yyyy-MM-dd")
+      )
     );
 
     const missingDateStrings = requiredDates
-        .map(date => format(date, "yyyy-MM-dd"))
-        .filter(dateStr => !existingDates.has(dateStr));
+      .map((date) => format(date, "yyyy-MM-dd"))
+      .filter((dateStr) => !existingDates.has(dateStr));
 
     // --- Crucial Change: Only call parent if dates are actually missing ---
     if (missingDateStrings.length > 0) {
-      console.log("Viz Effect: Requesting fetch for missing dates:", missingDateStrings);
+      console.log(
+        "Viz Effect: Requesting fetch for missing dates:",
+        missingDateStrings
+      );
       onRequestFetch({
-          datesToFetch: missingDateStrings,
-          newSelectedDate: selectedDate // Pass the date that triggered this check
+        datesToFetch: missingDateStrings,
+        newSelectedDate: selectedDate, // Pass the date that triggered this check
       });
     } else {
-      console.log("Viz Effect: All required dates already loaded. No fetch request needed.");
+      console.log(
+        "Viz Effect: All required dates already loaded. No fetch request needed."
+      );
       // Do NOT call onRequestFetch if nothing is missing
     }
     // --- End Crucial Change ---
 
-  // Dependencies: Run when level or date changes. `getRequiredRange` and `onRequestFetch` should be stable.
+    // Dependencies: Run when level or date changes. `getRequiredRange` and `onRequestFetch` should be stable.
   }, [currentLevel, selectedDate, getRequiredRange, onRequestFetch]);
 
   // Calculate dates to display based on level and selectedDate
@@ -502,10 +519,17 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         isSameNormalizedDay(day.date, normalizedDate)
       );
       if (existingDay) {
-        console.log(`Viz: Found data for ${format(normalizedDate, 'yyyy-MM-dd')}`);
+        console.log(
+          `Viz: Found data for ${format(normalizedDate, "yyyy-MM-dd")}`
+        );
         return existingDay;
       } else {
-        console.log(`Viz: No data found for ${format(normalizedDate, 'yyyy-MM-dd')}, creating placeholder.`);
+        console.log(
+          `Viz: No data found for ${format(
+            normalizedDate,
+            "yyyy-MM-dd"
+          )}, creating placeholder.`
+        );
         return {
           date: normalizedDate,
           meals: [],
@@ -611,6 +635,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       datesToDisplay={visibleData}
                       // Pass full mealData prop for lookups if needed (e.g., context)
                       allData={mealData}
+                      recommendationData={recommendationData}
                       onFoodSelect={handleFoodSelect} // Use specific handler
                       selectedFood={selectedFood}
                       mealBinNames={mealBinNames}
@@ -627,6 +652,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       selectedDateData={visibleData.find(
                         (d) => isSameDay(d.date, selectedDate) // Use isSameDay
                       )}
+                      recommendationData={recommendationData}
                       onIngredientSelect={handleIngredientSelect} // Use specific handler
                       selectedIngredient={selectedIngredient}
                       mealBinNames={mealBinNames}
