@@ -474,7 +474,9 @@ def test_bandit(bandit_trial_path):
         return False
 
 
-def get_favorite_items(trial_num: int, user_preferences: Dict[str, int]):
+def get_bandit_favorite_items(
+    trial_num: int, user_preferences: Dict[str, int]
+) -> Dict[str, List[str]]:
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
         f"boosted_bandit/trial{trial_num}/test/results_recommendation.db", "r"
@@ -629,8 +631,6 @@ def calculate_goodness(
     Edits meal_plan dictionary parameter by reference, inserting 3 new keys for 3 scores for each meal
     Also edits 3 lists of 3 scores, which can be used for further statistical analysis
     """
-
-    meal_plan: Dict = meal_plan["days"]
 
     variety_scores = []
     coverage_scores = []

@@ -14,9 +14,13 @@ def food_variety_score(meal: Dict):
     """Measures the variety of items in the recommendation"""
     meal = meal.copy()
 
+    # Handle empty meal types
+    if not meal:
+        return 0.0
+
     count_duplicates = lambda items: len(items) - len(set(items))
 
-    return 1 - (count_duplicates(meal.values()) / len(meal))
+    return 1 - (count_duplicates(meal.values()) / max(1, len(meal)))
 
 
 def food_item_coverage_score(meal: Dict, meal_config: Dict):
