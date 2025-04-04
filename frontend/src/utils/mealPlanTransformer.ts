@@ -7,7 +7,7 @@ import {
   Meal,
 } from "../components/MealTimeline/types";
 import { fetchRecipeInfo, fetchBeverageInfo } from "../services/recipeService";
-import { parse } from "date-fns";
+import { parse, startOfDay } from "date-fns";
 
 interface MealPlan {
   _id: string;
@@ -308,8 +308,8 @@ export async function transformMealPlanToRecommendations(
 
   // Iterate through each day in the meal plan
   for (const [dateStr, dayData] of Object.entries(mealPlan.days)) {
-    const currentDate = parse(dateStr, "yyyy-MM-dd", new Date()); // Get Date object
-    currentDate.setUTCHours(0, 0, 0, 0); // Normalize
+    let currentDate = parse(dateStr, "yyyy-MM-dd", new Date()); // Get Date object
+    currentDate = startOfDay(currentDate); // Normalize to local midnight using date-fns
 
     const dayRecommendations: DayRecommendations = {
       date: currentDate,

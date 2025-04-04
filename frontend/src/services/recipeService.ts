@@ -10,6 +10,7 @@ import {
   getDefaultMealTime,
 } from "../utils/mealPlanTransformer";
 import { ApiError } from "../utils/errorHandling";
+import { parse, startOfDay } from "date-fns";
 
 
 const BACKEND_URL = "http://127.0.0.1:8000";
@@ -70,7 +71,7 @@ export async function fetchBeverageInfo(bevId: string) {
 
 export async function fetchMealDays(userId: string, dates: string[]) {
   try {
-    console.log(userId);
+    console.log(`Fetching meal days for user ${userId} on dates: ${dates.join(", ")}`);
     const response = await axios.post<ApiResponse>(
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
@@ -81,6 +82,7 @@ export async function fetchMealDays(userId: string, dates: string[]) {
     }
 
     console.log(`Fetched meal days for ${dates.join(", ")}`);
+    console.log(response.data);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -321,8 +323,8 @@ export async function transformApiResponseToDayMeals(
 
   // Step 3: Transform the data using the pre-fetched food information
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
-    const currentDate = new Date(dateStr); // Get the date object for this day
-    currentDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight for consistency
+    let currentDate = parse(dateStr, "yyyy-MM-dd", new Date()); // Get Date object
+    currentDate = startOfDay(currentDate); // Normalize to local midnight using date-fns
 
     const dayMeal: DayMeals = {
       date: currentDate, // Use the normalized date object
