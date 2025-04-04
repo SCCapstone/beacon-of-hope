@@ -30,132 +30,132 @@ logger = logging.getLogger(__name__)
 """Recommendation API Endpoints"""
 
 
-@csrf_exempt
-def random_recommendation(request: HttpRequest):
-    if request.method != "POST":
-        return JsonResponse({"Error": "Invalid request method"}, status=405)
-    try:
-        data: dict = json.loads(request.body)
-        meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
+# @csrf_exempt
+# def random_recommendation(request: HttpRequest):
+#     if request.method != "POST":
+#         return JsonResponse({"Error": "Invalid request method"}, status=405)
+#     try:
+#         data: dict = json.loads(request.body)
+#         meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
 
-        if "starting_date" not in data:
-            starting_date = datetime.now()
-        else:
-            starting_date = datetime.strptime(data["starting_date"], "%Y-%m-%d")
+#         if "starting_date" not in data:
+#             starting_date = datetime.now()
+#         else:
+#             starting_date = datetime.strptime(data["starting_date"], "%Y-%m-%d")
 
-        if "meal_plan_config" not in data:
-            return JsonResponse(
-                {"Error": "Request body is missing key 'meal_plan_config'"},
-                status=403,
-            )
+#         if "meal_plan_config" not in data:
+#             return JsonResponse(
+#                 {"Error": "Request body is missing key 'meal_plan_config'"},
+#                 status=403,
+#             )
 
-        meal_plan_config = data["meal_plan_config"]
+#         meal_plan_config = data["meal_plan_config"]
 
-        if (
-            "num_meals" not in meal_plan_config
-            or "num_days" not in meal_plan_config
-            or "meal_configs" not in meal_plan_config
-        ):
-            return JsonResponse(
-                {
-                    "Error": "meal_plan_config key is missing key 'meal_configs' or 'num_days'"
-                },
-                status=403,
-            )
+#         if (
+#             "num_meals" not in meal_plan_config
+#             or "num_days" not in meal_plan_config
+#             or "meal_configs" not in meal_plan_config
+#         ):
+#             return JsonResponse(
+#                 {
+#                     "Error": "meal_plan_config key is missing key 'meal_configs' or 'num_days'"
+#                 },
+#                 status=403,
+#             )
 
-        num_days = meal_plan_config["num_days"]
-        num_meals = meal_plan_config["num_meals"]
-        meal_configs = meal_plan_config["meal_configs"]
+#         num_days = meal_plan_config["num_days"]
+#         num_meals = meal_plan_config["num_meals"]
+#         meal_configs = meal_plan_config["meal_configs"]
 
-        if "user_preferences" not in data or "user_id" not in data:
-            return JsonResponse(
-                {
-                    "Error": "Request body is missing key 'user_preferences' or 'user_id'"
-                },
-                status=403,
-            )
-        user_preferences = data["user_preferences"]
-        user_id = data["user_id"]
+#         if "user_preferences" not in data or "user_id" not in data:
+#             return JsonResponse(
+#                 {
+#                     "Error": "Request body is missing key 'user_preferences' or 'user_id'"
+#                 },
+#                 status=403,
+#             )
+#         user_preferences = data["user_preferences"]
+#         user_id = data["user_id"]
 
-        # Retrieve food and beverage data
-        food_items, _ = firebaseManager.get_r3()
-        beverages, _ = firebaseManager.get_beverages()
+#         # Retrieve food and beverage data
+#         food_items, _ = firebaseManager.get_r3()
+#         beverages, _ = firebaseManager.get_beverages()
 
-        if isinstance(food_items, Exception):
-            logger.error(f"Error retrieving food items: {food_items}")
-            return JsonResponse({"Error": "Error retrieving food items."}, status=500)
+#         if isinstance(food_items, Exception):
+#             logger.error(f"Error retrieving food items: {food_items}")
+#             return JsonResponse({"Error": "Error retrieving food items."}, status=500)
 
-        if isinstance(beverages, Exception):
-            logger.error(f"Error retrieving beverages: {beverages}")
-            return JsonResponse({"Error": "Error retrieving beverages."}, status=500)
+#         if isinstance(beverages, Exception):
+#             logger.error(f"Error retrieving beverages: {beverages}")
+#             return JsonResponse({"Error": "Error retrieving beverages."}, status=500)
 
-        # Generate meal plan
-        logger.info("Generating meal plan...")
-        days = {}
+#         # Generate meal plan
+#         logger.info("Generating meal plan...")
+#         days = {}
 
-        for day_index in range(num_days):
-            meals = []
-            for meal_config in meal_configs:
-                meal_types = {}
+#         for day_index in range(num_days):
+#             meals = []
+#             for meal_config in meal_configs:
+#                 meal_types = {}
 
-                # Add beverage if required
-                if meal_config["meal_types"]["beverage"]:
-                    meal_types["beverage"] = random.choice(list(beverages.keys()))
+#                 # Add beverage if required
+#                 if meal_config["meal_types"]["beverage"]:
+#                     meal_types["beverage"] = random.choice(list(beverages.keys()))
 
-                # Add main course if required
-                if meal_config["meal_types"]["main_course"]:
-                    meal_types["main_course"] = random.choice(list(food_items.keys()))
+#                 # Add main course if required
+#                 if meal_config["meal_types"]["main_course"]:
+#                     meal_types["main_course"] = random.choice(list(food_items.keys()))
 
-                # Add side dish if required
-                if meal_config["meal_types"]["side"]:
-                    meal_types["side_dish"] = random.choice(list(food_items.keys()))
+#                 # Add side dish if required
+#                 if meal_config["meal_types"]["side"]:
+#                     meal_types["side_dish"] = random.choice(list(food_items.keys()))
 
-                # Add dessert if required
+#                 # Add dessert if required
 
-                if meal_config["meal_types"]["dessert"]:
-                    meal_types["dessert"] = random.choice(list(food_items.keys()))
-                meal = {
-                    "_id": str(ObjectId()),  # Unique ID for the meal
-                    # "meal_time": meal_config.get("meal_time", ""),
-                    "meal_name": meal_config.get("meal_name", ""),
-                    "meal_types": meal_types,
-                }
-                meals.append(meal)
-            date_str = (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d")
-            days[date_str] = {"_id": str(ObjectId()), "meals": meals}
+#                 if meal_config["meal_types"]["dessert"]:
+#                     meal_types["dessert"] = random.choice(list(food_items.keys()))
+#                 meal = {
+#                     "_id": str(ObjectId()),  # Unique ID for the meal
+#                     # "meal_time": meal_config.get("meal_time", ""),
+#                     "meal_name": meal_config.get("meal_name", ""),
+#                     "meal_types": meal_types,
+#                 }
+#                 meals.append(meal)
+#             date_str = (starting_date + timedelta(days=day_index)).strftime("%Y-%m-%d")
+#             days[date_str] = {"_id": str(ObjectId()), "meals": meals}
 
-        # Construct meal plan object
-        meal_plan = {
-            "_id": str(ObjectId()),  # Unique ID for the meal plan
-            "user_id": user_id,  # Link to the specific user
-            "name": meal_plan_name,
-            "days": days,
-        }
+#         # Construct meal plan object
+#         meal_plan = {
+#             "_id": str(ObjectId()),  # Unique ID for the meal plan
+#             "user_id": user_id,  # Link to the specific user
+#             "name": meal_plan_name,
+#             "days": days,
+#         }
 
-        scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
-        meal_plan["scores"] = scores
-        # save meal plan to firebase
+#         scores = calculate_goodness(meal_plan, meal_configs, user_preferences)
+#         meal_plan["scores"] = scores
+#         # save meal plan to firebase
 
-        try:
-            for date, day_plan in meal_plan["days"].items():
-                day_plan["user_id"] = user_id
+#         try:
+#             for date, day_plan in meal_plan["days"].items():
+#                 day_plan["user_id"] = user_id
 
-                msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
-                if status != 200:
-                    print(msg)
+#                 msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+#                 if status != 200:
+#                     print(msg)
 
-            msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
-            if status != 200:
-                print(msg)
-            return JsonResponse(meal_plan, status=200)
-        except Exception as e:
-            print(
-                f"Error while saving meal plan to database. Here is a copy of the generated meal plan: {e}"
-            )
-            return JsonResponse(meal_plan, status=201)
-    except Exception as e:
-        logger.exception("An error occurred while generating the meal plan.")
-        return JsonResponse({"Error": f"{e}"}, status=500)
+#             msg, status = firebaseManager.add_meal_plan(user_id, meal_plan)
+#             if status != 200:
+#                 print(msg)
+#             return JsonResponse(meal_plan, status=200)
+#         except Exception as e:
+#             print(
+#                 f"Error while saving meal plan to database. Here is a copy of the generated meal plan: {e}"
+#             )
+#             return JsonResponse(meal_plan, status=201)
+#     except Exception as e:
+#         logger.exception("An error occurred while generating the meal plan.")
+#         return JsonResponse({"Error": f"{e}"}, status=500)
 
 
 @csrf_exempt
@@ -166,6 +166,8 @@ def bandit_recommendation(request: HttpRequest):
     if request.method != "POST":
         return JsonResponse({"Error": "Incorrect HTTP method"}, status=400)
     try:
+        logger.info("Bandit Meal Plan Generation API Called ...")
+        logger.info("Parsing Request Body ...")
         data: dict = json.loads(request.body)
         meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
 
