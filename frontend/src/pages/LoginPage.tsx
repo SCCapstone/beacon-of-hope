@@ -209,10 +209,17 @@ const LoginPage: React.FC = () => {
               Login
             </button>
           </form>
-
+          <div 
+          style={{
+            marginTop: "24px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}>
           <p
             id="create--account"
-            style={{ fontWeight: "400", fontSize: "18px", color: "#828282" }}
+            style={{ fontWeight: "400", fontSize: "16px", color: "#828282" }}
           >
             Not registered yet?{" "}
             <a
@@ -231,7 +238,7 @@ const LoginPage: React.FC = () => {
             style={{
               fontStyle: "italic",
               fontWeight: "400",
-              fontSize: "18px",
+              fontSize: "16px",
               color: "#828282",
             }}
           >
@@ -242,11 +249,13 @@ const LoginPage: React.FC = () => {
                 color: "#7f265b",
                 textDecoration: "none",
                 cursor: "pointer",
+                fontWeight: "600",
               }}
             >
               Continue as guest
             </a>
           </p>
+          </div>
         </div>
       </div>
     </div>

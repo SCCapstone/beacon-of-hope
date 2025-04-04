@@ -576,48 +576,64 @@ def update_user(request: HttpRequest, user_id: str):
         logger.info("Update User API Endpoint called ...")
         logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
-        if "name" not in data:
-            return JsonResponse({"Error": "Missing attribute 'name'"}, status=401)
-        name = data["name"]
-
-        if "email" not in data:
-            return JsonResponse({"Error": "Missing attribute 'email'"}, status=401)
-        email = data["email"]
-
-        if "dietaryRestrictions" not in data:
-            return JsonResponse(
-                {"Error": "Missing attribute 'preferences'"}, status=401
-            )
-        preferences = data["dietaryRestrictions"]
 
         # Update Name
-        logger.info("Updating Name")
-        first, last = name.split()
-        msg, status = firebaseManager.update_user_attr(user_id, "first_name", first)
-        if status != 200:
-            logger.info(msg)
-            return JsonResponse({"Error": msg}, status=500)
+        if "name" in data:
+            logger.info("Updating Name")
+            name = data["name"]
+            first, last = name.split()
 
-        msg, status = firebaseManager.update_user_attr(user_id, "last_name", last)
-        if status != 200:
-            logger.info(msg)
-            return JsonResponse({"Error": msg}, status=500)
+            msg, status = firebaseManager.update_user_attr(user_id, "first_name", first)
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
+
+            msg, status = firebaseManager.update_user_attr(user_id, "last_name", last)
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
 
         # Update Email
-        logger.info("Updating Email")
-        msg, status = firebaseManager.update_user_attr(user_id, "email", email)
-        if status != 200:
-            logger.info(msg)
-            return JsonResponse({"Error": msg}, status=500)
+        if "email" in data:
+            email = data["email"]
+            logger.info("Updating Email")
+            msg, status = firebaseManager.update_user_attr(user_id, "email", email)
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
 
         # Update Dietary Preferences
-        logger.info("Updating Dietary Preferences")
-        msg, status = firebaseManager.update_user_attr(
-            user_id, "dietary_preferences.preferences", preferences
-        )
-        if status != 200:
-            logger.info(msg)
-            return JsonResponse({"Error": msg}, status=500)
+        if "dietaryRestrictions" in data:
+            logger.info("Updating Dietary Preferences")
+            preferences = data["dietaryRestrictions"]
+            msg, status = firebaseManager.update_user_attr(
+                user_id, "dietary_preferences.preferences", preferences
+            )
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
+
+        if "ethnicity" in data:
+            logger.info("Updating Ethnicity")
+            ethnicity = data["ethnicity"]
+            msg, status = firebaseManager.update_user_attr(
+                user_id, "demographicInfo.ethnicity", ethnicity
+            )
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
+
+            # demographicsInfo
+
+        if "race" in data:
+            logger.info("Updating Race")
+            race = data["race"]
+            msg, status = firebaseManager.update_user_attr(
+                user_id, "demographicInfo.race", race
+            )
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
 
         # Update Last Updated Timestamp
         logger.info("Updating Timestamp")

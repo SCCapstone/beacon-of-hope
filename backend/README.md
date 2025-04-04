@@ -611,11 +611,29 @@ poetry run coverage report
 
       ```
 
-- #### `<backend_ip>/beacon/user/<str:user_id>`
+
+- #### `<backend_ip>/beacon/user/update/<str:user_id>`
+  - HTTP Method: `PATCH`
+  - Update user profile in database
+  - Parameters
+    - user_id: PyMongo ObjectId type
+
+
+- #### `<backend_ip>/beacon/user/delete/<str:user_id>`
   - HTTP Method: `DELETE`
   - Delete user profile from database
   - Parameters
     - user_id: PyMongo ObjectId type
+    - Content-type: application/json
+    - ```python
+      {
+        "email": str, # optional
+        "name": str, # optional
+        "ethnicity": str, # optional
+        "race":str, # optional
+        "dietaryRestrictions": List[str] # optional
+      }
+    ```
   - Returns
     - Status code 204 if successful
 
@@ -673,3 +691,4 @@ poetry run coverage report
     ```
     - (400) Invalid request method
     - (500) Internal Server error
+    - Status code 200 if successful
