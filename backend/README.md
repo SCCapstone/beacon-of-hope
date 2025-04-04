@@ -306,100 +306,57 @@ poetry run coverage report
       - Content-type: application/json
 
    - JSON Schema:
-   ```json
-   {
-      "user_id": "674f7d4c5b4425639bef8cd6",
-      "dates_to_regenerate": ["2025-03-08", "2025-03-09"],
-      "meal_plan_config": {
-        "num_days": 3,
-        "num_meals": 3,
-        "meal_configs": [
-            {
-                "meal_name": "breakfast",
-                "beverage": true,
-                "main_course": true,
-                "side": false,
-                "dessert": false
-            },
-            {
-                "meal_name": "lunch",
-                "beverage": true,
-                "main_course": true,
-                "side": true,
-                "dessert": false
-            }
-        ]
-      },
-      "user_preferences": {
-        "dairyPreference": 1,
-        "meatPreference": 0,
-        "nutsPreference": -1
-      }
-   }
+   ```python
+    {
+      "user_id":"67eeda155888fbf4e77f55dc",
+      "dates_to_regenerate":["2025-04-02", "2025-04-03"]
+    }
    ```
    - Response:
       - (200) Successfully regenerated meals
-   ```json
-   {
-      "_id": "67d242226d9fb9f7510444fc",
-      "user_id": "67c149e417717376a4ab1dff",
-      "name": "User Meal Plan",
+   ```python
+    {
       "days": {
-        "2025-03-08": {
-          "_id": "67d242226d9fb9f7510444fa",
-          "meals": [
-            {
-              "_id": "67d242226d9fb9f7510444f8",
-              "meal_name": "breakfast",
-              "meal_types": {
-                "main_course": "26",
-                "beverage": "15"
-              }
-            },
-            {
-              "_id": "67d242226d9fb9f7510444f9",
-              "meal_name": "lunch",
-              "meal_types": {
-                "main_course": "26",
-                "side": "28",
-                "beverage": "15"
-              }
-            }
-          ],
-          "user_id": "67c149e417717376a4ab1dff",
-          "meal_plan_id": "67d242226d9fb9f7510444fc"
+          "2025-04-02": {
+            "_id": "67ef2b008198d59ab19e4e4d",
+            "meals": [
+                {
+                    "_id": "67ef2b008198d59ab19e4e4c",
+                    "meal_name": "Breakfast",
+                    "meal_types": {
+                        "beverage": "8",
+                        "main_course": "38",
+                        "dessert": "11",
+                        "side": "14"
+                    },
+                    "variety_score": 1.0,
+                    "item_coverage_score": 0.5,
+                    "nutritional_constraint_score": 1.0
+                }
+            ],
+            "user_id": "67eeda155888fbf4e77f55dc"
         },
-        "2025-03-09": {
-          "_id": "67d242226d9fb9f7510444fb",
-          "meals": [
-            {
-              "_id": "67d242226d9fb9f7510444f8",
-              "meal_name": "breakfast",
-              "meal_types": {
-                "main_course": "26",
-                "beverage": "15"
-              }
-            },
-            {
-              "_id": "67d242226d9fb9f7510444f9",
-              "meal_name": "lunch",
-              "meal_types": {
-                "main_course": "26",
-                "side": "28",
-                "beverage": "15"
-              }
-            }
-          ],
-          "user_id": "67c149e417717376a4ab1dff",
-          "meal_plan_id": "67d242226d9fb9f7510444fc"
+          "2025-04-03": {
+            "_id": "67ef2b008198d59ab19e4e4d",
+            "meals": [
+                {
+                    "_id": "67ef2b008198d59ab19e4e4c",
+                    "meal_name": "Breakfast",
+                    "meal_types": {
+                        "beverage": "8",
+                        "main_course": "38",
+                        "dessert": "11",
+                        "side": "14"
+                    },
+                    "variety_score": 1.0,
+                    "item_coverage_score": 0.5,
+                    "nutritional_constraint_score": 1.0
+                }
+            ],
+            "user_id": "67eeda155888fbf4e77f55dc"
         }
-      },
-      "scores": {
-        "variety_scores": [1.0, 1.0, 1.0, 1.0],
-        "coverage_scores": [0.5, 0.5, 0.5, 0.5],
-        "constraint_scores": [0.6666666666666667, 0.6666666666666667, 0.6666666666666667, 0.6666666666666667]
       }
-   }
+    }
    ```
       - (400) Missing or invalid input
       - (403) Missing required fields
