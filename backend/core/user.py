@@ -1,12 +1,12 @@
 from typing import Dict, List, Tuple
-from .firebase import FirebaseManager
 
 
 class User:
-
     def __init__(self, user: Dict):
         for key, value in user.items():
             setattr(self, key, value)
+        from .firebase import FirebaseManager
+
         self.firebaseManager = FirebaseManager()
 
     def get_id(self) -> str:

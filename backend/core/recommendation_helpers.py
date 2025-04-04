@@ -632,8 +632,6 @@ def calculate_goodness(
     Also edits 3 lists of 3 scores, which can be used for further statistical analysis
     """
 
-    meal_plan: Dict = meal_plan["days"]
-
     variety_scores = []
     coverage_scores = []
     constraint_scores = []
