@@ -5,6 +5,8 @@ import Logo from "../../assets/LOGO.svg";
 import { useSelector } from "react-redux";
 import { RootState } from "../../app/store";
 
+const BACKEND_URL = "http://127.0.0.1:8000";
+
 interface HeaderProps {
   title: string;
   subtitle: string;
@@ -146,19 +148,31 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     onClick={async () => {
                       if (isGuest) {
                         try {
-                          // Make the API call using the provided URL
-                          await fetch("http://127.0.0.1:8000/beacon/user/exit-default", {
+                          const response = await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
                             },
                             body: JSON.stringify({ user_id: userData._id }),
                           });
+                          
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            console.error("Error while exiting guest mode:", errorData);
+                            alert("Failed to exit guest mode. Please try again.");
+                            return;
+                          }
+                          
+                          const data = await response.json();
+                          if (data.success) {
+                            window.location.href = "/";
+                          } else {
+                            alert("Failed to exit guest mode. Please try again.");
+                          }
                         } catch (error) {
                           console.error("Error while exiting guest mode:", error);
+                          alert("Failed to exit guest mode. Please try again.");
                         }
-                        // Reroute to the welcome screen as before
-                        window.location.href = "/";
                       } else {
                         console.log("Logout clicked");
                         window.location.href = "/";
