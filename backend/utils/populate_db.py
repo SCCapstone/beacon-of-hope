@@ -255,6 +255,37 @@ def populate_mealplans(db):
         print(
             f"MealPlan {mealplan_id} created for user {user_data['username']} and linked successfully."
         )
+def create_test_plan_for_user(user_id: str, username: str = "test_user"):
+    """
+    Create a dummy meal plan for a given user and add its ID to the user's plan_ids array.
+    
+    :param user_id: The Firestore document ID of the user (not the _id field inside the doc)
+    :param username: Optional username (for log display)
+    """
+    mealplan_id = str(ObjectId())
+
+    # Create the test meal plan document
+    mealplan = {
+        "_id": mealplan_id,
+        "user_id": user_id,
+        "name": "Test Plan for Regeneration",
+        "days": {},
+        "scores": {},
+        "created_at": datetime.now(),
+        "updated_at": datetime.now()
+    }
+
+    # Insert into meal_plans collection
+    add_document("meal_plans", mealplan_id, mealplan)
+
+    # Link the plan to the user
+    try:
+        db.collection("users").document(user_id).update({
+            "plan_ids": firestore.ArrayUnion([mealplan_id])
+        })
+        print(f"✔️ Created and linked test meal plan {mealplan_id} for user {username} ({user_id})")
+    except Exception as e:
+        print(f"❌ Failed to update user {user_id} with new plan_id: {e}")
 
 
 def populate_all_data():

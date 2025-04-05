@@ -2,6 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from functools import cache
 from typing import List, Dict
+from .user import User
 
 # Path to  service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
@@ -192,7 +193,8 @@ class FirebaseManager:
         Returns a tuple: (user data or error message, status code)
         """
         try:
-            user, status = self._get_document("users", user_id)
+            user_dict, status = self._get_document("users", user_id)
+            user = User(user_dict)
             return (user, status)
         except Exception as e:
             return (f"Error retrieving user {user_id}: {e}", 500)
