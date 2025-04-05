@@ -362,9 +362,10 @@ export async function transformMealPlanToRecommendations(
       // Get default meal time based on meal name
       const mealTime = getDefaultMealTime(mealData.meal_name);
 
-      // Create the complete Meal object
+      // --- Create the complete Meal object WITH originalBackendId ---
       const completeMeal: Meal = {
-        id: `${dateStr}-${mealData.meal_name}-${mealData._id}-rec`, // Unique ID for the recommended meal
+        id: `${dateStr}-${mealData.meal_name}-${mealData._id}-rec`, // Unique ID for the recommended meal instance
+        originalBackendId: mealData._id, // *** ADD/CONFIRM THIS LINE *** Store the original backend ID
         name: `Recommended ${
           mealData.meal_name.charAt(0).toUpperCase() +
           mealData.meal_name.slice(1)
@@ -383,7 +384,7 @@ export async function transformMealPlanToRecommendations(
       // Create a single MealRecommendation for this complete meal
       const recommendation: MealRecommendation = {
         meal: completeMeal,
-        score: 85, // TODO: Calculate score based on user preferences, etc.
+        score: 85, // TODO: Read in score from API
         reasons: [
           // TODO: Generate dynamic reasons
           "Matches your dietary preferences",
@@ -416,6 +417,6 @@ export async function transformMealPlanToRecommendations(
     }
   }
 
-  console.log("Transformed recommendations:", recommendations);
+  console.log("Transformed recommendations (with originalBackendId):", recommendations);
   return recommendations;
 }

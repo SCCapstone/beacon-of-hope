@@ -18,6 +18,7 @@ interface MealDetailsPanelProps {
   ingredient: Ingredient | null;
   recommendation: MealRecommendation | null;
   onClose: () => void;
+  onAcceptRecommendation: (recommendation: MealRecommendation) => void;
   nutritionalGoals: {
     dailyCalories: number;
     carbohydrates: { min: number; max: number; unit: string };
@@ -39,14 +40,6 @@ interface MealDetailsPanelProps {
   selectedDate: Date;
   currentLevel: VisualizationLevel["type"];
 }
-
-const normalizeDate = (date: Date): Date => {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized;
-};
-
-// --- Helper Components for Detail Panel ---
 
 const DetailHeader: React.FC<{
   title: string;
@@ -300,80 +293,14 @@ const RecommendationReasons: React.FC<{
   </div>
 );
 
-// Helper to render Nutritional Info Grid (reusable)
-const NutritionalInfoGrid: React.FC<{ nutritionalInfo: any }> = ({
-  nutritionalInfo,
-}) => {
-  if (!nutritionalInfo) return null;
-
-  const mainNutrients = Object.entries(nutritionalInfo).filter(
-    ([key, value]) =>
-      value !== undefined &&
-      !["glycemicIndex", "glycemicLoad", "sugarContent"].includes(key)
-  );
-  const optionalNutrients = Object.entries(nutritionalInfo).filter(
-    ([key, value]) =>
-      value !== undefined &&
-      ["glycemicIndex", "glycemicLoad", "sugarContent"].includes(key)
-  );
-
-  return (
-    <div className="p-4 border-b">
-      <h4 className="text-sm font-medium text-gray-700 mb-3">
-        Nutritional Values
-      </h4>
-      {/* Main Nutrients */}
-      <div className="grid grid-cols-4 gap-3">
-        {mainNutrients.map(([key, value]) => (
-          <div key={key} className="bg-white p-3 rounded-lg text-center border">
-            <div className="text-lg font-semibold text-gray-800">
-              {typeof value === "number" ? value.toFixed(0) : String(value)}
-              {key === "calories" ? " kcal" : "g"}
-            </div>
-            <div className="text-xs text-gray-500 capitalize">
-              {key.replace(/([A-Z])/g, " $1").trim()}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Optional Nutrients */}
-      {optionalNutrients.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {optionalNutrients.map(([key, value]) => (
-            <div
-              key={key}
-              className="bg-white p-3 rounded-lg text-center border"
-            >
-              <div className="text-lg font-semibold text-gray-800">
-                {typeof value === "number"
-                  ? value.toFixed(key === "glycemicIndex" ? 1 : 0)
-                  : String(value)}
-                {key === "sugarContent" ? "g" : ""}
-              </div>
-              <div className="text-xs text-gray-500 capitalize">
-                {key === "glycemicIndex"
-                  ? "Glycemic Index"
-                  : key === "glycemicLoad"
-                  ? "Glycemic Load"
-                  : "Sugars"}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
 // --- Main Panel Component ---
-
 export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   meal,
   food,
   ingredient,
   recommendation,
   onClose,
+  onAcceptRecommendation,
   nutritionalGoals,
   currentNutritionalValues,
   // baseNutritionalValues,
@@ -395,6 +322,24 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
     ? "meal"
     : "none";
 
+  // Determine if the primary selected item is a recommendation (or part of one)
+  const isShowingRecommendation = recommendation !== null;
+
+  const handleAcceptClick = () => {
+    if (recommendation) {
+      // Confirmation dialog
+      const confirmAccept = window.confirm(
+        `Add "${recommendation.meal.name}" to your meal history for ${format(
+          recommendation.meal.date || selectedDate,
+          "MMM d"
+        )}? This cannot be undone.`
+      );
+      if (confirmAccept) {
+        onAcceptRecommendation(recommendation);
+      }
+    }
+  };
+
   const renderContent = () => {
     if (!displayItem) {
       return (
@@ -405,13 +350,17 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             <span className="font-medium capitalize">{currentLevel}</span> level
             for {format(selectedDate, "MMM d, yyyy")}
           </p>
+          <p className="mt-4 text-xs text-gray-400">
+            Recommended meals are suggestions and won't be saved unless you
+            explicitly accept them. Unaccepted recommendations will disappear
+            when you close the browser tab/window.
+          </p>
         </div>
       );
     }
 
     switch (displayType) {
       case "recommendation": {
-        // This case now only triggers if ONLY a recommendation is selected (no specific food/ingredient)
         const rec = displayItem as MealRecommendation;
         const recDate = rec.meal.date || selectedDate;
         return (
@@ -426,21 +375,34 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               score={rec.score}
               onClose={onClose}
             />
+            {/* --- Accept Button --- */}
+            <div className="p-4 border-b">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleAcceptClick}
+                className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
+              >
+                Accept Recommendation
+              </motion.button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Accepting adds this meal to your history.
+              </p>
+            </div>
+            {/* --- End Accept Button --- */}
             <RecommendationReasons
               reasons={rec.reasons}
               benefits={rec.healthBenefits}
             />
             <NutritionalBreakdown
               info={rec.meal.nutritionalInfo}
-              impact={rec.nutritionalImpact} // Show full impact when viewing the whole recommendation
+              impact={rec.nutritionalImpact}
             />
             <FoodList foods={rec.meal.foods} />
-            {/* Add more recommendation-specific details if needed */}
           </>
         );
       }
       case "meal": {
-        // This case handles selected TRACE meals (recommendation would be null)
         const m = displayItem as Meal;
         const mealDate = m.date || selectedDate;
         return (
@@ -449,14 +411,13 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               title={m.name}
               subtitle={`${
                 m.type.charAt(0).toUpperCase() + m.type.slice(1)
-              } on ${format(mealDate, "MMM d")}`}
-              isRecommendation={false} // Trace meals are not recommendations
+              } on ${format(mealDate, "MMM d")} (Saved)`} // Indicate it's saved
+              isRecommendation={false}
               onClose={onClose}
             />
             <NutritionalBreakdown info={m.nutritionalInfo} />
             <FoodList foods={m.foods} />
             <div className="p-4 border-b space-y-2">
-              {/* <GeneralInfo label="Time" value={m.time} /> */}
               <TagsList label="Cultural Tips" tags={m.culturalTips} />
               <TagsList label="Health Benefits" tags={m.healthBenefits} />
             </div>
@@ -465,9 +426,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       }
       case "food": {
         const f = displayItem as Food;
-        // Check if this selected food belongs to the currently selected recommendation (if any)
         const isRecommendedFood =
-          recommendation !== null && // A recommendation must be selected
+          recommendation !== null &&
           recommendation.meal.foods.some((recFood) => recFood.id === f.id);
 
         return (
@@ -478,27 +438,28 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isRecommendation={isRecommendedFood} // Pass flag to header
               onClose={onClose}
             />
-            {/* Recommendation Context */}
+            {/* Recommendation Context & Accept Button */}
             {isRecommendedFood && recommendation && (
               <div className="p-4 border-b bg-green-50">
-                <h4 className="text-sm font-medium text-green-800 mb-1">
-                  Recommendation Context
+                <h4 className="text-sm font-medium text-green-800 mb-2">
+                  Part of Recommendation
                 </h4>
-                <p className="text-xs text-green-700">
-                  Part of the '
+                <p className="text-xs text-green-700 mb-3">
+                  This food is part of the '
                   <span className="font-semibold">
                     {recommendation.meal.name}
                   </span>
-                  ' recommendation (Score: {recommendation.score}).
+                  ' recommendation (Score: {recommendation.score}). Accepting
+                  will save the entire recommended meal.
                 </p>
-                {/* Optional: Link to view full recommendation? */}
-                {/* Optional: Show reasons specific to this food if available */}
-                {recommendation.reasons &&
-                  recommendation.reasons.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">
-                      Reason: {recommendation.reasons[0]}
-                    </p> // Show first reason as example
-                  )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAcceptClick} // Use the same handler
+                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
+                >
+                  Accept Full Recommendation
+                </motion.button>
               </div>
             )}
 
@@ -530,13 +491,12 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         const i = displayItem as Ingredient;
         // Check if this selected ingredient belongs to the currently selected recommendation (if any)
         const isRecommendedIngredient =
-          recommendation !== null && // A recommendation must be selected
-          recommendation.meal.foods.some(
-            (recFood) =>
-              recFood.ingredients.some(
-                (ing) =>
-                  ing.id === i.id || (!ing.id && !i.id && ing.name === i.name)
-              ) // Handle missing IDs
+          recommendation !== null &&
+          recommendation.meal.foods.some((recFood) =>
+            recFood.ingredients.some(
+              (ing) =>
+                ing.id === i.id || (!ing.id && !i.id && ing.name === i.name)
+            )
           );
 
         const categoryColor =
@@ -549,35 +509,31 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             <DetailHeader
               title={i.name}
               subtitle={`Ingredient (${i.amount} ${i.unit})`}
-              isRecommendation={isRecommendedIngredient} // Pass flag to header
+              isRecommendation={isRecommendedIngredient}
               onClose={onClose}
             />
-            {/* --- Recommendation Context (NEW) --- */}
+            {/* Recommendation Context & Accept Button */}
             {isRecommendedIngredient && recommendation && (
               <div className="p-4 border-b bg-green-50">
-                <h4 className="text-sm font-medium text-green-800 mb-1">
-                  Recommendation Context
+                <h4 className="text-sm font-medium text-green-800 mb-2">
+                  Part of Recommendation
                 </h4>
-                <p className="text-xs text-green-700">
-                  Used within the '
+                <p className="text-xs text-green-700 mb-3">
+                  This ingredient is used in the '
                   <span className="font-semibold">
                     {recommendation.meal.name}
                   </span>
-                  ' recommendation.
+                  ' recommendation. Accepting will save the entire recommended
+                  meal.
                 </p>
-                {/* Optional: List foods it's in? */}
-                {/* {recommendation.meal.foods.filter(food => food.ingredients.some(ing => ing.id === i.id)).map(food => <span key={food.id}>{food.name}</span>)} */}
-                {/* Optional: Highlight nutritional contribution */}
-                {i.nutritionalInfo.fiber > 2 && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Contributes fiber to the meal.
-                  </p>
-                )}
-                {i.nutritionalInfo.protein > 5 && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Adds protein to the meal.
-                  </p>
-                )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAcceptClick} // Use the same handler
+                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
+                >
+                  Accept Full Recommendation
+                </motion.button>
               </div>
             )}
             {/* --- End Recommendation Context --- */}
@@ -617,7 +573,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               displayType +
               (displayItem as any)?.id +
               currentLevel +
-              (recommendation ? "rec" : "trace")
+              (isShowingRecommendation ? "rec" : "trace") // Key changes based on recommendation status
             }
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}

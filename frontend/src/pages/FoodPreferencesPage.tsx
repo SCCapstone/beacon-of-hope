@@ -317,13 +317,37 @@ const FoodPreferencesPage: React.FC = () => {
 
       const result = await responseBandit.json();
 
+      // Clear Session Cache BEFORE navigating
+      try {
+        let clearedCount = 0;
+        console.log(
+          "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
+        );
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("recommendations-")) {
+            sessionStorage.removeItem(key);
+            // console.log(`FoodPreferencesPage: Cleared sessionStorage cache key: ${key}`); // Can be verbose
+            clearedCount++;
+          }
+        });
+        console.log(
+          `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
+        );
+      } catch (cacheError) {
+        console.error(
+          "FoodPreferencesPage: Error clearing sessionStorage:",
+          cacheError
+        );
+      }
+      // End Cache Clearing
+
       // Show success animation
       setLoadingStage("Success! Your meal plan is ready.");
       setShowSuccess(true);
 
       console.log("Successful response:", result);
 
-      localStorage.setItem("mealPlan", JSON.stringify(result));
+      localStorage.setItem("mealPlan", JSON.stringify(result)); // Save the NEW plan
 
       // Navigate after showing success for a moment
       setTimeout(() => {

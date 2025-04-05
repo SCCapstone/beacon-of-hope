@@ -38,7 +38,8 @@ export interface Food {
 }
 
 export interface Meal {
-  id: string;
+  id: string; // Unique ID for this specific instance (could be trace or recommendation)
+  originalBackendId?: string; // Original _id from backend if it's based on a recommendation
   name: string;
   time: string;
   type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -47,7 +48,7 @@ export interface Meal {
   diabetesFriendly?: boolean;
   culturalTips?: string[];
   healthBenefits?: string[];
-  date?: Date;
+  date?: Date; // Date associated with the meal
 }
 
 export interface DayMeals {
