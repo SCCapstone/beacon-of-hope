@@ -30,14 +30,23 @@ import {
   isSameDay,
   startOfDay,
   parseISO,
+  isValid as isValidDate,
 } from "date-fns";
 
-// Normalize date handling function (handle string input)
-const normalizeDate = (date: Date | string): Date => {
-  const dateObj = typeof date === "string" ? parseISO(date) : date;
-  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+// Robust date normalization
+const normalizeDate = (date: Date | string | null | undefined): Date => {
+  if (date === null || date === undefined) {
     console.warn(
-      "Viz normalizeDate received invalid input, returning current date:",
+      "Viz normalizeDate received null/undefined, returning current date."
+    );
+    const fallbackDate = new Date();
+    fallbackDate.setHours(0, 0, 0, 0);
+    return fallbackDate;
+  }
+  const dateObj = typeof date === "string" ? parseISO(date) : date;
+  if (!isValidDate(dateObj)) {
+    console.warn(
+      "Viz normalizeDate received invalid date, returning current date:",
       date
     );
     const fallbackDate = new Date();
@@ -56,7 +65,8 @@ const isSameNormalizedDay = (
   // Ensure both are normalized Date objects before comparing
   const d1 = normalizeDate(date1);
   const d2 = normalizeDate(date2);
-  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false; // Invalid date check
+  // Check if normalization resulted in valid dates before comparing
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false;
   return isSameDay(d1, d2);
 };
 
@@ -117,111 +127,51 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     const savedNames = localStorage.getItem("mealBinNames");
     return savedNames ? JSON.parse(savedNames) : ["Meal 1", "Meal 2", "Meal 3"];
   });
-  const traceDataRef = useRef(initialTraceData);
+  const traceDataRef = useRef<DayMeals[]>(initialTraceData);
 
   // --- State Synchronization and Data Handling ---
 
-  // Update local traceData state and ref when the initialTraceData prop changes
+  // Effect to update local traceData state when initialTraceData prop changes
   useEffect(() => {
-    // console.log("Viz: initialTraceData prop changed, attempting smart merge.");
-    const currentLocalData = traceDataRef.current;
+    console.log("Viz: initialTraceData prop changed. Updating local state.");
+    // Normalize dates in the incoming prop data
+    const normalizedPropData = initialTraceData
+      .map((day) => ({
+        ...day,
+        date: normalizeDate(day.date),
+        meals: Array.isArray(day.meals)
+          ? day.meals.map((meal) => ({
+              ...meal,
+              date: normalizeDate(day.date), // Ensure meal date matches day date
+            }))
+          : [],
+      }))
+      .filter((day) => isValidDate(day.date)); // Filter out any days with invalid dates after normalization
 
-    // Create a map from the incoming data from the parent for efficient lookup
-    const parentDataMap = new Map(
-      initialTraceData
-        .map((day) => {
-          const normalizedDayDate = normalizeDate(day.date); // Normalize
-          const dateKey =
-            normalizedDayDate instanceof Date &&
-            !isNaN(normalizedDayDate.getTime())
-              ? format(normalizedDayDate, "yyyy-MM-dd")
-              : null;
-          // Ensure meals array exists and is an array
-          const meals = Array.isArray(day.meals) ? [...day.meals] : [];
-          return dateKey
-            ? [dateKey, { ...day, date: normalizedDayDate, meals }]
-            : null;
-        })
-        .filter((item) => item !== null) as [string, DayMeals][]
+    // Simple approach: Directly use the normalized prop data as the source of truth for display.
+    // Optimistic updates will be handled separately and merged visually if needed,
+    // but the prop represents the confirmed state from the parent.
+    const sortedNormalizedData = [...normalizedPropData].sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
     );
 
-    // Create a map for the merged result, initially populated with parent data
-    const mergedDataMap = new Map(parentDataMap);
+    // Update the ref immediately
+    traceDataRef.current = sortedNormalizedData;
 
-    // Iterate through the current local state to find optimistic/local-only updates
-    currentLocalData.forEach((localDay) => {
-      const normalizedLocalDayDate = normalizeDate(localDay.date); // Normalize
-      const dateStr =
-        normalizedLocalDayDate instanceof Date &&
-        !isNaN(normalizedLocalDayDate.getTime())
-          ? format(normalizedLocalDayDate, "yyyy-MM-dd")
-          : null;
-      if (!dateStr) return;
-
-      const mergedDay = mergedDataMap.get(dateStr);
-
-      if (!mergedDay) {
-        // If this day doesn't exist in parent data at all, keep the local day entirely
-        // console.log(`Viz Merge: Keeping local-only day ${dateStr}`);
-        mergedDataMap.set(dateStr, {
-          ...localDay,
-          date: normalizedLocalDayDate,
-        }); // Ensure date is normalized
-      } else {
-        // If the day exists in parent data, compare meals
-        const mergedMealMap = new Map(mergedDay.meals.map((m) => [m.id, m]));
-        let dayChanged = false;
-
-        // Ensure localDay.meals is an array before iterating
-        const localMeals = Array.isArray(localDay.meals) ? localDay.meals : [];
-
-        localMeals.forEach((localMeal) => {
-          if (!mergedMealMap.has(localMeal.id)) {
-            // This meal exists locally but not in the (potentially updated) parent data for this day
-            // This is likely our optimistically added meal. Add it back.
-            // console.log(
-            //   `Viz Merge: Adding local-only meal '${localMeal.id}' to ${dateStr}`
-            // );
-            mergedMealMap.set(localMeal.id, localMeal);
-            dayChanged = true;
-          }
-          // Optional: Add logic here to handle cases where a meal exists in both
-          // but might have been updated locally (though less likely in this scenario).
-        });
-
-        if (dayChanged) {
-          // Update the day in the merged map with the combined meals
-          mergedDataMap.set(dateStr, {
-            ...mergedDay,
-            date: normalizedLocalDayDate, // Ensure date is normalized
-            meals: Array.from(mergedMealMap.values()),
-          });
-        }
-      }
-    });
-
-    // Convert the final merged map back to an array and sort by date
-    const mergedDataArray = Array.from(mergedDataMap.values()).sort(
-      (a, b) =>
-        normalizeDate(a.date).getTime() - normalizeDate(b.date).getTime() // Normalize for sort
-    );
-
-    // Update the ref *immediately* with the merged data
-    traceDataRef.current = mergedDataArray;
-
-    // Use JSON stringify for comparison, ensure dates are handled consistently if needed
-    // A deep comparison function might be more robust if date objects cause issues
-    if (JSON.stringify(mergedDataArray) !== JSON.stringify(traceData)) {
-      // console.log(
-      //   "Viz Merge: Merged data differs from local state. Updating traceData state."
-      // );
-      setTraceData(mergedDataArray);
+    // Update the state if it differs from the new prop data
+    // Use a deep comparison or JSON stringify (careful with functions/Date objects if not serialized properly)
+    // For simplicity, let's update state if the length or first/last date differs, or use stringify
+    if (JSON.stringify(sortedNormalizedData) !== JSON.stringify(traceData)) {
+      console.log(
+        "Viz: Updating traceData state with new normalized data from props."
+      );
+      setTraceData(sortedNormalizedData);
     } else {
-      // console.log(
-      //   "Viz Merge: Merged data is the same as local state. No update needed."
-      // );
+      console.log(
+        "Viz: Normalized prop data matches current traceData state. No update needed."
+      );
     }
-  }, [initialTraceData]);
+  }, [initialTraceData]); // Rerun only when the prop changes
 
   const handleMealBinNamesUpdate = (newNames: string[]) => {
     setMealBinNames(newNames);
@@ -237,57 +187,80 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           setLoadingRecommendations(true);
           setError(null);
 
-          const mealPlanKey = JSON.stringify(mealPlan);
-          const cachedRecommendations = sessionStorage.getItem(
-            `recommendations-${mealPlanKey}`
+          // const mealPlanKey = JSON.stringify(mealPlan);
+          // const cachedRecommendations = sessionStorage.getItem(
+          //   `recommendations-${mealPlanKey}`
+          // );
+
+          // let recommendations: DayRecommendations[];
+          // if (cachedRecommendations) {
+          //   recommendations = (
+          //     JSON.parse(cachedRecommendations) as Array<{
+          //       date: string;
+          //       recommendations: MealRecommendation[];
+          //     }>
+          //   ).map(
+          //     (day): DayRecommendations => ({
+          //       ...day,
+          //       date: normalizeDate(day.date), // Normalize date on load
+          //     })
+          //   );
+          //   // console.log("Viz: Loaded recommendations from sessionStorage.");
+          // } else {
+          //   // console.log("Viz: Transforming meal plan to recommendations...");
+          //   const transformedData = await transformMealPlanToRecommendations(
+          //     mealPlan
+          //   );
+          //   recommendations = transformedData.map((day) => ({
+          //     date: normalizeDate(day.date), // Normalize date on transform
+          //     recommendations: day.recommendations || [],
+          //   }));
+          //   // console.log(
+          //   //   "Viz: Transformation complete. Caching in sessionStorage."
+          //   // );
+          //   sessionStorage.setItem(
+          //     `recommendations-${mealPlanKey}`,
+          //     JSON.stringify(
+          //       recommendations.map((day) => ({
+          //         ...day,
+          //         date: format(day.date, "yyyy-MM-dd"),
+          //       }))
+          //     ) // Store date as string
+          //   );
+          // }
+
+          // Always transform
+          const transformedData = await transformMealPlanToRecommendations(
+            mealPlan
           );
 
-          let recommendations: DayRecommendations[];
-          if (cachedRecommendations) {
-            recommendations = (
-              JSON.parse(cachedRecommendations) as Array<{
-                date: string;
-                recommendations: MealRecommendation[];
-              }>
-            ).map(
-              (day): DayRecommendations => ({
-                ...day,
-                date: normalizeDate(day.date), // Normalize date on load
-              })
-            );
-            // console.log("Viz: Loaded recommendations from sessionStorage.");
-          } else {
-            // console.log("Viz: Transforming meal plan to recommendations...");
-            const transformedData = await transformMealPlanToRecommendations(
-              mealPlan
-            );
-            recommendations = transformedData.map((day) => ({
+          // Normalize dates within the transformed recommendations
+          const recommendations = transformedData
+            .map((day) => ({
               date: normalizeDate(day.date), // Normalize date on transform
-              recommendations: day.recommendations || [],
-            }));
-            // console.log(
-            //   "Viz: Transformation complete. Caching in sessionStorage."
-            // );
-            sessionStorage.setItem(
-              `recommendations-${mealPlanKey}`,
-              JSON.stringify(
-                recommendations.map((day) => ({
-                  ...day,
-                  date: format(day.date, "yyyy-MM-dd"),
-                }))
-              ) // Store date as string
-            );
-          }
+              recommendations: (day.recommendations || []).map((rec) => ({
+                ...rec,
+                meal: {
+                  ...rec.meal,
+                  date: normalizeDate(day.date), // Ensure recommendation meal date matches day date
+                },
+              })),
+            }))
+            .filter((day) => isValidDate(day.date)); // Filter out invalid dates
+
+          console.log("Viz: Transformation complete.");
+          // REMOVED: SessionStorage set
+          // sessionStorage.setItem(...)
+
           setRecommendationData(recommendations);
         } else {
-          // If no meal plan, ensure recommendation data is empty
           setRecommendationData([]);
           console.log("Viz: No meal plan provided, clearing recommendations.");
         }
       } catch (error) {
         console.error("Viz: Error transforming meal plan:", error);
         setError("Error loading recommendations");
-        setRecommendationData([]); // Clear data on error
+        setRecommendationData([]);
       } finally {
         setLoadingRecommendations(false);
       }
@@ -450,10 +423,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         return; // Stop if user cancels
       }
 
-      console.log("Viz: Accepting recommendation:", acceptedRec.meal.name, "ID:", acceptedRec.meal.id);
+      console.log(
+        "Viz: Accepting recommendation:",
+        acceptedRec.meal.name,
+        "ID:",
+        acceptedRec.meal.id
+      );
       const acceptedMeal = acceptedRec.meal;
-      const backendIdToRemove = acceptedMeal.originalBackendId;
-      const mealDate = normalizeDate(acceptedMeal.date || selectedDate);
+      const backendIdToRemove = acceptedMeal.originalBackendId; // ID of the recommendation *source*
+      const mealDate = normalizeDate(acceptedMeal.date || selectedDate); // Ensure date is normalized
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
       console.log(
@@ -465,63 +443,55 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           "Viz: CRITICAL - Cannot process acceptance. originalBackendId is missing:",
           acceptedRec
         );
-        // Optionally show an error to the user
         alert(
           "Error: Could not accept recommendation due to missing internal ID."
         );
-        return; // Stop processing if the ID is missing
+        return;
       }
 
-      // 1. Optimistic UI Update for Trace Data (using setTraceData)
+      // 1. Optimistic UI Update for Trace Data (using setTraceData and traceDataRef)
+      const traceMealToAdd: Meal = {
+        ...acceptedMeal,
+        id: `trace-${acceptedMeal.id}-${Date.now()}`, // Create a unique ID for the trace version
+        date: mealDate, // Assign the correct normalized date
+        // Ensure originalBackendId is NOT copied to the trace meal unless specifically needed
+        // originalBackendId: undefined, // Or remove the property
+      };
+      // Remove originalBackendId if it exists on traceMealToAdd
+      delete traceMealToAdd.originalBackendId;
+
       setTraceData((prevTraceData) => {
         const newData = [...prevTraceData];
         const dayIndex = newData.findIndex((day) =>
           isSameNormalizedDay(day.date, mealDate)
         );
 
-        const traceMealToAdd: Meal = {
-          ...acceptedMeal,
-          id: `trace-${acceptedMeal.id}-${Date.now()}`,
-          date: mealDate, // Ensure date is normalized Date object
-        };
-
         if (dayIndex > -1) {
-          const day = newData[dayIndex];
-          // Ensure meals array exists
-          const currentMeals = Array.isArray(day.meals) ? day.meals : [];
-          // Check if a meal with the *same original backend ID* already exists in trace
-          const alreadyExists = currentMeals.some(
-            (m) => m.originalBackendId === backendIdToRemove
+          // Add to existing day
+          newData[dayIndex] = {
+            ...newData[dayIndex],
+            date: mealDate, // Ensure date is normalized
+            meals: [...(newData[dayIndex].meals || []), traceMealToAdd],
+          };
+          console.log(
+            `Viz: Optimistically added meal '${traceMealToAdd.id}' to existing day ${mealDateStr} in traceData state.`
           );
-          if (!alreadyExists) {
-            newData[dayIndex] = {
-              ...day,
-              date: mealDate,
-              meals: [...currentMeals, traceMealToAdd],
-            };
-            console.log(
-              `Viz: Optimistically added meal '${traceMealToAdd.id}' (from rec ${backendIdToRemove}) to traceData state for ${mealDateStr}.`
-            );
-          } else {
-            console.log(
-              `Viz: Meal with original ID '${backendIdToRemove}' already in traceData state for ${mealDateStr}. Skipping optimistic add.`
-            );
-          }
         } else {
+          // Add new day
           newData.push({ date: mealDate, meals: [traceMealToAdd] });
           console.log(
             `Viz: Optimistically created new day ${mealDateStr} in traceData state for meal '${traceMealToAdd.id}'.`
           );
         }
+        // Sort and update ref
         const sortedData = newData.sort(
-          (a, b) =>
-            normalizeDate(a.date).getTime() - normalizeDate(b.date).getTime()
+          (a, b) => a.date.getTime() - b.date.getTime()
         );
-        traceDataRef.current = sortedData;
+        traceDataRef.current = sortedData; // Update ref immediately
         return sortedData;
       });
 
-      // 2. Update Recommendation Data State
+      // 2. Optimistic Update for Recommendation Data State (Remove the accepted one)
       setRecommendationData((prevRecData) => {
         const updatedRecData = prevRecData
           .map((dayRec) => {
@@ -530,20 +500,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 ...dayRec,
                 date: normalizeDate(dayRec.date), // Ensure date is normalized
                 recommendations: dayRec.recommendations.filter(
-                  (rec) => rec.meal.id !== acceptedRec.meal.id
+                  (rec) => rec.meal.id !== acceptedRec.meal.id // Filter by the recommendation's unique meal ID
                 ),
               };
             }
             return { ...dayRec, date: normalizeDate(dayRec.date) }; // Ensure date is normalized
           })
-          .filter((dayRec) => dayRec.recommendations.length > 0);
-        // console.log(
-        //   "Viz: Updated recommendationData state (removed accepted visual)."
-        // );
+          .filter((dayRec) => dayRec.recommendations.length > 0); // Remove day if no recommendations left
+        console.log(
+          "Viz: Optimistically updated recommendationData state (removed accepted visual)."
+        );
         return updatedRecData;
       });
 
-      // 3. Update localStorage["mealPlan"]
+      // 3. Update localStorage["mealPlan"] (Remove the source recommendation)
       try {
         const rawMealPlanString = localStorage.getItem("mealPlan");
         if (rawMealPlanString) {
@@ -552,16 +522,27 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           if (
             rawMealPlan.days &&
             rawMealPlan.days[mealDateStr] &&
-            rawMealPlan.days[mealDateStr].meals
+            Array.isArray(rawMealPlan.days[mealDateStr].meals) // Check if meals is an array
           ) {
             const initialLength = rawMealPlan.days[mealDateStr].meals.length;
+            // Filter out the meal using the originalBackendId
             rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
               mealDateStr
             ].meals.filter((rawMeal: any) => rawMeal._id !== backendIdToRemove);
             const finalLength = rawMealPlan.days[mealDateStr].meals.length;
+
             if (finalLength < initialLength) {
               changed = true;
-              if (finalLength === 0) delete rawMealPlan.days[mealDateStr];
+              console.log(
+                `Viz: Removed raw meal with _id '${backendIdToRemove}' from localStorage["mealPlan"] for date ${mealDateStr}.`
+              );
+              // If the day becomes empty, remove the day entry
+              if (finalLength === 0) {
+                console.log(
+                  `Viz: Removing empty day ${mealDateStr} from localStorage["mealPlan"].`
+                );
+                delete rawMealPlan.days[mealDateStr];
+              }
             } else {
               console.warn(
                 `Viz: Did not find raw meal with _id '${backendIdToRemove}' in localStorage["mealPlan"] for date ${mealDateStr} to remove.`
@@ -572,14 +553,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               `Viz: Could not find day ${mealDateStr} or its meals array in localStorage["mealPlan"] for removal.`
             );
           }
+
           if (changed) {
             localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
-            Object.keys(sessionStorage).forEach((key) => {
-              if (key.startsWith("recommendations-"))
-                sessionStorage.removeItem(key);
-            });
+            // Object.keys(sessionStorage).forEach((key) => {
+            //   if (key.startsWith("recommendations-"))
+            //     sessionStorage.removeItem(key);
+            // });
             console.log(
-              "Viz: Updated localStorage['mealPlan'] and cleared recommendation caches after acceptance."
+              "Viz: Updated localStorage['mealPlan'] after acceptance."
             );
           }
         } else {
@@ -600,7 +582,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedFood(null);
       setSelectedIngredient(null);
 
-      // 5. Trigger Re-fetch for Persistence
+      // 5. Trigger Re-fetch for Persistence (Tell parent to confirm the state)
+      // This is crucial. The parent will fetch, get the updated data (including the newly added meal),
+      // and pass it back down via initialTraceData, replacing the optimistic update with confirmed data.
+      console.log(
+        "Viz: Requesting parent fetch to confirm acceptance for date:",
+        mealDateStr
+      );
       onRequestFetch({ datesToFetch: [mealDateStr] });
 
       console.log("Viz: Recommendation acceptance processing finished.");
@@ -620,7 +608,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   // Reject Recommendation Handler
   const handleRejectRecommendation = useCallback(
     (rejectedRec: MealRecommendation) => {
-      console.log("Viz: handleRejectRecommendation invoked for:", rejectedRec.meal.name, rejectedRec.meal.id);
+      console.log(
+        "Viz: handleRejectRecommendation invoked for:",
+        rejectedRec.meal.name,
+        rejectedRec.meal.id
+      );
 
       const confirmReject = window.confirm(
         `Are you sure you want to reject the recommendation "${
@@ -662,7 +654,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         return;
       }
 
-      // 1. Update Recommendation Data State (Remove visually)
+      // 1. Optimistic Update Recommendation Data State (Remove visually)
       setRecommendationData((prevRecData) => {
         const updatedRecData = prevRecData
           .map((dayRec) => {
@@ -671,7 +663,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 ...dayRec,
                 date: normalizeDate(dayRec.date),
                 recommendations: dayRec.recommendations.filter(
-                  (rec) => rec.meal.id !== rejectedRec.meal.id
+                  (rec) => rec.meal.id !== rejectedRec.meal.id // Filter by unique recommendation meal ID
                 ),
               };
             }
@@ -679,8 +671,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           })
           .filter((dayRec) => dayRec.recommendations.length > 0); // Remove day if no recommendations left
         console.log(
-          "Viz: Updated recommendationData state (removed rejected visual)."
+          "Viz: Optimistically updated recommendationData state (removed rejected visual)."
         );
+
         return updatedRecData;
       });
 
@@ -694,9 +687,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           if (
             rawMealPlan.days &&
             rawMealPlan.days[mealDateStr] &&
-            rawMealPlan.days[mealDateStr].meals
+            Array.isArray(rawMealPlan.days[mealDateStr].meals) // Check array
           ) {
             const initialLength = rawMealPlan.days[mealDateStr].meals.length;
+            // Filter using the originalBackendId
             rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
               mealDateStr
             ].meals.filter((rawMeal: any) => rawMeal._id !== backendIdToRemove);
@@ -731,15 +725,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               "Viz: Updated localStorage['mealPlan'] after rejection."
             );
 
-            // Clear recommendation cache as the source has changed
-            Object.keys(sessionStorage).forEach((key) => {
-              if (key.startsWith("recommendations-")) {
-                sessionStorage.removeItem(key);
-              }
-            });
-            console.log(
-              "Viz: Cleared all sessionStorage recommendation caches after rejection."
-            );
+            // // Clear recommendation cache as the source has changed
+            // Object.keys(sessionStorage).forEach((key) => {
+            //   if (key.startsWith("recommendations-")) {
+            //     sessionStorage.removeItem(key);
+            //   }
+            // });
+            // console.log(
+            //   "Viz: Cleared all sessionStorage recommendation caches after rejection."
+            // );
           }
         } else {
           console.warn(
@@ -765,7 +759,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     },
     [
       selectedDate,
-      recommendationData,
+      // recommendationData,
       setRecommendationData,
       selectedRecommendation,
       setSelectedRecommendation,
@@ -858,63 +852,75 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Effect to check for missing data when level or selectedDate prop changes
   useEffect(() => {
-    // console.log(
-    //   `Viz Effect: Checking fetch for level=${currentLevel}, date=${format(
-    //     selectedDate,
-    //     "yyyy-MM-dd"
-    //   )}`
-    // );
+    const normalizedSelected = normalizeDate(selectedDate);
+    if (isNaN(normalizedSelected.getTime())) {
+      console.error(
+        "Viz Fetch Check: Invalid selectedDate, skipping fetch check."
+      );
+      return;
+    }
+
+    console.log(
+      `Viz Effect: Checking fetch for level=${currentLevel}, date=${format(
+        normalizedSelected, // Use normalized date
+        "yyyy-MM-dd"
+      )}`
+    );
 
     const { requiredStartDate, requiredEndDate } = getRequiredRange(
       currentLevel,
-      selectedDate
+      normalizedSelected // Use normalized date
     );
+
+    // Ensure start/end dates are valid before creating interval
+    if (
+      !isValidDate(requiredStartDate) ||
+      !isValidDate(requiredEndDate) ||
+      requiredStartDate > requiredEndDate
+    ) {
+      console.error(
+        "Viz Fetch Check: Invalid date range calculated, skipping fetch check.",
+        { requiredStartDate, requiredEndDate }
+      );
+      return;
+    }
+
     const requiredDates = eachDayOfInterval({
       start: requiredStartDate,
       end: requiredEndDate,
     });
 
-    const currentTraceData = traceDataRef.current; // Use ref for current data
+    // Use the ref for the most current representation of loaded data
+    const currentLoadedData = traceDataRef.current;
     const existingDates = new Set(
-      currentTraceData
+      currentLoadedData
         .map((day) => {
-          const normalizedDayDate = normalizeDate(day.date); // Normalize
-          return normalizedDayDate instanceof Date &&
-            !isNaN(normalizedDayDate.getTime())
+          const normalizedDayDate = normalizeDate(day.date); // Normalize date from data
+          return isValidDate(normalizedDayDate)
             ? format(normalizedDayDate, "yyyy-MM-dd")
             : null;
         })
-        .filter((dateStr) => dateStr !== null)
+        .filter((dateStr): dateStr is string => dateStr !== null) // Type guard
     );
 
     const missingDateStrings = requiredDates
-      .map((date) => format(normalizeDate(date), "yyyy-MM-dd")) // Normalize before format
+      .map((date) => format(normalizeDate(date), "yyyy-MM-dd")) // Normalize required dates
       .filter((dateStr) => !existingDates.has(dateStr));
 
     if (missingDateStrings.length > 0) {
-      // console.log(
-      //   "Viz Effect: Requesting fetch for missing dates:",
-      //   missingDateStrings
-      // );
-      // Request fetch with only the missing dates
+      console.log(
+        "Viz Effect: Requesting fetch for missing dates:",
+        missingDateStrings
+      );
       onRequestFetch({
         datesToFetch: missingDateStrings,
       });
+    } else {
+      console.log(
+        "Viz Effect: All required dates appear loaded according to traceDataRef. No fetch request needed."
+      );
     }
-    // else {
-    //   console.log(
-    //     "Viz Effect: All required dates already loaded. No fetch request needed."
-    //   );
-    // }
-    // Depend on the formatted date string and level to avoid issues with Date object identity
-    // Also depend on traceDataRef.current indirectly via initialTraceData prop in the other effect
-  }, [
-    currentLevel,
-    selectedDate,
-    getRequiredRange,
-    onRequestFetch,
-    initialTraceData,
-  ]);
+  }, [currentLevel, selectedDate, getRequiredRange, onRequestFetch]);
 
   // --- Event Handlers for UI Controls ---
 
@@ -989,16 +995,21 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Filter TRACE data for the visible range using the local traceData state
   const visibleTraceData = useMemo(() => {
-    return datesToDisplay.map((date) => {
-      const normalizedDate = normalizeDate(date); // Normalize
+    // Ensure datesToDisplay contains valid, normalized dates
+    const validDatesToDisplay = datesToDisplay.map(normalizeDate).filter(isValidDate);
+
+    return validDatesToDisplay.map((date) => {
+      // Find data for the current date using normalized comparison
       const existingDay = traceData.find((day) =>
-        isSameNormalizedDay(day.date, normalizedDate)
+        isSameNormalizedDay(day.date, date) // Use robust comparison
       );
       if (existingDay) {
-        return { ...existingDay, date: normalizedDate }; // Return normalized date
+        // Return existing data, ensuring its date is the normalized one
+        return { ...existingDay, date: date };
       } else {
+        // Return placeholder for missing day with the normalized date
         return {
-          date: normalizedDate,
+          date: date,
           meals: [],
         };
       }

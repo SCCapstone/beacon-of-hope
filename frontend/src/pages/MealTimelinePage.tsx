@@ -11,7 +11,7 @@ import {
   generateDateRange,
   transformApiResponseToDayMeals,
 } from "../services/recipeService";
-import { subDays, addDays, format, isSameDay, parseISO } from "date-fns";
+import { subDays, addDays, format, isSameDay, parseISO, isValid as isValidDate } from "date-fns";
 import { useSelector } from "react-redux";
 import { RootState } from "../app/store";
 
@@ -33,15 +33,22 @@ const nutritionalGoals = {
   },
 };
 
-const normalizeDate = (date: Date | string): Date => {
-  // Handle both Date objects and string representations
-  const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
-    console.warn("normalizeDate received invalid input, returning current date:", date);
-    const fallbackDate = new Date();
-    fallbackDate.setHours(0, 0, 0, 0);
-    return fallbackDate;
+const normalizeDate = (date: Date | string | null | undefined): Date => {
+  if (date === null || date === undefined) {
+      console.warn("Page normalizeDate received null/undefined, returning current date.");
+      const fallbackDate = new Date();
+      fallbackDate.setHours(0, 0, 0, 0);
+      return fallbackDate;
   }
+  // Handle string parsing carefully, assuming 'yyyy-MM-dd' or ISO format
+  const dateObj = typeof date === 'string' ? parseISO(date) : date;
+  if (!isValidDate(dateObj)) {
+      console.warn("Page normalizeDate received invalid date, returning current date:", date);
+      const fallbackDate = new Date();
+      fallbackDate.setHours(0, 0, 0, 0);
+      return fallbackDate;
+  }
+  // Set hours to 0 to compare dates only
   const normalized = new Date(dateObj);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
@@ -98,185 +105,184 @@ export const MealTimelinePage: React.FC = () => {
   // Function to fetch meal data for a date range
   const fetchMealData = useCallback(
     async (datesToFetchParam: string[]) => {
-      // Filter out dates that are *already* being fetched
+      // Filter out dates already being fetched
       const datesActuallyNeedingFetch = datesToFetchParam.filter(
         (dateStr) => !fetchingDatesRef.current.has(dateStr)
       );
 
       if (datesActuallyNeedingFetch.length === 0) {
-        console.log("Fetch skipped: Dates already being fetched or empty list.", datesToFetchParam);
-        // If the overall loading state is true but nothing needs fetching now, turn it off.
+        console.log("Page Fetch skipped: Dates already being fetched or empty list.", datesToFetchParam);
         if (isLoading && fetchingDatesRef.current.size === 0) {
-             // If we thought we were loading but nothing is actually fetching, stop loading.
-             // This can happen if a check runs after data arrived but before state fully settled.
-             setIsLoading(false);
+             setIsLoading(false); // Stop loading if nothing is actually fetching
         }
         return;
       }
 
-      // Add newly requested dates to the fetching set
+      // Add to fetching set
       datesActuallyNeedingFetch.forEach(date => fetchingDatesRef.current.add(date));
-
-      console.log("Fetching meal data for dates:", datesActuallyNeedingFetch);
-      // Ensure loading is true when starting a fetch
-      if (!isLoading) setIsLoading(true);
-      // Don't reset error here, let the success path reset it if needed
-      // setError(null);
+      console.log("Page Fetching meal data for dates:", datesActuallyNeedingFetch);
+      if (!isLoading) setIsLoading(true); // Ensure loading is true
+      // setError(null); // Don't reset error prematurely
       initialLoadAttemptedRef.current = true;
 
       try {
         const response = await fetchMealDays(userId, datesActuallyNeedingFetch);
-        console.log("API response received for:", datesActuallyNeedingFetch.join(', '));
+        console.log("Page API response received for:", datesActuallyNeedingFetch.join(', '));
 
         let transformedData: DayMeals[] = [];
-        if (
-          !response.day_plans ||
-          Object.keys(response.day_plans).length === 0
-        ) {
-          console.log("No meal history found for the requested dates:", datesActuallyNeedingFetch.join(', '));
+        if (!response.day_plans || Object.keys(response.day_plans).length === 0) {
+          console.log("Page No meal history found for requested dates:", datesActuallyNeedingFetch.join(', '));
           // Create placeholders ONLY for the dates requested in *this* fetch
           transformedData = datesActuallyNeedingFetch.map((dateStr) => ({
-            date: normalizeDate(dateStr), // Use normalizeDate here
+            date: normalizeDate(dateStr), // Use normalizeDate
             meals: [],
-          }));
+          })).filter(day => isValidDate(day.date)); // Filter invalid dates
         } else {
           transformedData = await transformApiResponseToDayMeals(response);
-          console.log("Data transformed:", transformedData.length, "days");
+          console.log("Page Data transformed:", transformedData.length, "days");
+
           // Ensure placeholders are added for any requested dates *not* in the response
           const returnedDates = new Set(
-            transformedData.map((d) =>
-              format(normalizeDate(d.date), "yyyy-MM-dd") // Normalize before format
-            )
+            transformedData.map((d) => format(normalizeDate(d.date), "yyyy-MM-dd")) // Normalize before format
           );
           datesActuallyNeedingFetch.forEach((dateStr) => {
             if (!returnedDates.has(dateStr)) {
-              console.log(`Adding placeholder for missing date: ${dateStr}`);
-              transformedData.push({
-                date: normalizeDate(dateStr), // Use normalizeDate
-                meals: [],
-              });
+              const normalizedPlaceholderDate = normalizeDate(dateStr);
+              if (isValidDate(normalizedPlaceholderDate)) {
+                  console.log(`Page Adding placeholder for missing date: ${dateStr}`);
+                  transformedData.push({ date: normalizedPlaceholderDate, meals: [] });
+              } else {
+                  console.warn(`Page Skipping placeholder for invalid date string: ${dateStr}`);
+              }
             }
           });
         }
 
-        // Merge data
+        // Merge data: Use a Map with normalized date strings as keys
         setWeekData((prevData) => {
-          const dataMap = new Map(
-            prevData.map((day) => [
-              format(normalizeDate(day.date), "yyyy-MM-dd"), // Normalize before format
-              day,
-            ])
+          const dataMap = new Map<string, DayMeals>(
+            prevData.map((day) => {
+                const normalizedPrevDate = normalizeDate(day.date);
+                return isValidDate(normalizedPrevDate)
+                    ? [format(normalizedPrevDate, "yyyy-MM-dd"), day] as [string, DayMeals]
+                    : ["invalid", day] as [string, DayMeals]; // Handle potential invalid dates in prevData
+            }).filter(([key]) => key !== "invalid") // Filter out invalid entries
           );
+
           transformedData.forEach((day) => {
             const normalizedDayDate = normalizeDate(day.date); // Normalize once
-            if (normalizedDayDate instanceof Date && !isNaN(normalizedDayDate.getTime())) {
-               dataMap.set(
-                 format(normalizedDayDate, "yyyy-MM-dd"),
-                 day
-               );
+            if (isValidDate(normalizedDayDate)) {
+               const dateKey = format(normalizedDayDate, "yyyy-MM-dd");
+               // Ensure the day object being set has the normalized date
+               dataMap.set(dateKey, { ...day, date: normalizedDayDate });
             } else {
-               console.warn("Skipping invalid date object during merge:", day);
+               console.warn("Page Skipping invalid date object during merge:", day);
             }
           });
+
           // Sort the final array by date
           return Array.from(dataMap.values()).sort(
             (a, b) => normalizeDate(a.date).getTime() - normalizeDate(b.date).getTime() // Normalize for sort
           );
         });
-        // Clear error on successful fetch and transform
-        setError(null);
+        setError(null); // Clear error on success
 
       } catch (error) {
-        console.error("Error fetching or transforming meal data:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "An error occurred";
-        // Avoid setting error if it's just a 500 for no history, which is handled above
-        if (!errorMessage.includes("No meal history found")) {
-            setError(errorMessage);
+        console.error("Page Error fetching or transforming meal data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An error occurred";
+        // Only set error for actual failures, not expected "no history" cases handled above
+        if (!errorMessage.includes("No meal history found") && !errorMessage.includes("500")) {
+             setError(errorMessage);
+        } else {
+             setError(null); // Clear error if it was just a "no history" 500
         }
 
-        // Add placeholders on error *only if data doesn't exist*
-        const errorPlaceholders: DayMeals[] = datesActuallyNeedingFetch.map((dateStr) => ({
-          date: normalizeDate(dateStr), // Use normalizeDate
-          meals: [],
-        }));
-
-        // Merge placeholders, ensuring not to overwrite existing data if retry happens
+        // Add placeholders on error *only if data doesn't exist for those dates*
         setWeekData((prev) => {
-          const dataMap = new Map(
-            prev.map((day) => [
-              format(normalizeDate(day.date), "yyyy-MM-dd"), // Normalize
-              day,
-            ])
+          const dataMap = new Map<string, DayMeals>(
+            prev.map((day) => {
+                const normalizedPrevDate = normalizeDate(day.date);
+                return isValidDate(normalizedPrevDate)
+                    ? [format(normalizedPrevDate, "yyyy-MM-dd"), day] as [string, DayMeals]
+                    : ["invalid", day] as [string, DayMeals];
+            }).filter(([key]) => key !== "invalid")
           );
-          errorPlaceholders.forEach((day) => {
-            const dateStr = format(normalizeDate(day.date), "yyyy-MM-dd"); // Normalize
-            if (!dataMap.has(dateStr)) {
-              dataMap.set(dateStr, day);
+
+          datesActuallyNeedingFetch.forEach((dateStr) => {
+            const normalizedDate = normalizeDate(dateStr);
+            if (isValidDate(normalizedDate)) {
+                const dateKey = format(normalizedDate, "yyyy-MM-dd");
+                if (!dataMap.has(dateKey)) { // Only add if not already present
+                    console.log(`Page Adding error placeholder for date: ${dateStr}`);
+                    dataMap.set(dateKey, { date: normalizedDate, meals: [] });
+                }
+            } else {
+                 console.warn(`Page Skipping error placeholder for invalid date string: ${dateStr}`);
             }
           });
+
           return Array.from(dataMap.values()).sort(
-            (a, b) => normalizeDate(a.date).getTime() - normalizeDate(b.date).getTime() // Normalize
+            (a, b) => normalizeDate(a.date).getTime() - normalizeDate(b.date).getTime()
           );
         });
+
       } finally {
-        // Remove the completed dates from the fetching set
+        // Remove completed dates from fetching set
         datesActuallyNeedingFetch.forEach(date => fetchingDatesRef.current.delete(date));
-        // Only set loading to false if *no other* fetches are in progress
+        // Set loading false only if no other fetches are active
         if (fetchingDatesRef.current.size === 0) {
             setIsLoading(false);
-            console.log("All fetches complete. isLoading set to false.");
+            console.log("Page All fetches complete. isLoading set to false.");
         } else {
-            console.log("Fetch complete for:", datesActuallyNeedingFetch.join(', '), "Remaining fetches:", Array.from(fetchingDatesRef.current));
+            console.log("Page Fetch complete for:", datesActuallyNeedingFetch.join(', '), "Remaining fetches:", Array.from(fetchingDatesRef.current));
         }
       }
     },
-    [userId, isLoading] // Keep isLoading dependency here
+    [userId, isLoading]
   );
 
   // Callback for Viz to request fetching specific dates
   const handleFetchRequest = useCallback(
     (payload: FetchRequestPayload) => {
       const { datesToFetch } = payload;
-      console.log(
-        "MealTimelinePage: handleFetchRequest called by Viz. Dates requested:",
-        datesToFetch.length > 0 ? datesToFetch.join(', ') : 'None'
-      );
-
+      console.log("Page handleFetchRequest received from Viz. Dates:", datesToFetch.join(', ') || 'None');
       if (datesToFetch.length > 0) {
         fetchMealData(datesToFetch);
-      } else {
-        console.log("MealTimelinePage: No dates to fetch in this request.");
       }
     },
-    [fetchMealData] // Only depends on fetchMealData
+    [fetchMealData]
   );
 
   // Callback for Viz to signal a date change
   const handleDateSelect = useCallback((newDate: Date) => {
       const normalizedNewDate = normalizeDate(newDate);
-      // Check if the date actually changed before updating state
+      // Use isSameDay for comparison after normalization
       if (!isSameDay(selectedDate, normalizedNewDate)) {
-          console.log(
-              "MealTimelinePage: Updating selectedDate state to:",
-              format(normalizedNewDate, "yyyy-MM-dd")
-          );
+          console.log("Page Updating selectedDate state to:", format(normalizedNewDate, "yyyy-MM-dd"));
           setSelectedDate(normalizedNewDate);
-          // No fetch call here - the Viz's effect will handle it after re-render
+          // Fetching is triggered by the Viz's useEffect based on the new selectedDate prop
+      } else {
+          console.log("Page Date selected is the same as current. No state update.");
       }
-  }, [selectedDate]); // Depends on current selectedDate
+  }, [selectedDate]);
 
   // Initial data load effect (runs once)
   useEffect(() => {
-    if (!initialLoadAttemptedRef.current && userId) { // Ensure userId is available
-      console.log("MealTimelinePage: Initial load effect running.");
-      // Use the initial selectedDate state
+    // Ensure userId is present before initial load
+    if (!initialLoadAttemptedRef.current && userId) {
+      console.log("Page Initial load effect running.");
+      initialLoadAttemptedRef.current = true; // Mark attempt even before fetch starts
+      // Use the initial selectedDate state (already normalized)
       const initialStart = subDays(selectedDate, 3);
       const initialEnd = addDays(selectedDate, 3);
       const initialDatesToFetch = generateDateRange(initialStart, initialEnd);
       fetchMealData(initialDatesToFetch);
-    }
-  }, [userId, selectedDate, fetchMealData]);
+    } else if (!userId) {
+      console.log("Page Initial load effect waiting for userId.");
+      // Optionally set loading false if userId is missing and won't appear?
+      // Or show a "Login required" message. For now, just waits.
+  }
+}, [userId, selectedDate, fetchMealData]);
 
   // Render Logic
 
@@ -318,8 +324,16 @@ export const MealTimelinePage: React.FC = () => {
     );
   }
 
-  // Render main content
-  const mealPlan = JSON.parse(localStorage.getItem("mealPlan") || "{}");
+  // Ensure mealPlan from localStorage is parsed safely
+  let mealPlan = {};
+  try {
+      mealPlan = JSON.parse(localStorage.getItem("mealPlan") || "{}");
+  } catch (e) {
+      console.error("Failed to parse mealPlan from localStorage:", e);
+      // Handle error, maybe clear localStorage or use default empty object
+      localStorage.removeItem("mealPlan"); // Example: clear invalid data
+  }
+
 
   return (
     <MainLayout
@@ -327,7 +341,7 @@ export const MealTimelinePage: React.FC = () => {
       subtitle="Plan and Track Your Meals With Ease"
     >
       <MealCalendarViz
-        mealData={weekData}
+        mealData={weekData} // This is the source of truth from the parent
         userPreferences={userPreferences}
         nutritionalGoals={nutritionalGoals}
         mealPlan={mealPlan}

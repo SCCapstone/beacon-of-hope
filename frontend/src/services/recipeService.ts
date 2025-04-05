@@ -3,6 +3,7 @@ import {
   DayMeals,
   Food,
   NutritionalInfo,
+  Meal,
 } from "../components/MealTimeline/types";
 import {
   calculateNutritionalInfo,
@@ -10,11 +11,10 @@ import {
   getDefaultMealTime,
 } from "../utils/mealPlanTransformer";
 import { ApiError } from "../utils/errorHandling";
-import { parse, startOfDay } from "date-fns";
-
+import { parse, startOfDay, isValid as isValidDate } from "date-fns";
 
 const BACKEND_URL = "http://127.0.0.1:8000";
-const mealDataCache = new Map<string, any>();
+// const mealDataCache = new Map<string, any>();
 
 // Define types for API response
 // TODO: Might be duplicates
@@ -71,7 +71,9 @@ export async function fetchBeverageInfo(bevId: string) {
 
 export async function fetchMealDays(userId: string, dates: string[]) {
   try {
-    console.log(`Fetching meal days for user ${userId} on dates: ${dates.join(", ")}`);
+    console.log(
+      `Fetching meal days for user ${userId} on dates: ${dates.join(", ")}`
+    );
     const response = await axios.post<ApiResponse>(
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
@@ -90,14 +92,14 @@ export async function fetchMealDays(userId: string, dates: string[]) {
         `Error fetching meal days: ${error.message}`,
         error.response?.data
       );
-      
+
       // If it's a 500 error and likely due to no meal history,
       // return an empty result instead of throwing an error
       if (error.response?.status === 500) {
         console.log("No meal history found, returning empty data");
         return { day_plans: {} };
       }
-      
+
       throw new ApiError(
         `Failed to fetch meal data: ${error.message}`,
         error.response?.status,
@@ -120,6 +122,24 @@ export function generateDateRange(startDate: Date, endDate: Date): string[] {
   }
 
   return dates;
+}
+
+// Helper function to normalize date (ensure it returns a valid Date or throws)
+function normalizeAndValidateDate(dateInput: Date | string): Date {
+  const dateObj =
+    typeof dateInput === "string"
+      ? parse(dateInput, "yyyy-MM-dd", new Date())
+      : dateInput;
+  if (!isValidDate(dateObj)) {
+    console.error(
+      "Invalid date encountered in normalizeAndValidateDate:",
+      dateInput
+    );
+    // Depending on strictness, you might throw an error or return a default
+    // For now, let's throw to make issues visible
+    throw new Error(`Invalid date format or value: ${dateInput}`);
+  }
+  return startOfDay(dateObj); // Normalize to local midnight
 }
 
 // Helper function to transform food information
@@ -228,13 +248,13 @@ export async function transformApiResponseToDayMeals(
     return [];
   }
 
-  // Generate a cache key based on the response
-  const cacheKey = JSON.stringify(Object.keys(apiResponse.day_plans).sort());
+  // // Generate a cache key based on the response
+  // const cacheKey = JSON.stringify(Object.keys(apiResponse.day_plans).sort());
 
-  // Check if we have cached results
-  if (mealDataCache.has(cacheKey)) {
-    return mealDataCache.get(cacheKey);
-  }
+  // // Check if we have cached results
+  // if (mealDataCache.has(cacheKey)) {
+  //   return mealDataCache.get(cacheKey);
+  // }
 
   const dayMeals: DayMeals[] = [];
 
@@ -287,7 +307,8 @@ export async function transformApiResponseToDayMeals(
     // Process beverages using the original numeric IDs
     for (let i = 0; i < beverageIdsToFetch.length; i += chunkSize) {
       const chunk = beverageIdsToFetch.slice(i, i + chunkSize);
-      const promises = chunk.map(async (id) => { // 'id' is the original numeric string
+      const promises = chunk.map(async (id) => {
+        // 'id' is the original numeric string
         try {
           // Call fetchBeverageInfo with the correct ID (no prefix)
           const info = await fetchBeverageInfo(id);
@@ -321,10 +342,16 @@ export async function transformApiResponseToDayMeals(
     // TODO: Consider how to handle partial failures if needed
   }
 
-  // Step 3: Transform the data using the pre-fetched food information
+  // Step 3: Transform the data
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
-    let currentDate = parse(dateStr, "yyyy-MM-dd", new Date()); // Get Date object
-    currentDate = startOfDay(currentDate); // Normalize to local midnight using date-fns
+    let currentDate: Date;
+    try {
+      // Use the robust normalization/validation helper
+      currentDate = normalizeAndValidateDate(dateStr);
+    } catch (e) {
+      console.error(`Skipping day due to invalid date string: ${dateStr}`, e);
+      continue; // Skip this day if the date is invalid
+    }
 
     const dayMeal: DayMeals = {
       date: currentDate, // Use the normalized date object
@@ -379,27 +406,36 @@ export async function transformApiResponseToDayMeals(
         // Calculate combined nutritional info for the meal
         const mealNutritionalInfo = calculateCombinedNutritionalInfo(mealFoods);
 
-        // Add the meal to the day's meals
-        dayMeal.meals.push({
-          id: `${dateStr}-${meal.meal_name}-${meal._id}`,
+        // Ensure the Meal object includes the date
+        const completeMeal: Meal = {
+          id: `${dateStr}-${meal.meal_name}-${meal._id}`, // Consider if this ID needs adjustment if dateStr format changes
+          originalBackendId: meal._id, // Keep track of original ID if needed later
           name: `${
             meal.meal_name.charAt(0).toUpperCase() + meal.meal_name.slice(1)
           } Meal`,
-          time: mealTime, // Use the default meal time
+          time: mealTime,
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
           foods: mealFoods,
           nutritionalInfo: mealNutritionalInfo,
           diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
           date: currentDate,
-        });
+        };
+
+        dayMeal.meals.push(completeMeal);
       } catch (error) {
-        console.error(`Error processing meal ${meal._id} on ${dateStr}:`, error);
+        console.error(
+          `Error processing meal ${meal._id} on ${dateStr}:`,
+          error
+        );
       }
     }
 
     dayMeals.push(dayMeal);
   }
 
-  mealDataCache.set(cacheKey, dayMeals);
+  // mealDataCache.set(cacheKey, dayMeals);
+
+  // Sort final result by date just in case
+  dayMeals.sort((a, b) => a.date.getTime() - b.date.getTime());
   return dayMeals;
 }
