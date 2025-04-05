@@ -1,11 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { MealRecommendation } from "../types";
-// No FoodTypeIcon import required as foods won't be listed here
+import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid"; // Using Heroicons for icons
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
-  onClick: () => void;
+  onClick: () => void; // For selecting to view details
+  onAccept: () => void; // Handler for accept button click
+  onReject: () => void; // Handler for reject button click
   isSelected: boolean;
   className?: string;
 }
@@ -24,6 +26,8 @@ const isMealDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
 export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   recommendation,
   onClick,
+  onAccept,
+  onReject,
   isSelected,
   className = "",
 }) => {
@@ -52,6 +56,16 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
     return `<span class="${color} text-[10px] ml-1">(${prefix}${value})</span>`;
   };
 
+  const handleAcceptClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    onAccept();
+  };
+
+  const handleRejectClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    onReject();
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.01, y: -1 }}
@@ -67,7 +81,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             : "border border-dashed border-green-300"
         }
         bg-green-50/50
-        backdrop-blur-sm flex flex-col min-h-[160px]`} // Match min-height and padding
+        backdrop-blur-sm flex flex-col min-h-[180px]`} // Match min-height and padding
       style={{
         boxShadow: isSelected
           ? "0 0 10px rgba(16, 185, 129, 0.15)" // Reduced shadow
@@ -170,6 +184,29 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             </div>
           </div>
         )}
+
+        {/* --- Action Buttons --- */}
+        <div className="absolute bottom-2 right-2 flex space-x-1.5 z-10">
+          <motion.button
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleRejectClick}
+            className="p-1.5 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+            title="Reject Recommendation"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleAcceptClick}
+            className="p-1.5 rounded-full text-green-600 hover:bg-green-50 transition-colors"
+            title="Accept Recommendation"
+          >
+            <CheckIcon className="w-4 h-4" />
+          </motion.button>
+        </div>
+        {/* --- End Action Buttons --- */}
       </div>
 
       {/* Simulation Effect */}

@@ -276,7 +276,7 @@ export const MealTimelinePage: React.FC = () => {
       const initialDatesToFetch = generateDateRange(initialStart, initialEnd);
       fetchMealData(initialDatesToFetch);
     }
-  }, [userId]); // Run when userId becomes available
+  }, [userId, selectedDate, fetchMealData]);
 
   // Render Logic
 

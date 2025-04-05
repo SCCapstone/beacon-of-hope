@@ -4,16 +4,17 @@ import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
-// No FoodTypeIcon as we won't list foods here
 
 interface MealViewProps {
   datesToDisplay: Date[];
-  allData: DayMeals[]; // All loaded data for lookups
+  allData: DayMeals[];
   recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
+  onAcceptRecommendationClick: (recommendation: MealRecommendation) => void;
+  onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -51,7 +52,7 @@ const TraceMealCard: React.FC<{
       className={`meal-card p-3 mb-3 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
-        flex flex-col min-h-[160px]`} // Adjusted padding and min-height
+        flex flex-col min-h-[160px]`}
       onClick={onClick}
     >
       {/* Header */}
@@ -110,6 +111,8 @@ export const MealView: React.FC<MealViewProps> = ({
   onMealSelect,
   selectedMeal,
   onRecommendationSelect,
+  onAcceptRecommendationClick,
+  onRejectRecommendationClick,
   selectedRecommendation,
   mealBinNames,
   onMealBinUpdate,
@@ -257,8 +260,8 @@ export const MealView: React.FC<MealViewProps> = ({
         while (newBinNames.length < allItems.length) {
           newBinNames.push(`Meal ${newBinNames.length + 1}`);
         }
-        // This will trigger a re-render with the updated bin names
-        onMealBinUpdate(newBinNames);
+        // Defer update slightly to avoid state change during render cycle if possible
+        setTimeout(() => onMealBinUpdate(newBinNames), 0);
       }
 
       // Create bins based on meal times
@@ -307,6 +310,18 @@ export const MealView: React.FC<MealViewProps> = ({
       />
     );
   };
+
+  if (isLoading) {
+    // Loading indicator remains the same
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <p className="text-gray-500">Loading your meal data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
@@ -402,14 +417,12 @@ export const MealView: React.FC<MealViewProps> = ({
                         <AnimatePresence>
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
-                              key={`rec-${
-                                recommendation.meal.id
-                              }-${currentDate.toISOString()}`}
+                              key={`rec-${recommendation.meal.id}-${currentDate.toISOString()}`}
                               className="my-1.5 flex-shrink-0"
                               recommendation={recommendation}
-                              onClick={() =>
-                                onRecommendationSelect(recommendation)
-                              }
+                              onAccept={() => onAcceptRecommendationClick(recommendation)}
+                              onReject={() => onRejectRecommendationClick(recommendation)}
+                              onClick={() => onRecommendationSelect(recommendation)} // Selects for details panel
                               isSelected={
                                 selectedRecommendation?.meal.id ===
                                 recommendation.meal.id

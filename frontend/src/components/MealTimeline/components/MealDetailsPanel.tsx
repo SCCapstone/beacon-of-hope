@@ -18,7 +18,6 @@ interface MealDetailsPanelProps {
   ingredient: Ingredient | null;
   recommendation: MealRecommendation | null;
   onClose: () => void;
-  onAcceptRecommendation: (recommendation: MealRecommendation) => void;
   nutritionalGoals: {
     dailyCalories: number;
     carbohydrates: { min: number; max: number; unit: string };
@@ -300,10 +299,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   ingredient,
   recommendation,
   onClose,
-  onAcceptRecommendation,
   nutritionalGoals,
   currentNutritionalValues,
-  // baseNutritionalValues,
   selectedDate,
   currentLevel,
 }) => {
@@ -325,21 +322,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   // Determine if the primary selected item is a recommendation (or part of one)
   const isShowingRecommendation = recommendation !== null;
 
-  const handleAcceptClick = () => {
-    if (recommendation) {
-      // Confirmation dialog
-      const confirmAccept = window.confirm(
-        `Add "${recommendation.meal.name}" to your meal history for ${format(
-          recommendation.meal.date || selectedDate,
-          "MMM d"
-        )}? This cannot be undone.`
-      );
-      if (confirmAccept) {
-        onAcceptRecommendation(recommendation);
-      }
-    }
-  };
-
   const renderContent = () => {
     if (!displayItem) {
       return (
@@ -351,9 +333,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             for {format(selectedDate, "MMM d, yyyy")}
           </p>
           <p className="mt-4 text-xs text-gray-400">
-            Recommended meals are suggestions and won't be saved unless you
-            explicitly accept them. Unaccepted recommendations will disappear
-            when you close the browser tab/window.
+            Recommended meals are suggestions. Use the buttons on the
+            recommendation cards to accept or reject them.
           </p>
         </div>
       );
@@ -375,21 +356,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               score={rec.score}
               onClose={onClose}
             />
-            {/* --- Accept Button --- */}
-            <div className="p-4 border-b">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleAcceptClick}
-                className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-              >
-                Accept Recommendation
-              </motion.button>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Accepting adds this meal to your history.
-              </p>
-            </div>
-            {/* --- End Accept Button --- */}
             <RecommendationReasons
               reasons={rec.reasons}
               benefits={rec.healthBenefits}
@@ -438,7 +404,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isRecommendation={isRecommendedFood} // Pass flag to header
               onClose={onClose}
             />
-            {/* Recommendation Context & Accept Button */}
+            {/* Recommendation Context */}
             {isRecommendedFood && recommendation && (
               <div className="p-4 border-b bg-green-50">
                 <h4 className="text-sm font-medium text-green-800 mb-2">
@@ -449,17 +415,10 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   <span className="font-semibold">
                     {recommendation.meal.name}
                   </span>
-                  ' recommendation (Score: {recommendation.score}). Accepting
-                  will save the entire recommended meal.
+                  ' recommendation (Score: {recommendation.score}). Use the
+                  buttons on the card in the calendar to accept or reject the
+                  full recommendation.
                 </p>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleAcceptClick} // Use the same handler
-                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-                >
-                  Accept Full Recommendation
-                </motion.button>
               </div>
             )}
 
@@ -526,14 +485,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   ' recommendation. Accepting will save the entire recommended
                   meal.
                 </p>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleAcceptClick} // Use the same handler
-                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md font-medium hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-                >
-                  Accept Full Recommendation
-                </motion.button>
               </div>
             )}
             {/* --- End Recommendation Context --- */}
