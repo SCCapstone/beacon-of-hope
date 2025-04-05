@@ -50,11 +50,7 @@ const TraceMealCard: React.FC<{
       exit={{ opacity: 0, y: -10 }}
       className={`meal-card p-3 mb-3 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
-        ${
-          isSelected
-            ? "ring-2 ring-blue-500"
-            : "border border-gray-200"
-        }
+        ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
         flex flex-col min-h-[160px]`} // Adjusted padding and min-height
       onClick={onClick}
     >
@@ -119,8 +115,6 @@ export const MealView: React.FC<MealViewProps> = ({
   onMealBinUpdate,
   isLoading = false,
 }) => {
-  // const mainAreaRef = useRef<HTMLDivElement>(null);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -132,28 +126,30 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   }
 
-  // // Get adjacent dates
-  // const previousDate = subDays(selectedDate, 1);
-  // const nextDate = addDays(selectedDate, 1);
-
-  // Get data for a specific date from allData 
+  // Get data for a specific date from allData
   const getDataForDate = useCallback(
     (targetDate: Date): DayMeals | undefined => {
       // Ensure targetDate is normalized
       const normalizedTarget = normalizeDate(targetDate);
       return allData.find((day) => {
-          // Ensure day.date is treated as a Date object and normalized
-          // *** FIX: Use normalizeDate directly on day.date ***
-          const normalizedDayDate = normalizeDate(day.date);
+        // Ensure day.date is treated as a Date object and normalized
+        const normalizedDayDate = normalizeDate(day.date);
 
-          // Defensive check if normalization failed (though normalizeDate has fallbacks)
-          if (isNaN(normalizedDayDate.getTime()) || isNaN(normalizedTarget.getTime())) {
-              console.warn("Invalid date encountered during comparison in getDataForDate", day.date, targetDate);
-              return false;
-          }
+        // Defensive check if normalization failed (though normalizeDate has fallbacks)
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          console.warn(
+            "Invalid date encountered during comparison in getDataForDate",
+            day.date,
+            targetDate
+          );
+          return false;
+        }
 
-          // Perform the comparison using isSameDay
-          return isSameDay(normalizedDayDate, normalizedTarget);
+        // Perform the comparison using isSameDay
+        return isSameDay(normalizedDayDate, normalizedTarget);
       });
     },
     [allData] // Dependency is correct
@@ -348,7 +344,8 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${ // Adjusted min-height
+                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${
+                  // Adjusted min-height
                   isSelected ? "bg-blue-50" : "bg-white"
                 }`}
               >
