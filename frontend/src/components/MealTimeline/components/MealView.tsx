@@ -139,11 +139,24 @@ export const MealView: React.FC<MealViewProps> = ({
   // Get data for a specific date from allData 
   const getDataForDate = useCallback(
     (targetDate: Date): DayMeals | undefined => {
-      return allData.find((day) =>
-        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
-      );
+      // Ensure targetDate is normalized
+      const normalizedTarget = normalizeDate(targetDate);
+      return allData.find((day) => {
+          // Ensure day.date is treated as a Date object and normalized
+          // *** FIX: Use normalizeDate directly on day.date ***
+          const normalizedDayDate = normalizeDate(day.date);
+
+          // Defensive check if normalization failed (though normalizeDate has fallbacks)
+          if (isNaN(normalizedDayDate.getTime()) || isNaN(normalizedTarget.getTime())) {
+              console.warn("Invalid date encountered during comparison in getDataForDate", day.date, targetDate);
+              return false;
+          }
+
+          // Perform the comparison using isSameDay
+          return isSameDay(normalizedDayDate, normalizedTarget);
+      });
     },
-    [allData]
+    [allData] // Dependency is correct
   );
 
   // Get meals for a specific date using getDataForDate
