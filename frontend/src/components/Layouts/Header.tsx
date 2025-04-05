@@ -5,6 +5,8 @@ import Logo from "../../assets/LOGO.svg";
 import { useSelector } from "react-redux";
 import { RootState } from "../../app/store";
 
+const BACKEND_URL = "http://127.0.0.1:8000";
+
 interface HeaderProps {
   title: string;
   subtitle: string;
@@ -38,11 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   return (
     <header
       className="fixed top-0 left-0 right-0 z-30"
-      style={
-        {
-          "--thickness": "4px",
-        } as React.CSSProperties
-      }
+      style={{ "--thickness": "4px" } as React.CSSProperties}
     >
       {/* Backdrop layers */}
       <div
@@ -88,7 +86,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
             </div>
             <div className="text-xl font-medium text-[#1A1A1A]">
-              {!isGuest ? `Welcome, ${userData?.first_name}!` : "You are currently in Guest Mode. Log In to access more"}
+              {!isGuest
+                ? `Welcome, ${userData?.first_name}!`
+                : "You are currently in Guest Mode. Log In to access more"}
             </div>
           </div>
         </div>
@@ -145,9 +145,38 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     </Link>
                   )}
                   <button
-                    onClick={() => {
-                      console.log("Logout clicked");
-                      window.location.href = "/"; // Redirect to the default home page
+                    onClick={async () => {
+                      if (isGuest) {
+                        try {
+                          const response = await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ user_id: userData._id }),
+                          });
+                          
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            console.error("Error while exiting guest mode:", errorData);
+                            alert("Failed to exit guest mode. Please try again.");
+                            return;
+                          }
+                          
+                          const data = await response.json();
+                          if (data.success) {
+                            window.location.href = "/";
+                          } else {
+                            alert("Failed to exit guest mode. Please try again.");
+                          }
+                        } catch (error) {
+                          console.error("Error while exiting guest mode:", error);
+                          alert("Failed to exit guest mode. Please try again.");
+                        }
+                      } else {
+                        console.log("Logout clicked");
+                        window.location.href = "/";
+                      }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
                   >

@@ -44,6 +44,8 @@ urlpatterns = [
     path("user/login", views.login_user, name="login_user"),
     path("user/delete/<str:user_id>", views.delete_account, name="delete_account"),
     path("user/update/<str:user_id>", views.update_user, name="update_user"),
+    path("user/exit-default", views.exit_default, name="exit_default"),
+
     path(
         "user/nutritional-goals",
         views.set_nutritional_goals,

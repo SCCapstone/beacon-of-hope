@@ -18,6 +18,12 @@ export const personas: { [key: string]: Persona } = {
       vegetarian: false,
       vegan: false,
     },
+    nutritionalGoals: {
+      calories: 2400,    // Higher due to weight and gender
+      carbs: 300,        // Moderate carbs, ~50% of calories
+      protein: 185,      // 1g per lb of body weight
+      fiber: 38          // Higher end of recommended for adult males
+    },
     mealPlanConfig: {
       mealPlanLength: 3,
       mealsPerDay: 1,
@@ -73,6 +79,12 @@ export const personas: { [key: string]: Persona } = {
       diabetes: true,
       vegetarian: false,
       vegan: false,
+    },
+    nutritionalGoals: {
+      calories: 1800,    // Moderate for young female with diabetes
+      carbs: 200,        // Lower carbs due to diabetes (~45% of calories)
+      protein: 90,       // ~0.65g per lb of body weight
+      fiber: 28          // Higher fiber for blood sugar management
     },
     mealPlanConfig: {
       mealPlanLength: 1,
