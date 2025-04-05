@@ -380,14 +380,14 @@ class FirebaseManager:
         except Exception as e:
             return (f"There was an issue saving the meal plan: {e}", 500)
 
-    def add_dayplan(self, user_id, date, day_plan):
+    def add_dayplan_temp(self, user_id, date, day_plan):
         # in the user object in firebase, we want to store a sub-object of the following form
         # day_plans: {"2025-03-01": day_plan_id}
         # where day_plan_id links to a day plan object in the day_plans collection
         try:
             # add a reference to the user's day plan in the user firebase object
             update_res, update_status = self._update_document_dict_attr(
-                "users", user_id, "day_plans", date, day_plan["_id"]
+                "users", user_id, "temp_day_plans", date, day_plan["_id"]
             )
             if update_status != 200:
                 print("dayplan id wasn't added")
@@ -395,7 +395,7 @@ class FirebaseManager:
 
             # save the user's dayplan
             add_res, add_status = self._add_document(
-                "day_plans", day_plan["_id"], day_plan
+                "temp_day_plans", day_plan["_id"], day_plan
             )
             if add_status != 200:
                 print("dayplan was not saved")
