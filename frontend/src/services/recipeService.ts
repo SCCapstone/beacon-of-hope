@@ -5,7 +5,7 @@ import {
   NutritionalInfo,
   Meal,
   NutritionalGoals,
-  Ingredient
+  Ingredient,
 } from "../components/MealTimeline/types";
 import {
   calculateNutritionalInfo,
@@ -27,7 +27,7 @@ interface DayData {
   meal_plan_id: string;
 }
 
-interface ApiResponse {
+interface FetchApiResponse {
   day_plans: {
     [date: string]: DayData;
   };
@@ -40,6 +40,18 @@ _id?: string; // meal plan id
 user_id?: string;
 name?: string;
 }
+
+// New ApiResponse type specifically for regenerate-partial
+interface RegenerateApiResponse {
+  days: {
+    [date: string]: {
+      _id: string;
+      meals: BanditMealData[]; // Assuming the structure is the same as BanditMealData
+      user_id: string;
+    };
+  };
+}
+
 
 export async function fetchNutritionalGoals(
   userId: string
@@ -113,6 +125,10 @@ export async function fetchRecipeInfo(foodId: string) {
     const response = await axios.get(
       `${BACKEND_URL}/beacon/get-recipe-info/${foodId}`
     );
+    if (typeof response.data === 'string') {
+        return { name: response.data }; // Wrap in an object if needed downstream
+    }
+    console.log(`Recipe info for ID ${foodId}:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching recipe info for ID ${foodId}:`, error);
@@ -129,6 +145,7 @@ export async function fetchBeverageInfo(bevId: string) {
     if (typeof response.data === 'string') {
         return { name: response.data }; // Wrap in an object if needed downstream
     }
+    console.log(`Beverage info for ID ${bevId}:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching beverage info for ID ${bevId}:`, error);
@@ -151,7 +168,7 @@ export async function fetchMealDays(userId: string, dates: string[]) {
     console.log(
       `Calling the retrieve-days API for user ${userId} on dates: ${dates.join(", ")}`
     );
-    const response = await axios.post<ApiResponse>(
+    const response = await axios.post<FetchApiResponse>(
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
       { dates }
     );
@@ -191,6 +208,62 @@ export async function fetchMealDays(userId: string, dates: string[]) {
     throw error; // Re-throw unexpected errors
   }
 }
+
+export async function regeneratePartialMeals(
+  userId: string,
+  dates: string[]
+): Promise<RegenerateApiResponse> { // Return the specific response type
+  if (!userId) {
+    console.error("regeneratePartialMeals called with no userId.");
+    throw new ApiError("User ID is required for regeneration.", 400);
+  }
+  if (!dates || dates.length === 0) {
+    console.log("regeneratePartialMeals called with no dates.");
+    // Return an empty structure consistent with the expected success response
+    return { days: {} };
+  }
+
+  try {
+    console.log(
+      `Calling regenerate-partial API for user ${userId} on dates: ${dates.join(", ")}`
+    );
+    const response = await axios.post<RegenerateApiResponse>( // Expect RegenerateApiResponse
+      `${BACKEND_URL}/beacon/recommendation/regenerate-partial`,
+      {
+        user_id: userId,
+        dates_to_regenerate: dates,
+      }
+    );
+
+    // Basic validation of the response structure
+    if (!response.data || typeof response.data.days !== 'object') {
+      console.error("Invalid response format from regenerate-partial API:", response.data);
+      throw new ApiError("Invalid response format from regeneration API.", 500, response.data);
+    }
+
+    console.log(`Successfully regenerated meals for ${dates.join(", ")}`);
+    console.log("Regeneration Response:", response.data);
+    return response.data; // Return the full response data
+
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `Error regenerating meals: ${error.message}`,
+        error.response?.data
+      );
+      // Throw a specific error for easier handling upstream
+      throw new ApiError(
+        `Failed to regenerate meals: ${error.message}`,
+        error.response?.status,
+        error.response?.data
+      );
+    }
+    // Handle non-Axios errors
+    console.error("Unexpected error regenerating meals:", error);
+    throw error; // Re-throw unexpected errors
+  }
+}
+
 
 // Helper function to generate date strings for a date range
 export function generateDateRange(startDate: Date, endDate: Date): string[] {
@@ -266,7 +339,7 @@ export async function transformFoodInfo(
     foodInfo.ingredients?.map((ing: any, index: number) => {
       const ingName = ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
       // Attempt to create a somewhat unique ID based on name if backend ID isn't provided
-      const ingId = ing.id || `${foodId}-ing-${ingName.toLowerCase().replace(/\s+/g, "-")}`;
+      const ingId = ing.id || `${foodId}-ing-${ingName.toLowerCase().replace(/\s+/g, "-")}-${index}}`;
       const ingNutritionalInfo = calculateNutritionalInfo(ing); // Calculate per ingredient
       return {
         id: ingId,
@@ -332,7 +405,7 @@ function calculateCombinedNutritionalInfo(foods: Food[]): NutritionalInfo {
 
 // Main transformation function for TRACE data (from retrieve-days)
 export async function transformApiResponseToDayMeals(
-  apiResponse: ApiResponse
+  apiResponse: FetchApiResponse
 ): Promise<DayMeals[]> {
   if (!apiResponse || !apiResponse.day_plans || typeof apiResponse.day_plans !== 'object') {
     console.error("Invalid API response format in transformApiResponseToDayMeals:", apiResponse);

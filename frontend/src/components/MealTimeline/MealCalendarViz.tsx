@@ -33,6 +33,7 @@ import {
   parseISO,
   isValid as isValidDate,
 } from "date-fns";
+import { ArrowPathIcon } from "@heroicons/react/20/solid";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -79,6 +80,8 @@ type FetchRequestHandler = (payload: {
 // Define the type for the callback to parent for date selection
 type DateSelectHandler = (newDate: Date) => void;
 
+type RegeneratePartialHandler = (dates: string[]) => void;
+
 interface MealCalendarVizProps {
   mealData: DayMeals[]; // This prop represents the initial/fetched trace data
   userPreferences: {
@@ -90,6 +93,8 @@ interface MealCalendarVizProps {
   onRequestFetch: FetchRequestHandler;
   onDateSelect: DateSelectHandler;
   selectedDate: Date; // Controlled by parent
+  onRegeneratePartial: RegeneratePartialHandler;
+  isRegenerating: boolean;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -99,6 +104,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   onRequestFetch,
   onDateSelect,
   selectedDate,
+  onRegeneratePartial,
+  isRegenerating,
 }) => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +174,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         "Viz: Normalized prop data matches current traceData state. No update needed."
       );
     }
-  }, [initialTraceData]); // Rerun only when the prop changes
+  }, [initialTraceData, traceData]); // Rerun only when the prop changes or local state changes
 
   const handleMealBinNamesUpdate = (newNames: string[]) => {
     setMealBinNames(newNames);
@@ -320,9 +327,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedIngredient(null); // Clear other selections
 
       if (!parentRecommendation) {
-          console.warn("Could not find parent recommendation for recommended food:", food.id);
+        console.warn(
+          "Could not find parent recommendation for recommended food:",
+          food.id
+        );
       }
-
     } else {
       // Selecting a trace food or deselecting
       setSelectedFood(food);
@@ -358,9 +367,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedFood(null); // Clear other selections
 
       if (!parentRecommendation) {
-          console.warn("Could not find parent recommendation for recommended ingredient:", ingredient.id || ingredient.name);
+        console.warn(
+          "Could not find parent recommendation for recommended ingredient:",
+          ingredient.id || ingredient.name
+        );
       }
-
     } else {
       // Selecting a trace ingredient or deselecting
       setSelectedIngredient(ingredient);
@@ -1012,6 +1023,56 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     });
   }, [traceData, datesToDisplay]);
 
+  const hasRecommendationsInView = useMemo(() => {
+    const visibleDateStrings = new Set(
+        datesToDisplay.map(date => format(normalizeDate(date), 'yyyy-MM-dd'))
+    );
+    return recommendationData.some(dayRec => {
+        const dayDateStr = format(normalizeDate(dayRec.date), 'yyyy-MM-dd');
+        return visibleDateStrings.has(dayDateStr) && dayRec.recommendations.length > 0;
+    });
+  }, [recommendationData, datesToDisplay]);
+
+  const handleRegenerateClick = useCallback(() => {
+    if (isRegenerating || !hasRecommendationsInView) {
+      return; // Do nothing if already regenerating or no recommendations in view
+    }
+
+    // 1. Create a Set of date strings (yyyy-MM-dd) that have recommendations
+    const datesWithRecsSet = new Set<string>();
+    recommendationData.forEach(dayRec => {
+        if (dayRec.recommendations && dayRec.recommendations.length > 0) {
+            const normalizedDate = normalizeDate(dayRec.date);
+            if (isValidDate(normalizedDate)) {
+                datesWithRecsSet.add(format(normalizedDate, 'yyyy-MM-dd'));
+            }
+        }
+    });
+
+    // 2. Filter the currently displayed dates to include only those with recommendations
+    const datesToRegenerate = datesToDisplay
+        .map(date => {
+            const normalizedVisibleDate = normalizeDate(date);
+            return isValidDate(normalizedVisibleDate) ? format(normalizedVisibleDate, 'yyyy-MM-dd') : null;
+        })
+        .filter((dateStr): dateStr is string =>
+            dateStr !== null && datesWithRecsSet.has(dateStr) // Check if the visible date has recommendations
+        );
+
+    // 3. Check if any dates remain after filtering
+    if (datesToRegenerate.length === 0) {
+        console.log("Viz: No recommendations found in the current view to regenerate.");
+        // Optionally show a user message/tooltip update here if needed
+        return;
+    }
+
+    // 4. Call the parent handler with the filtered list
+    console.log("Viz: Regenerate button clicked. Calling onRegeneratePartial for dates with recommendations:", datesToRegenerate.join(', '));
+    onRegeneratePartial(datesToRegenerate);
+
+  }, [datesToDisplay, recommendationData, onRegeneratePartial, isRegenerating, hasRecommendationsInView]); // Added recommendationData dependency
+
+
   // Rendering
   if (error) {
     return (
@@ -1030,6 +1091,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   };
   const goalsToDisplay = nutritionalGoals || defaultGoals;
 
+  const regenerateButtonTooltip = isRegenerating
+    ? "Regenerating recommendations..."
+    : !hasRecommendationsInView
+    ? "No recommendations in the current view to regenerate"
+    : "Regenerate recommendations for dates with plans in current view";
+
   return (
     <div
       className="w-screen flex flex-col overflow-hidden bg-gray-100"
@@ -1042,13 +1109,30 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         <div className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden">
           {/* Level Selector Bar */}
           <div className="w-full h-16 px-4 bg-white border-b shadow-sm z-10 flex items-center justify-between">
-            {/* Left side group */}
-            <div className="flex items-center">
-              {/* Level Selector */}
+            <div className="flex items-center space-x-4">
               <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={handleLevelChange}
               />
+              <button
+                onClick={handleRegenerateClick} // Use the new handler
+                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
+                  ${
+                    isRegenerating || !hasRecommendationsInView // Disable if regenerating OR no recs in view
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-500 text-white hover:bg-blue-600"
+                  }
+                `}
+                disabled={isRegenerating || !hasRecommendationsInView} // Disable based on the check
+                title={regenerateButtonTooltip}
+              >
+                {isRegenerating ? (
+                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+                )}
+                {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
+              </button>
             </div>
             {/* Wrap WeekSelector for click handling */}
             <div className="week-selector-container">
