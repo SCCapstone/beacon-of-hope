@@ -303,7 +303,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   };
 
   const handleFoodSelect = (food: Food | null, isRecommended?: boolean) => {
-    // If a recommended food is clicked, select the parent recommendation
+    // If a recommended food is clicked, select the food AND its parent recommendation
     if (food && isRecommended) {
       const normalizedSelected = normalizeDate(selectedDate);
       const dayRecs = recommendationData.find((day) =>
@@ -312,20 +312,22 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const parentRecommendation = dayRecs?.recommendations.find((rec) =>
         rec.meal.foods.some((f) => f.id === food.id)
       );
-      if (parentRecommendation) {
-        handleRecommendationSelect(parentRecommendation); // Select the recommendation
-      } else {
-        // Fallback: Select the food itself, clear others
-        setSelectedFood(food);
-        setSelectedMeal(null);
-        setSelectedIngredient(null);
-        setSelectedRecommendation(null);
+
+      // Set both the food and its parent recommendation context
+      setSelectedFood(food);
+      setSelectedRecommendation(parentRecommendation || null); // Set parent rec, or null if not found
+      setSelectedMeal(null); // Clear other selections
+      setSelectedIngredient(null); // Clear other selections
+
+      if (!parentRecommendation) {
+          console.warn("Could not find parent recommendation for recommended food:", food.id);
       }
+
     } else {
       // Selecting a trace food or deselecting
       setSelectedFood(food);
-      setSelectedMeal(null);
-      setSelectedIngredient(null);
+      setSelectedMeal(null); // Clear meal selection
+      setSelectedIngredient(null); // Clear ingredient selection
       setSelectedRecommendation(null); // Clear recommendation selection
     }
   };
@@ -334,7 +336,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ingredient: Ingredient | null,
     isRecommended?: boolean
   ) => {
-    // If a recommended ingredient is clicked, select the parent recommendation
+    // If a recommended ingredient is clicked, select the ingredient AND its parent recommendation
     if (ingredient && isRecommended) {
       const dayRecs = recommendationData.find((day) =>
         isSameNormalizedDay(day.date, selectedDate)
@@ -348,15 +350,17 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           )
         )
       );
-      if (parentRecommendation) {
-        handleRecommendationSelect(parentRecommendation); // Select the recommendation
-      } else {
-        // Fallback: Select the ingredient itself, clear others
-        setSelectedIngredient(ingredient);
-        setSelectedMeal(null);
-        setSelectedFood(null);
-        setSelectedRecommendation(null);
+
+      // Set both the ingredient and its parent recommendation context
+      setSelectedIngredient(ingredient);
+      setSelectedRecommendation(parentRecommendation || null); // Set parent rec, or null if not found
+      setSelectedMeal(null); // Clear other selections
+      setSelectedFood(null); // Clear other selections
+
+      if (!parentRecommendation) {
+          console.warn("Could not find parent recommendation for recommended ingredient:", ingredient.id || ingredient.name);
       }
+
     } else {
       // Selecting a trace ingredient or deselecting
       setSelectedIngredient(ingredient);
