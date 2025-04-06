@@ -4,6 +4,7 @@ import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
+import { FoodTypeIcon } from "./FoodTypeIcon";
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -28,18 +29,25 @@ const normalizeDate = (date: Date): Date => {
   return normalized;
 };
 
-const TraceMealCard: React.FC<{
+interface TraceMealCardProps {
   meal: Meal;
   isSelected: boolean;
   onClick: () => void;
-}> = ({ meal, isSelected, onClick }) => {
-  const { nutritionalInfo, diabetesFriendly } = meal;
+}
+
+const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick }) => {
+  const { nutritionalInfo, diabetesFriendly, name, foods = [] } = meal;
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein;
+    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
   const carbPercent =
     totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
     totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
+  const fiberPercent = 
+    totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
+
+  // Get unique food types from the meal
+  const foodTypes = Array.from(new Set(foods.map(food => food.type)));
 
   return (
     <motion.div
@@ -53,6 +61,15 @@ const TraceMealCard: React.FC<{
         flex flex-col min-h-[160px]`}
       onClick={onClick}
     >
+      {/* Plan Name Badge (if available) */}
+      {name && (
+        <div className="mb-2">
+          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+            {name}
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
@@ -63,8 +80,13 @@ const TraceMealCard: React.FC<{
         </div>
       </div>
 
-      {/* Macro Visualization */}
-      <div className="flex h-1.5 rounded-full overflow-hidden my-2">
+      {/* Macro Visualization with Labels */}
+      <div className="mb-1 flex justify-between text-xs">
+        <span className="text-blue-600">Carbs {Math.round(carbPercent)}%</span>
+        <span className="text-purple-600">Protein {Math.round(proteinPercent)}%</span>
+        <span className="text-orange-600">Fiber {Math.round(fiberPercent)}%</span>
+      </div>
+      <div className="flex h-2 rounded-full overflow-hidden mb-3">
         <div
           className="bg-blue-400"
           style={{ width: `${carbPercent}%` }}
@@ -75,12 +97,34 @@ const TraceMealCard: React.FC<{
           style={{ width: `${proteinPercent}%` }}
           title={`Protein: ${nutritionalInfo.protein}g`}
         />
+        <div
+          className="bg-orange-400"
+          style={{ width: `${fiberPercent}%` }}
+          title={`Fiber: ${nutritionalInfo.fiber}g`}
+        />
       </div>
+
+      {/* Food Type Icons */}
+      {foodTypes.length > 0 && (
+        <div className="flex items-center mt-1 mb-2">
+          {foodTypes.map((type, index) => (
+            <div key={`${type}-${index}`} className="mr-1" title={type}>
+              <FoodTypeIcon
+                type={type}
+                className="w-4 h-4 text-gray-500"
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Footer Indicators */}
       <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
         <span className="text-gray-500 capitalize">{meal.type}</span>
         <div className="flex items-center space-x-2">
+          {meal.time && (
+            <span className="text-gray-400">{meal.time}</span>
+          )}
           {diabetesFriendly && (
             <span
               className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
@@ -89,7 +133,6 @@ const TraceMealCard: React.FC<{
               DF
             </span>
           )}
-          {/* Optional: Add other simple indicators if needed */}
         </div>
       </div>
     </motion.div>
