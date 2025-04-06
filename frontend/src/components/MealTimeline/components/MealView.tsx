@@ -485,7 +485,7 @@ export const MealView: React.FC<MealViewProps> = ({
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
-                          flex-1 p-2 overflow-y-auto flex flex-col 
+                          flex-1 p-2 overflow-y-auto flex flex-col justify-center
                           ${index > 0 ? "border-l" : ""}
                           ${isSelected ? "border-blue-200" : "border-gray-200"}
                         `}
