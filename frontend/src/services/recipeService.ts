@@ -5,6 +5,7 @@ import {
   NutritionalInfo,
   Meal,
   NutritionalGoals,
+  Ingredient
 } from "../components/MealTimeline/types";
 import {
   calculateNutritionalInfo,
@@ -242,36 +243,41 @@ function normalizeAndValidateDate(dateInput: Date | string): Date {
 }
 
 // Helper function to transform food information
-async function transformFoodInfo(
+export async function transformFoodInfo(
   foodInfo: any,
   mealType: string,
   foodId: string // Keep original ID for reference
 ): Promise<Food> {
   if (!foodInfo) {
-    // Return a placeholder or throw error? Let's throw for clarity.
-    console.error(`No food info provided for ID ${foodId}, Type ${mealType}`);
-    throw new Error(`Missing food info for ${foodId}`);
+    console.error(`transformFoodInfo called with null/undefined foodInfo for ID ${foodId}, Type ${mealType}`);
+    // Return a placeholder or throw? Let's throw for clarity during debugging.
+    throw new Error(`Missing food info for transformation (ID: ${foodId})`);
+    // Or return a placeholder Food object:
+    // return { id: foodId, name: `Error Loading (${foodId})`, type: mealType as any, ingredients: [], nutritionalInfo: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }, preparationTime: 0, cookingTime: 0, instructions: [], allergens: [] };
   }
 
-  const ingredients =
+  // Calculate nutritional info for the whole item first
+  const nutritionalInfo = calculateNutritionalInfo(foodInfo);
+
+  // Transform ingredients
+  const ingredients: Ingredient[] =
     foodInfo.ingredients?.map((ing: any, index: number) => {
       const ingName = ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
-      const ingId = (ing.id || ingName).toLowerCase().replace(/\s+/g, "-"); // Generate ID if missing
+      // Attempt to create a somewhat unique ID based on name if backend ID isn't provided
+      const ingId = ing.id || `${foodId}-ing-${ingName.toLowerCase().replace(/\s+/g, "-")}`;
+      const ingNutritionalInfo = calculateNutritionalInfo(ing); // Calculate per ingredient
       return {
         id: ingId,
         name: ingName,
         amount: parseFloat(ing.quantity?.measure) || 1,
         unit: ing.quantity?.unit || "unit",
         category: ing.category || "other",
-        nutritionalInfo: calculateNutritionalInfo(ing), // Calculate per ingredient
+        nutritionalInfo: ingNutritionalInfo,
         allergens: ing.allergies?.category || [],
         culturalOrigin: ing.cultural_origin || foodInfo.cultural_origin || [], // Inherit if needed
-        // Diabetes friendliness per ingredient is complex, default or calculate simply
-        diabetesFriendly: isDiabetesFriendly(calculateNutritionalInfo(ing)), // Example: check each ingredient
+        diabetesFriendly: isDiabetesFriendly(ingNutritionalInfo), // Check each ingredient
       };
     }) || [];
-
-  const nutritionalInfo = calculateNutritionalInfo(foodInfo); // Calculate for the whole food item
 
   return {
     id: foodId, // Use the original ID passed in

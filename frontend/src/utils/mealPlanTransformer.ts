@@ -1,13 +1,12 @@
 import {
   DayRecommendations,
   Food,
-  Ingredient,
   MealRecommendation,
   NutritionalInfo,
   Meal,
   NutritionalGoals,
 } from "../components/MealTimeline/types";
-import { fetchRecipeInfo, fetchBeverageInfo } from "../services/recipeService";
+import { fetchRecipeInfo, fetchBeverageInfo, transformFoodInfo } from "../services/recipeService";
 import { parse, startOfDay, isValid as isValidDate } from "date-fns";
 
 interface BanditMealPlan {
@@ -219,74 +218,74 @@ export function calculateCombinedMealNutritionalInfo(foods: Food[]): Nutritional
   };
 }
 
-// Helper function to transform a single food item (recipe or beverage)
-async function transformSingleFoodItem(
-  foodId: string,
-  mealType: string
-): Promise<Food | null> {
-  try {
-    let foodInfo;
-    const isBeverage = mealType === "beverage";
+// // Helper function to transform a single food item (recipe or beverage)
+// async function transformSingleFoodItem(
+//   foodId: string,
+//   mealType: string
+// ): Promise<Food | null> {
+//   try {
+//     let foodInfo;
+//     const isBeverage = mealType === "beverage";
 
-    if (isBeverage) {
-      foodInfo = await fetchBeverageInfo(foodId);
-    } else {
-      foodInfo = await fetchRecipeInfo(foodId);
-    }
+//     if (isBeverage) {
+//       foodInfo = await fetchBeverageInfo(foodId);
+//     } else {
+//       foodInfo = await fetchRecipeInfo(foodId);
+//     }
 
-    if (!foodInfo) {
-      console.warn(`No info found for ${mealType} with ID ${foodId}`);
-      return null;
-    }
+//     if (!foodInfo) {
+//       console.warn(`No info found for ${mealType} with ID ${foodId}`);
+//       return null;
+//     }
 
-    // Transform ingredients using calculateNutritionalInfo and isDiabetesFriendly from recipeService
-    const ingredients: Ingredient[] =
-      foodInfo.ingredients?.map((ing: any, index: number) => {
-        const ingName = ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
-        const ingId = (ing.id || ingName).toLowerCase().replace(/\s+/g, "-");
-        const ingNutritionalInfo = calculateNutritionalInfo(ing);
-        return {
-            id: ingId,
-            name: ingName,
-            amount: parseFloat(ing.quantity?.measure) || 1,
-            unit: ing.quantity?.unit || "unit",
-            category: ing.category || "other",
-            nutritionalInfo: ingNutritionalInfo,
-            allergens: ing.allergies?.category || [],
-            culturalOrigin: ing.cultural_origin || foodInfo.cultural_origin || [],
-            diabetesFriendly: isDiabetesFriendly(ingNutritionalInfo), // Check ingredient
-        };
-      }) || [];
+//     // Transform ingredients using calculateNutritionalInfo and isDiabetesFriendly from recipeService
+//     const ingredients: Ingredient[] =
+//       foodInfo.ingredients?.map((ing: any, index: number) => {
+//         const ingName = ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
+//         const ingId = (ing.id || ingName).toLowerCase().replace(/\s+/g, "-");
+//         const ingNutritionalInfo = calculateNutritionalInfo(ing);
+//         return {
+//             id: ingId,
+//             name: ingName,
+//             amount: parseFloat(ing.quantity?.measure) || 1,
+//             unit: ing.quantity?.unit || "unit",
+//             category: ing.category || "other",
+//             nutritionalInfo: ingNutritionalInfo,
+//             allergens: ing.allergies?.category || [],
+//             culturalOrigin: ing.cultural_origin || foodInfo.cultural_origin || [],
+//             diabetesFriendly: isDiabetesFriendly(ingNutritionalInfo), // Check ingredient
+//         };
+//       }) || [];
 
-    const nutritionalInfo = calculateNutritionalInfo(foodInfo);
+//     const nutritionalInfo = calculateNutritionalInfo(foodInfo);
 
-    // Transform food
-    const food: Food = {
-      id: foodId,
-      name: foodInfo.recipe_name || foodInfo.name || "Unnamed Food",
-      type: mealType as
-        | "main_course"
-        | "side_dish"
-        | "beverage"
-        | "dessert"
-        | "snack",
-      ingredients,
-      nutritionalInfo,
-      diabetesFriendly: isDiabetesFriendly(nutritionalInfo),
-      preparationTime: parseInt(foodInfo.prep_time?.split(" ")[0] || "0"),
-      cookingTime: parseInt(foodInfo.cook_time?.split(" ")[0] || "0"),
-      instructions:
-        foodInfo.instructions?.map((inst: any) => inst.original_text || inst.text || "") || [],
-      culturalOrigin: foodInfo.cultural_origin || [],
-      allergens: extractAllergensFromR3(foodInfo), // Use existing helper
-    };
+//     // Transform food
+//     const food: Food = {
+//       id: foodId,
+//       name: foodInfo.recipe_name || foodInfo.name || "Unnamed Food",
+//       type: mealType as
+//         | "main_course"
+//         | "side_dish"
+//         | "beverage"
+//         | "dessert"
+//         | "snack",
+//       ingredients,
+//       nutritionalInfo,
+//       diabetesFriendly: isDiabetesFriendly(nutritionalInfo),
+//       preparationTime: parseInt(foodInfo.prep_time?.split(" ")[0] || "0"),
+//       cookingTime: parseInt(foodInfo.cook_time?.split(" ")[0] || "0"),
+//       instructions:
+//         foodInfo.instructions?.map((inst: any) => inst.original_text || inst.text || "") || [],
+//       culturalOrigin: foodInfo.cultural_origin || [],
+//       allergens: extractAllergensFromR3(foodInfo), // Use existing helper
+//     };
 
-    return food;
-  } catch (error) {
-    console.error(`Error processing ${mealType} with ID ${foodId}:`, error);
-    return null;
-  }
-}
+//     return food;
+//   } catch (error) {
+//     console.error(`Error processing ${mealType} with ID ${foodId}:`, error);
+//     return null;
+//   }
+// }
 
 export async function transformMealPlanToRecommendations(
   mealPlan: BanditMealPlan, // Use the specific type for bandit response
@@ -298,15 +297,18 @@ export async function transformMealPlanToRecommendations(
   }
 
   const recommendations: DayRecommendations[] = [];
-  const allFoodIds = new Set<string>(); // Collect all unique food IDs first
+  const foodIdsToFetch = new Map<string, { type: string }>(); // Map ID to its type
 
-  // Step 1: Collect all unique food/beverage IDs from the meal plan
+  // Step 1: Collect all unique food/beverage IDs and their types
   Object.values(mealPlan.days).forEach(dayData => {
       if (!dayData || !Array.isArray(dayData.meals)) return;
       dayData.meals.forEach(meal => {
-          Object.values(meal.meal_types).forEach(foodId => {
+          Object.entries(meal.meal_types).forEach(([mealType, foodId]) => {
               if (typeof foodId === 'string' && foodId.trim() !== '') {
-                  allFoodIds.add(foodId);
+                  if (!foodIdsToFetch.has(foodId)) {
+                      // Store the type ('beverage', 'main_course', etc.)
+                      foodIdsToFetch.set(foodId, { type: mealType });
+                  }
               }
           });
       });
@@ -316,44 +318,40 @@ export async function transformMealPlanToRecommendations(
   const foodInfoMap = new Map<string, any>();
   const fetchPromises: Promise<void>[] = [];
 
-  // Determine type (heuristic: assume numeric IDs are beverages, others recipes - adjust if needed)
-  // A better approach would be if the API response indicated the type, or if IDs had prefixes.
-  // For now, let's assume non-numeric = recipe, numeric = beverage.
-  const isPotentiallyBeverage = (id: string) => /^\d+$/.test(id);
-
-  allFoodIds.forEach(id => {
-      const fetchPromise = (async () => {
-          try {
-              let info;
-              if (isPotentiallyBeverage(id)) { // Simple heuristic
-                  info = await fetchBeverageInfo(id);
-              } else {
-                  info = await fetchRecipeInfo(id);
-              }
-              if (info) {
-                  foodInfoMap.set(id, info);
-              } else {
-                  console.warn(`No info returned for ID ${id}`);
-              }
-          } catch (error) {
-              console.error(`Error fetching info for ID ${id}:`, error instanceof Error ? error.message : error);
-          }
-      })();
-      fetchPromises.push(fetchPromise);
+  foodIdsToFetch.forEach(({ type }, id) => {
+    const fetchPromise = (async () => {
+      try {
+        let info;
+        // Use the stored type to determine which fetch function to call
+        if (type === "beverage") {
+          info = await fetchBeverageInfo(id);
+        } else {
+          info = await fetchRecipeInfo(id);
+        }
+        if (info) {
+          foodInfoMap.set(id, info);
+        } else {
+          console.warn(`No info returned for ${type} ID ${id}`);
+        }
+      } catch (error) {
+        console.error(`Error fetching info for ${type} ID ${id}:`, error instanceof Error ? error.message : error);
+        // foodInfoMap.set(id, null); // Optionally mark as failed
+      }
+    })();
+    fetchPromises.push(fetchPromise);
   });
 
   await Promise.all(fetchPromises);
-  console.log(`Recommendations: Fetched details for ${foodInfoMap.size} out of ${allFoodIds.size} requested items.`);
+  console.log(`Recommendations: Fetched details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`);
 
 
-  // Step 3: Iterate through days and meals to build recommendations
+  // Step 3: Iterate through days and meals to build recommendations using fetched data
   for (const [dateStr, dayData] of Object.entries(mealPlan.days)) {
     let currentDate: Date;
     try {
-        // Use a robust date parsing/validation function
         currentDate = parse(dateStr, "yyyy-MM-dd", new Date());
         if (!isValidDate(currentDate)) throw new Error("Parsed date is invalid");
-        currentDate = startOfDay(currentDate); // Normalize
+        currentDate = startOfDay(currentDate);
     } catch (e) {
         console.error(`Skipping recommendation day due to invalid date string: ${dateStr}`, e);
         continue;
@@ -366,47 +364,39 @@ export async function transformMealPlanToRecommendations(
 
     if (!dayData || !Array.isArray(dayData.meals)) continue;
 
-    // Iterate through the meals array for the current day
-    for (const mealData of dayData.meals) {
+    // Use Promise.all to process meals concurrently for better performance if many meals per day
+    const mealPromises = dayData.meals.map(async (mealData): Promise<MealRecommendation | null> => {
       const mealFoods: Food[] = [];
       const foodTransformPromises: Promise<Food | null>[] = [];
 
       // Collect food items for this specific meal
       for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
-          // Use pre-fetched info
-          const foodInfo = foodInfoMap.get(foodId);
+          const foodInfo = foodInfoMap.get(foodId); // Get pre-fetched info
           if (foodInfo) {
-              // Asynchronously transform using the pre-fetched info
-              foodTransformPromises.push(
-                  transformSingleFoodItem(foodId, mealType) // Use the helper
-                      .catch(error => {
-                          console.error(`Error transforming recommended food ${foodId} (${mealType}):`, error);
-                          return null;
-                      })
-              );
+            // Use the transformFoodInfo helper from recipeService
+            foodTransformPromises.push(
+              transformFoodInfo(foodInfo, mealType, foodId)
+                .catch(error => {
+                  console.error(`Error transforming recommended food ${foodId} (${mealType}):`, error);
+                  return null; // Handle transformation error for individual food
+                })
+            );
           } else {
-              console.warn(`No pre-fetched info for recommended food ${foodId} (${mealType}). Skipping.`);
+            console.warn(`No pre-fetched info for recommended food ${foodId} (${mealType}). Skipping.`);
           }
         }
       }
 
-      // Fetch and transform all food items for this meal in parallel
+      // Wait for all food transformations for *this meal*
       const fetchedFoods = await Promise.all(foodTransformPromises);
-
-      // Filter out any null results (due to errors)
       fetchedFoods.forEach((food) => {
-        if (food) {
-          mealFoods.push(food);
-        }
+        if (food) mealFoods.push(food); // Add only successfully transformed foods
       });
 
-      // If no valid foods were found for this meal, skip creating a recommendation
       if (mealFoods.length === 0) {
-        console.warn(
-          `Skipping recommendation for ${mealData.meal_name} on ${dateStr} as no valid food items were found or transformed.`
-        );
-        continue;
+        console.warn(`Skipping recommendation for ${mealData.meal_name} on ${dateStr} as no valid food items were transformed.`);
+        return null; // Return null if no foods for this meal
       }
 
       // Calculate combined nutritional info for the entire meal
@@ -460,19 +450,12 @@ export async function transformMealPlanToRecommendations(
           reasons.push("High in protein.");
           healthBenefits.push("Supports muscle maintenance and satiety.");
       }
-
-      // Compare with user goals if available
-      if (userGoals) {
-          // Example: Check calories against a portion of daily goal
-          const approxMealCalorieGoal = userGoals.dailyCalories / (mealPlan.days[dateStr]?.meals.length || 3); // Estimate goal per meal
-          if (combinedNutritionalInfo.calories < approxMealCalorieGoal * 0.8) {
-              reasons.push("Lower calorie option.");
-          } else if (combinedNutritionalInfo.calories > approxMealCalorieGoal * 1.2) {
-              reasons.push("Higher calorie option.");
-          }
+       if (userGoals) {
+          const approxMealCalorieGoal = userGoals.dailyCalories / (dayData.meals.length || 3);
+          if (combinedNutritionalInfo.calories < approxMealCalorieGoal * 0.8) reasons.push("Lower calorie option.");
+          else if (combinedNutritionalInfo.calories > approxMealCalorieGoal * 1.2) reasons.push("Higher calorie option.");
       }
-
-      if (reasons.length === 0) reasons.push("Balanced meal option."); // Default reason
+      if (reasons.length === 0) reasons.push("Balanced meal option.");
 
 
       // Create the complete Meal object
@@ -490,6 +473,7 @@ export async function transformMealPlanToRecommendations(
         nutritionalInfo: combinedNutritionalInfo,
         diabetesFriendly: mealDiabetesFriendly,
         date: currentDate,
+        score: finalScore,
       };
 
       // Create the MealRecommendation object
@@ -503,16 +487,25 @@ export async function transformMealPlanToRecommendations(
           protein: combinedNutritionalInfo.protein,
           fiber: combinedNutritionalInfo.fiber,
         },
-        healthBenefits: healthBenefits, // Use dynamic benefits
+        healthBenefits: healthBenefits,
       };
 
-      // Add this single recommendation to the day's list
-      dayRecommendations.recommendations.push(recommendationItem);
-    }
+      return recommendationItem; // Return the successfully created recommendation
+    });
 
-    // Add the completed day's recommendations to the overall list
+    // Wait for all meal promises for the current day to resolve
+    const resolvedRecommendations = await Promise.all(mealPromises);
+
+    // Filter out any null results (meals that failed transformation)
+    resolvedRecommendations.forEach(rec => {
+        if (rec) {
+            dayRecommendations.recommendations.push(rec);
+        }
+    });
+
+
+    // Add the completed day's recommendations if any exist
     if (dayRecommendations.recommendations.length > 0) {
-        // Sort recommendations within the day by time
         dayRecommendations.recommendations.sort((a, b) => a.meal.time.localeCompare(b.meal.time));
         recommendations.push(dayRecommendations);
     }
@@ -521,6 +514,6 @@ export async function transformMealPlanToRecommendations(
   // Sort final list of days by date
   recommendations.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  console.log("Transformed recommendations:", recommendations);
+  console.log("Transformed recommendations (Refactored):", recommendations.length, "days");
   return recommendations;
 }
