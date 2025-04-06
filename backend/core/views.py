@@ -526,7 +526,7 @@ def save_meal(request: HttpRequest):
                 status=status,
             )
 
-        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id)
+        day_plan, status = firebaseManager.get_temp_dayplan_by_id(day_plan_id)
         if status != 200:
             return JsonResponse(
                 {
@@ -549,6 +549,67 @@ def save_meal(request: HttpRequest):
                 "Error": "The requested meal does not exist in temporary meal plan storage"
             },
             status=500,
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {"Error": f"There was an error saving the meal plan: {e}"}, status=500
+        )
+
+
+@csrf_exempt
+def delete_meal(request: HttpRequest):
+    """Deleting a meal from permanent storage"""
+    if request.method != "DELETE":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    try:
+        logger.info("Delete Meal API Endpoint Called ...")
+        logger.info("Parsing Request Body ...")
+        data = json.loads(request.body)
+
+        keys = ["date", "user_id", "meal_id"]
+        for key in keys:
+            if key not in data:
+                return JsonResponse(
+                    {"Error": f"Request Body missing required attribute: {key}"},
+                    status=403,
+                )
+
+        date, user_id, meal_id = [data[key] for key in keys]
+
+        logger.info(
+            f"Getting corresponding day plan id for date {date} for user {user_id}"
+        )
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was some error in retrieving the user from Firebase: {user}"
+                },
+                status=status,
+            )
+        try:
+            day_plans = user.get_day_plans()
+        except:
+            return JsonResponse(
+                {"Error": "There was an error in retrieving the user's day plans"},
+                status=500,
+            )
+        if date not in day_plans:
+            return JsonResponse(
+                {"Error": f"The provided date: {date} is not in the recorded plans"},
+                status=403,
+            )
+        day_plan_id = day_plans[date]
+
+        msg, status = firebaseManager.remove_meal_from_dayplan(meal_id, day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in removing the meal, {msg}"},
+                status=status,
+            )
+        return JsonResponse(
+            {"Message": "The request meal was removed successfully"}, status=status
         )
 
     except Exception as e:
@@ -771,8 +832,8 @@ def exit_default(request: HttpRequest):
         user_id = data["user_id"]
 
         default_user = {
-            "first_name": "",
-            "last_name": "",
+            "first_name": "Guest",
+            "last_name": "User",
             "email": "",
             "password": "",
             "plan_ids": [],

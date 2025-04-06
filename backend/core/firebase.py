@@ -432,8 +432,11 @@ class FirebaseManager:
             return msg, status
         return (f"Day Plan Object Created, {msg}", 200)
 
-    def get_dayplan_by_id(self, day_plan_id):
+    def get_temp_dayplan_by_id(self, day_plan_id):
         return self._get_document("temp_day_plans", day_plan_id)
+
+    def get_dayplan_by_id(self, day_plan_id):
+        return self._get_document("day_plans", day_plan_id)
 
     def store_meal_in_dayplan(self, day_plan_id: str, meal: Dict):
         return self._update_document_list_attr("day_plans", day_plan_id, "meals", meal)
@@ -449,3 +452,18 @@ class FirebaseManager:
             return self._delete_document("users", user_id)
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
+
+    def remove_meal_from_dayplan(self, meal_id, dayplan_id):
+        day_plan, status = self.get_dayplan_by_id(dayplan_id)
+        if status != 200:
+            return (
+                f"There was an error in retrieving the previously stored meal plan: {day_plan}",
+                status,
+            )
+        meals = []
+
+        # skip over requested meal and updates
+        for meal in day_plan["meals"]:
+            if meal["_id"] != meal_id:
+                meals.append(meal)
+        return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
