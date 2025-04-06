@@ -109,6 +109,7 @@ export async function setNutritionalGoals(
 
 export async function fetchRecipeInfo(foodId: string) {
   try {
+    console.log(`Fetching recipe info for ID: ${foodId}`);
     const response = await axios.get(
       `${BACKEND_URL}/beacon/get-recipe-info/${foodId}`
     );
@@ -121,6 +122,7 @@ export async function fetchRecipeInfo(foodId: string) {
 
 export async function fetchBeverageInfo(bevId: string) {
   try {
+    console.log(`Fetching beverage info for ID: ${bevId}`);
     const response = await axios.get(
       `${BACKEND_URL}/beacon/get-beverage-info/${bevId}`
     );
@@ -414,15 +416,14 @@ export async function transformApiResponseToDayMeals(
     // Process each meal in the day
     for (const meal of dayData.meals) {
       try {
-        const mealFoods: Food[] = [];
-        const foodTransformPromises: Promise<Food | null>[] = [];
+        const mealFoodIds = new Set<string>();
+        const foodItemsToTransform: { foodId: string; mealType: string }[] = [];
 
-        // Process each meal type (main course, side dish, etc.)
+        // Collect unique food IDs and their types for this meal
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
           if (typeof foodId !== "string" || foodId.trim() === "") continue;
 
           const foodInfo = foodInfoMap.get(foodId);
-
           if (!foodInfo) {
             console.warn(
               `No pre-fetched info found for ${foodId} (type: ${mealType}) in meal ${meal.meal_name} on ${dateStr}. Skipping.`
@@ -430,22 +431,30 @@ export async function transformApiResponseToDayMeals(
             continue; // Skip this food item if info wasn't fetched
           }
 
-          // Asynchronously transform food info
-          foodTransformPromises.push(
-            transformFoodInfo(foodInfo, mealType, foodId)
+          if (!mealFoodIds.has(foodId)) {
+            mealFoodIds.add(foodId);
+            foodItemsToTransform.push({ foodId, mealType });
+          } else {
+            // Optional: Log if a duplicate was found in the raw data for this meal
+            // console.log(`Skipping duplicate food ID '${foodId}' within meal '${meal.meal_name}' on ${dateStr}.`);
+          }
+        }
+
+        // Asynchronously transform unique food info for this meal
+        const foodTransformPromises: Promise<Food | null>[] = foodItemsToTransform.map(
+          ({ foodId, mealType }) => {
+            const foodInfo = foodInfoMap.get(foodId)!; // We know it exists from the previous loop
+            return transformFoodInfo(foodInfo, mealType, foodId)
               .catch(error => {
                   console.error(`Error transforming food info for ${foodId} (type: ${mealType}):`, error);
                   return null; // Return null on error to filter out later
-              })
-          );
-        }
+              });
+          }
+        );
 
         // Wait for all food transformations for this meal
         const transformedFoods = await Promise.all(foodTransformPromises);
-        transformedFoods.forEach(food => {
-            if (food) mealFoods.push(food); // Add only successfully transformed foods
-        });
-
+        const mealFoods: Food[] = transformedFoods.filter((food): food is Food => food !== null); // Filter out nulls and ensure type correctness
 
         // Calculate combined nutritional info for the meal
         const mealNutritionalInfo = calculateCombinedNutritionalInfo(mealFoods);

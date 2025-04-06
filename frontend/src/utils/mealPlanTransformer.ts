@@ -366,33 +366,44 @@ export async function transformMealPlanToRecommendations(
 
     // Use Promise.all to process meals concurrently for better performance if many meals per day
     const mealPromises = dayData.meals.map(async (mealData): Promise<MealRecommendation | null> => {
-      const mealFoods: Food[] = [];
-      const foodTransformPromises: Promise<Food | null>[] = [];
+      // Ensure unique foods per meal
+      const mealFoodIds = new Set<string>();
+      const foodItemsToTransform: { foodId: string; mealType: string }[] = [];
 
-      // Collect food items for this specific meal
+      // Collect unique food items for this specific meal
       for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
           const foodInfo = foodInfoMap.get(foodId); // Get pre-fetched info
           if (foodInfo) {
-            // Use the transformFoodInfo helper from recipeService
-            foodTransformPromises.push(
-              transformFoodInfo(foodInfo, mealType, foodId)
-                .catch(error => {
-                  console.error(`Error transforming recommended food ${foodId} (${mealType}):`, error);
-                  return null; // Handle transformation error for individual food
-                })
-            );
+            if (!mealFoodIds.has(foodId)) {
+              mealFoodIds.add(foodId);
+              foodItemsToTransform.push({ foodId, mealType });
+            } else {
+               // Log duplicate within recommendation meal
+               // console.log(`Skipping duplicate food ID '${foodId}' within recommendation meal '${mealData.meal_name}' on ${dateStr}.`);
+            }
           } else {
             console.warn(`No pre-fetched info for recommended food ${foodId} (${mealType}). Skipping.`);
           }
         }
       }
 
+      // Asynchronously transform unique food info for this meal
+      const foodTransformPromises: Promise<Food | null>[] = foodItemsToTransform.map(
+        ({ foodId, mealType }) => {
+          const foodInfo = foodInfoMap.get(foodId)!; // We know it exists
+          // Use the transformFoodInfo helper from recipeService
+          return transformFoodInfo(foodInfo, mealType, foodId)
+            .catch(error => {
+              console.error(`Error transforming recommended food ${foodId} (${mealType}):`, error);
+              return null; // Handle transformation error for individual food
+            });
+        }
+      );
+
       // Wait for all food transformations for *this meal*
       const fetchedFoods = await Promise.all(foodTransformPromises);
-      fetchedFoods.forEach((food) => {
-        if (food) mealFoods.push(food); // Add only successfully transformed foods
-      });
+      const mealFoods: Food[] = fetchedFoods.filter((food): food is Food => food !== null); // Filter out nulls
 
       if (mealFoods.length === 0) {
         console.warn(`Skipping recommendation for ${mealData.meal_name} on ${dateStr} as no valid food items were transformed.`);
