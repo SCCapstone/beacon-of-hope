@@ -49,7 +49,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   // Destructure scores from meal object
   const {
     nutritionalInfo,
-    diabetesFriendly,
+    // diabetesFriendly,
     name,
     foods = [],
     varietyScore,
@@ -57,14 +57,17 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     constraintScore,
   } = meal;
 
+  // Defensive check for nutritionalInfo
+  const safeNutritionalInfo = nutritionalInfo || { calories: 0, protein: 0, carbs: 0, fiber: 0 };
+
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
+    safeNutritionalInfo.carbs + safeNutritionalInfo.protein + safeNutritionalInfo.fiber;
   const carbPercent =
-    totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
-    totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0;
   const fiberPercent =
-    totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0;
 
   const handleCrossClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -85,6 +88,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.15 }}
       className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
@@ -94,7 +98,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       <motion.button
         whileHover={{
           scale: 1.05,
-          backgroundColor: "rgba(239, 68, 68, 0.9)",
+          backgroundColor: "rgba(239, 68, 68, 0.9)", // Red hover
         }}
         whileTap={{ scale: 0.9 }}
         onClick={handleCrossClick}
@@ -107,7 +111,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       <motion.button
         whileHover={{
           scale: 1.05,
-          backgroundColor: "rgba(245, 158, 11, 0.9)",
+          backgroundColor: "rgba(245, 158, 11, 0.9)", // Yellow hover
         }}
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteClick}
@@ -119,10 +123,6 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
-        {/* <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
-          {meal.name}
-        </h3> */}
-        {/* Plan Name Badge (if available) */}
         {name && (
           <div className="mb-2">
             <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
@@ -131,7 +131,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           </div>
         )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-          {nutritionalInfo.calories} cal
+          {safeNutritionalInfo.calories} cal
         </div>
       </div>
 
@@ -149,17 +149,17 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         <div
           className="bg-blue-400"
           style={{ width: `${carbPercent}%` }}
-          title={`Carbs: ${nutritionalInfo.carbs}g`}
+          title={`Carbs: ${safeNutritionalInfo.carbs}g`}
         />
         <div
           className="bg-purple-400"
           style={{ width: `${proteinPercent}%` }}
-          title={`Protein: ${nutritionalInfo.protein}g`}
+          title={`Protein: ${safeNutritionalInfo.protein}g`}
         />
         <div
           className="bg-orange-400"
           style={{ width: `${fiberPercent}%` }}
-          title={`Fiber: ${nutritionalInfo.fiber}g`}
+          title={`Fiber: ${safeNutritionalInfo.fiber}g`}
         />
       </div>
 
@@ -174,8 +174,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         </div>
       )}
 
-      {/* Footer Indicators */}
-      <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+      {/* Footer Indicators (Scores) */}
+      <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
         <span title="Variety Score">V: {formatScore(varietyScore)}</span>
         <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
         <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
@@ -381,15 +381,15 @@ export const MealView: React.FC<MealViewProps> = ({
 
   // Function to render a meal card
   const renderMealCard = (meal: Meal, date: Date) => {
-    // Pass date for unique key
     return (
       <TraceMealCard
         key={`meal-${meal.id}-${date.toISOString()}`}
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
-        onCrossClick={() => console.log("Cross clicked", meal.id)} // Replace with actual handler
-        onFavoriteClick={() => console.log("Favorite clicked", meal.id)} // Replace with actual handler
+        // Placeholder handlers for the new actions
+        onCrossClick={() => console.warn("Remove action not implemented for meal:", meal.id)}
+        onFavoriteClick={() => console.warn("Favorite action not implemented for meal:", meal.id)}
       />
     );
   };

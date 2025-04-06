@@ -14,10 +14,10 @@ interface RecommendedMealCardProps {
   className?: string;
 }
 
-const isMealDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
-  // Access diabetesFriendly from the nested meal object
-  return meal.diabetesFriendly ?? false;
-};
+// const isMealDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
+//   // Access diabetesFriendly from the nested meal object
+//   return meal.diabetesFriendly ?? false;
+// };
 
 export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   recommendation,
@@ -38,18 +38,20 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
     constraintScore,
   } = meal;
 
-  const diabetesFriendly = isMealDiabetesFriendly(meal);
+  // Defensive check for nutritionalInfo
+  const safeNutritionalInfo = nutritionalInfo || { calories: 0, protein: 0, carbs: 0, fiber: 0 };
+
+  // const diabetesFriendly = isMealDiabetesFriendly(meal);
   const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
 
-  // Include fiber in calculations like non-recommended card
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
+    safeNutritionalInfo.carbs + safeNutritionalInfo.protein + safeNutritionalInfo.fiber;
   const carbPercent =
-    totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
-    totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0;
   const fiberPercent =
-    totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0;
 
   const formatImpact = (value: number | undefined): JSX.Element | null => {
     if (value === undefined || value === 0 || !isSelected) return null;
@@ -113,7 +115,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
       )}
 
       {/* Header Section: Name, Calories */}
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-start mb-2">
         <h3 className="text-sm font-medium text-gray-800 truncate">
           {meal.name}
         </h3>
@@ -169,14 +171,16 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
 
         {/* Macro Visualization with 3 segments */}
         <div className="flex h-2 rounded-full overflow-hidden mb-3">
-          <div className="bg-blue-400" style={{ width: `${carbPercent}%` }} />
+          <div className="bg-blue-400" style={{ width: `${carbPercent}%` }} title={`Carbs: ${safeNutritionalInfo.carbs}g`} />
           <div
             className="bg-purple-400"
             style={{ width: `${proteinPercent}%` }}
+            title={`Protein: ${safeNutritionalInfo.protein}g`}
           />
           <div
             className="bg-orange-400"
             style={{ width: `${fiberPercent}%` }}
+            title={`Fiber: ${safeNutritionalInfo.fiber}g`}
           />
         </div>
 
@@ -191,17 +195,17 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </div>
         )}
 
-        {/* Footer Indicators */}
-        <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+        {/* Footer Indicators (Scores) */}
+        <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
           <span title="Variety Score">V: {formatScore(varietyScore)}</span>
           <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
           <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
         </div>
 
-        {/* Health Benefits */}
+        {/* Health Benefits (Show first one if available) */}
         {(healthBenefits ?? []).length > 0 && (
-          <div className="mt-3 pt-2 border-t border-green-100">
-            <div className="bg-green-100 rounded-m text-xs text-green-800 text-center">
+          <div className="mt-2 pt-2 border-t border-green-100">
+            <div className="bg-green-100 rounded-md px-2 py-1 text-xs text-green-800 text-center truncate">
               <span className="font-medium">Benefit:</span>{" "}
               {healthBenefits?.[0]}
             </div>
