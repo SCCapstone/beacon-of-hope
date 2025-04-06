@@ -82,9 +82,9 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
 
       {/* Macro Visualization with Labels */}
       <div className="mb-1 flex justify-between text-xs">
-        <span className="text-blue-600">Carbs {Math.round(carbPercent)}%</span>
-        <span className="text-purple-600">Protein {Math.round(proteinPercent)}%</span>
-        <span className="text-orange-600">Fiber {Math.round(fiberPercent)}%</span>
+        <span className="text-blue-900">Carbs {Math.round(carbPercent)}%</span>
+        <span className="text-purple-900">Protein {Math.round(proteinPercent)}%</span>
+        <span className="text-orange-900">Fiber {Math.round(fiberPercent)}%</span>
       </div>
       <div className="flex h-2 rounded-full overflow-hidden mb-3">
         <div
