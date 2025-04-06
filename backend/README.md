@@ -623,7 +623,7 @@ poetry run coverage report
     - Status code 200 if successful
 
 - #### `<backend_ip>/beacon/user/save-meal`
-  - HTTP Method: `Post`
+  - HTTP Method: `POST`
   - Description: Move a meal from temporary storage to permanent storage
   - Parameters:
     - ```json
@@ -633,10 +633,32 @@ poetry run coverage report
         "meal_id":"67cbasdfls324433"
       }
   - Response:
-    - (200) Successfully retrieved goals
+    - (200) Successfully saved meal
     ```json
     {
       "Message": "Meal was successfully moved to permanent storage"
+    }
+    ```
+    - (400) Invalid request method
+    - (403) Missing Parameters
+    - (500) Internal Server error
+    - Status code 200 if successful
+
+- #### `<backend_ip>/beacon/user/delete-meal`
+  - HTTP Method: `DELETE`
+  - Description: Delete meal from permanent history
+  - Parameters:
+    - ```json
+      {
+        "user_id":"67cbasdflsdafj293",
+        "date:":"2025-04-08",
+        "meal_id":"67cbasdfls324433"
+      }
+  - Response:
+    - (200) Successfully deleted meal
+    ```json
+    {
+      "Message": "Meal was successfully deleted"
     }
     ```
     - (400) Invalid request method

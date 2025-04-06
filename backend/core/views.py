@@ -519,7 +519,7 @@ def save_meal(request: HttpRequest):
         day_plan_id = day_plans[date]
 
         # create a day plan object in the permanent storage (if it already exists, this does nothing)
-        msg, status = firebaseManager.create_dayplan_object(user_id, day_plan_id)
+        msg, status = firebaseManager.create_dayplan_object(user_id, date, day_plan_id)
         if status != 200:
             return JsonResponse(
                 {"Error": f"There was an error in creating the day plan object: {msg}"},
@@ -832,6 +832,8 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
     if request.method != "POST":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
+        logger.info("Retrieve Day Plans API called ...")
+        logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
         if "dates" not in data:
             return JsonResponse(
@@ -958,6 +960,7 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
     except Exception as e:
         logger.exception("get_nutritional_goals failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
 
 @csrf_exempt
 def exit_default(request: HttpRequest):

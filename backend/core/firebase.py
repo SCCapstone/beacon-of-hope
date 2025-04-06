@@ -409,11 +409,28 @@ class FirebaseManager:
         except Exception as e:
             return (f"There was an issue saving the day plan: {e}", 500)
 
-    def create_dayplan_object(self, user_id: str, day_plan_id: str):
+    def create_dayplan_object(self, user_id: str, date: str, day_plan_id: str):
+        # Need to create a dayplan object as well as a reference to it in the user's object
+        # if dayplan already exists
         if self._exists_document("day_plans", day_plan_id):
-            return ("Day Plan Object Already Exists", 200)
+            msg, status = self._update_document_dict_attr(
+                "users", user_id, "day_plans", date, day_plan_id
+            )
+            if status != 200:
+                return msg, status
+            return (f"Day Plan Object Already Exists, {msg}", 200)
+
+        # if dayplan doesn't exist
         day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": []}
-        return self._add_document("day_plans", day_plan_id, day_plan)
+        msg, status = self._add_document("day_plans", day_plan_id, day_plan)
+        if status != 200:
+            return msg, status
+        msg, status = self._update_document_dict_attr(
+            "users", user_id, "day_plans", date, day_plan_id
+        )
+        if status != 200:
+            return msg, status
+        return (f"Day Plan Object Created, {msg}", 200)
 
     def get_dayplan_by_id(self, day_plan_id):
         return self._get_document("temp_day_plans", day_plan_id)
