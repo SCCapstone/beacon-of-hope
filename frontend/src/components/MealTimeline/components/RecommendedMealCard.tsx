@@ -41,8 +41,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   const fiberPercent =
     totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
 
-  const formatImpact = (value: number | undefined): string => {
-    if (value === undefined || value === 0 || !isSelected) return "";
+  const formatImpact = (value: number | undefined): JSX.Element | null => {
+    if (value === undefined || value === 0 || !isSelected) return null;
     const prefix = value > 0 ? "+" : "";
     const color =
       value > 0
@@ -50,7 +50,12 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         : value < 0
         ? "text-red-600"
         : "text-gray-500";
-    return `<span class="${color} text-[10px] ml-1">(${prefix}${value})</span>`;
+    return (
+      <span className={`${color} text-[10px] ml-1`}>
+        ({prefix}
+        {value})
+      </span>
+    );
   };
 
   const handleAcceptClick = (e: React.MouseEvent) => {
@@ -103,10 +108,9 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           {meal.name}
         </h3>
         <div className="flex items-center space-x-2">
-          <div
-            className="text-xs font-semibold text-gray-700 bg-gray-100/80 px-2 py-0.5 rounded-full whitespace-nowrap"
-          >
-            {nutritionalInfo.calories} cal{formatImpact(nutritionalImpact?.calories)}
+          <div className="text-xs font-semibold text-gray-700 bg-gray-100/80 px-2 py-0.5 rounded-full whitespace-nowrap">
+            {nutritionalInfo.calories} cal
+            {formatImpact(nutritionalImpact?.calories)}
           </div>
           <div
             className={`w-6 h-6 rounded-full flex items-center justify-center
@@ -138,7 +142,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
       >
         <CheckIcon className="w-4 h-4" />
       </motion.button>
-      
+
       <motion.button
         whileHover={{
           scale: 1.05,
@@ -154,7 +158,6 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
 
       {/* Main Content */}
       <div className="flex flex-col h-full">
-
         {/* Macro Labels */}
         <div className="mb-1 flex justify-between text-xs">
           <span className="text-blue-900">

@@ -5,6 +5,7 @@ import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
+import { XMarkIcon, StarIcon } from "@heroicons/react/20/solid";
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -33,9 +34,17 @@ interface TraceMealCardProps {
   meal: Meal;
   isSelected: boolean;
   onClick: () => void;
+  onCrossClick: () => void; // New prop
+  onFavoriteClick: () => void; // New prop
 }
 
-const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick }) => {
+const TraceMealCard: React.FC<TraceMealCardProps> = ({
+  meal,
+  isSelected,
+  onClick,
+  onCrossClick,
+  onFavoriteClick,
+}) => {
   const { nutritionalInfo, diabetesFriendly, name, foods = [] } = meal;
   const totalMacros =
     nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
@@ -43,11 +52,21 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
     totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
     totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
-  const fiberPercent = 
+  const fiberPercent =
     totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
 
+  const handleCrossClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCrossClick();
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFavoriteClick();
+  };
+
   // Get unique food types from the meal
-  const foodTypes = Array.from(new Set(foods.map(food => food.type)));
+  const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
 
   return (
     <motion.div
@@ -55,12 +74,38 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`meal-card p-3 mb-3 rounded-lg cursor-pointer
+      className={`meal-card relative p-2 mb-3 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
         flex flex-col min-h-[160px]`}
       onClick={onClick}
     >
+      <motion.button
+        whileHover={{
+          scale: 1.05,
+          backgroundColor: "rgba(239, 68, 68, 0.9)",
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleCrossClick}
+        className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-red-500 shadow-md z-20 hover:bg-red-500 transition-colors"
+        title="Remove meal"
+      >
+        <XMarkIcon className="w-4 h-4" />
+      </motion.button>
+
+      <motion.button
+        whileHover={{
+          scale: 1.05,
+          backgroundColor: "rgba(245, 158, 11, 0.9)",
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleFavoriteClick}
+        className="absolute -top-2 -right-2 p-0.5 rounded-full text-white bg-yellow-500 shadow-md z-20 hover:bg-yellow-600 transition-colors"
+        title="Favorite meal"
+      >
+        <StarIcon className="w-4 h-4" />
+      </motion.button>
+
       {/* Plan Name Badge (if available) */}
       {name && (
         <div className="mb-2">
@@ -83,8 +128,12 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
       {/* Macro Visualization with Labels */}
       <div className="mb-1 flex justify-between text-xs">
         <span className="text-blue-900">Carbs {Math.round(carbPercent)}%</span>
-        <span className="text-purple-900">Protein {Math.round(proteinPercent)}%</span>
-        <span className="text-orange-900">Fiber {Math.round(fiberPercent)}%</span>
+        <span className="text-purple-900">
+          Protein {Math.round(proteinPercent)}%
+        </span>
+        <span className="text-orange-900">
+          Fiber {Math.round(fiberPercent)}%
+        </span>
       </div>
       <div className="flex h-2 rounded-full overflow-hidden mb-3">
         <div
@@ -109,10 +158,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
         <div className="flex items-center mt-1 mb-2">
           {foodTypes.map((type, index) => (
             <div key={`${type}-${index}`} className="mr-1" title={type}>
-              <FoodTypeIcon
-                type={type}
-                className="w-4 h-4 text-gray-500"
-              />
+              <FoodTypeIcon type={type} className="w-4 h-4 text-gray-500" />
             </div>
           ))}
         </div>
@@ -122,9 +168,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({ meal, isSelected, onClick
       <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
         <span className="text-gray-500 capitalize">{meal.type}</span>
         <div className="flex items-center space-x-2">
-          {meal.time && (
-            <span className="text-gray-400">{meal.time}</span>
-          )}
+          {meal.time && <span className="text-gray-400">{meal.time}</span>}
           {diabetesFriendly && (
             <span
               className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
@@ -343,6 +387,8 @@ export const MealView: React.FC<MealViewProps> = ({
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+        onCrossClick={() => console.log("Cross clicked", meal.id)} // Replace with actual handler
+        onFavoriteClick={() => console.log("Favorite clicked", meal.id)} // Replace with actual handler
       />
     );
   };
@@ -453,12 +499,20 @@ export const MealView: React.FC<MealViewProps> = ({
                         <AnimatePresence>
                           {bin.recommendations.map((recommendation) => (
                             <RecommendedMealCard
-                              key={`rec-${recommendation.meal.id}-${currentDate.toISOString()}`}
+                              key={`rec-${
+                                recommendation.meal.id
+                              }-${currentDate.toISOString()}`}
                               className="my-1.5 flex-shrink-0"
                               recommendation={recommendation}
-                              onAccept={() => onAcceptRecommendationClick(recommendation)}
-                              onReject={() => onRejectRecommendationClick(recommendation)}
-                              onClick={() => onRecommendationSelect(recommendation)} // Selects for details panel
+                              onAccept={() =>
+                                onAcceptRecommendationClick(recommendation)
+                              }
+                              onReject={() =>
+                                onRejectRecommendationClick(recommendation)
+                              }
+                              onClick={() =>
+                                onRecommendationSelect(recommendation)
+                              } // Selects for details panel
                               isSelected={
                                 selectedRecommendation?.meal.id ===
                                 recommendation.meal.id
