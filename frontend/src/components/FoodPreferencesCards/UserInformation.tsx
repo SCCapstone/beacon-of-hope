@@ -22,6 +22,15 @@ const UserInformation: React.FC<{
   setWeight,
   setGender,
 }) => {
+
+  // Parse current height into feet and inches
+  const [feet, inches] = height.split("'").map(val => parseInt(val));
+
+  // Handle height changes
+  const handleHeightChange = (feet: number, inches: number) => {
+    setHeight(`${feet}'${inches}"`);
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -35,7 +44,7 @@ const UserInformation: React.FC<{
           >
             Height
           </label>
-          <select
+          {/* <select
             id="height"
             value={height}
             onChange={(e) => handleChange(e, setHeight)}
@@ -55,7 +64,39 @@ const UserInformation: React.FC<{
                 );
               });
             })}
-          </select>
+          </select> */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <select
+                id="height-feet"
+                value={feet || ""}
+                onChange={(e) => handleHeightChange(parseInt(e.target.value), inches || 0)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+              >
+                <option value="">Feet</option>
+                {Array.from({ length: 4 }, (_, i) => i + 4).map((foot) => (
+                  <option key={foot} value={foot}>
+                    {foot} ft
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <select
+                id="height-inches"
+                value={inches || ""}
+                onChange={(e) => handleHeightChange(feet || 0, parseInt(e.target.value))}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
+              >
+                <option value="">Inches</option>
+                {Array.from({ length: 12 }, (_, i) => i).map((inch) => (
+                  <option key={inch} value={inch}>
+                    {inch} in
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <p className="mt-1 text-sm text-gray-500">
             Enter Your Height (ft/in)
           </p>
