@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { MealRecommendation } from "../types";
-import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid"; // Using Heroicons for icons
+import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid";
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
@@ -14,13 +14,7 @@ interface RecommendedMealCardProps {
 
 // Helper function
 const isMealDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
-  if (meal.diabetesFriendly !== undefined) return meal.diabetesFriendly;
-  const allFoodsFriendly = meal.foods.every(
-    (food) => food.diabetesFriendly === true
-  );
-  if (allFoodsFriendly) return true;
-  // Add more sophisticated checks if needed (e.g., based on overall nutrition)
-  return false; // Default to false if unsure
+  return meal.diabetesFriendly ?? false; // Use the pre-calculated value, default to false
 };
 
 export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
@@ -31,21 +25,22 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   isSelected,
   className = "",
 }) => {
+  // Use the score directly from the recommendation object
   const { meal, score, nutritionalImpact, healthBenefits } = recommendation;
   const diabetesFriendly = isMealDiabetesFriendly(meal);
   const { nutritionalInfo } = meal;
 
+  // Calculate macro percentages (keep as is)
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fat;
+    (nutritionalInfo?.carbs ?? 0) + (nutritionalInfo?.protein ?? 0);
   const carbPercent =
-    totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
+    totalMacros > 0 ? ((nutritionalInfo?.carbs ?? 0) / totalMacros) * 100 : 0;
   const proteinPercent =
-    totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
-  const fatPercent =
-    totalMacros > 0 ? (nutritionalInfo.fat / totalMacros) * 100 : 0;
+    totalMacros > 0 ? ((nutritionalInfo?.protein ?? 0) / totalMacros) * 100 : 0;
 
+  // Format impact for display (keep as is, but use optional chaining)
   const formatImpact = (value: number | undefined): string => {
-    if (value === undefined || !isSelected) return ""; // Only show impact if selected
+    if (value === undefined || value === 0 || !isSelected) return "";
     const prefix = value > 0 ? "+" : "";
     const color =
       value > 0
@@ -103,10 +98,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
 
       {/* Recommendation Badge & Score */}
       <div className="absolute top-2 right-2 z-10 flex items-center space-x-1">
-        <span
-          className="px-2 py-0.5 bg-green-500
-          text-white text-xs font-medium rounded-full shadow-sm"
-        >
+        <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full shadow-sm">
           Rec
         </span>
         <div
@@ -135,7 +127,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           <div
             className="text-xs font-semibold text-gray-700 bg-gray-100/80 px-2 py-0.5 rounded-full whitespace-nowrap"
             dangerouslySetInnerHTML={{
-              __html: `${nutritionalInfo.calories} cal${formatImpact(
+              __html: `${nutritionalInfo?.calories ?? 0} cal${formatImpact(
                 nutritionalImpact?.calories
               )}`,
             }}
@@ -147,17 +139,12 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           <div
             className="bg-blue-400"
             style={{ width: `${carbPercent}%` }}
-            title={`Carbs: ${nutritionalInfo.carbs}g`}
+            title={`Carbs: ${nutritionalInfo?.carbs ?? 0}g`}
           />
           <div
             className="bg-purple-400"
             style={{ width: `${proteinPercent}%` }}
-            title={`Protein: ${nutritionalInfo.protein}g`}
-          />
-          <div
-            className="bg-yellow-400"
-            style={{ width: `${fatPercent}%` }}
-            title={`Fat: ${nutritionalInfo.fat}g`}
+            title={`Protein: ${nutritionalInfo?.protein ?? 0}g`}
           />
         </div>
 
@@ -176,7 +163,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </div>
         </div>
 
-        {/* Primary Health Benefit */}
+        {/* Primary Health Benefit (Use dynamic benefit) */}
         {healthBenefits && healthBenefits.length > 0 && (
           <div className="mt-3 pt-2 border-t border-green-100">
             <div className="bg-green-100 rounded-md p-2 text-xs text-green-800 text-center">
@@ -185,10 +172,13 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           </div>
         )}
 
-        {/* --- Action Buttons --- */}
+        {/* Action Buttons (keep as is) */}
         <div className="absolute bottom-2 right-2 flex space-x-1.5 z-10">
           <motion.button
-            whileHover={{ scale: 1.1, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+            whileHover={{
+              scale: 1.1,
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+            }}
             whileTap={{ scale: 0.9 }}
             onClick={handleRejectClick}
             className="p-1.5 rounded-full text-red-500 hover:bg-red-50 transition-colors"
@@ -197,7 +187,10 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             <XMarkIcon className="w-4 h-4" />
           </motion.button>
           <motion.button
-            whileHover={{ scale: 1.1, backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+            whileHover={{
+              scale: 1.1,
+              backgroundColor: "rgba(34, 197, 94, 0.1)",
+            }}
             whileTap={{ scale: 0.9 }}
             onClick={handleAcceptClick}
             className="p-1.5 rounded-full text-green-600 hover:bg-green-50 transition-colors"

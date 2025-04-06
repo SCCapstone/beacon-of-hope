@@ -35,13 +35,11 @@ const TraceMealCard: React.FC<{
 }> = ({ meal, isSelected, onClick }) => {
   const { nutritionalInfo, diabetesFriendly } = meal;
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fat;
+    nutritionalInfo.carbs + nutritionalInfo.protein;
   const carbPercent =
     totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
     totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
-  const fatPercent =
-    totalMacros > 0 ? (nutritionalInfo.fat / totalMacros) * 100 : 0;
 
   return (
     <motion.div
@@ -76,11 +74,6 @@ const TraceMealCard: React.FC<{
           className="bg-purple-400"
           style={{ width: `${proteinPercent}%` }}
           title={`Protein: ${nutritionalInfo.protein}g`}
-        />
-        <div
-          className="bg-yellow-400"
-          style={{ width: `${fatPercent}%` }}
-          title={`Fat: ${nutritionalInfo.fat}g`}
         />
       </div>
 

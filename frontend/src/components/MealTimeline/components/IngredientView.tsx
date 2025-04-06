@@ -6,9 +6,9 @@ import {
   MealRecommendation,
   NutritionalInfo,
   DayRecommendations,
+  COLOR_SCHEMES
 } from "../types";
 import { format, isSameDay, startOfDay, isValid as isValidDate, parseISO } from "date-fns";
-import { COLOR_SCHEMES } from "../constants";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -81,9 +81,9 @@ const getPrimaryNutrient = (
   nutritionalInfo: NutritionalInfo | undefined // Allow undefined
 ): string | null => {
   if (!nutritionalInfo) return null; // Handle undefined case
-  const { protein = 0, carbs = 0, fat = 0, fiber = 0 } = nutritionalInfo; // Default values
+  const { protein = 0, carbs = 0, calories = 0, fiber = 0 } = nutritionalInfo; // Default values
   if (fiber > 3) return "Fiber Source"; // Prioritize fiber
-  const macros = { protein, carbs, fat };
+  const macros = { protein, carbs };
   let primary: keyof typeof macros | null = null;
   let maxValue = 0;
 
