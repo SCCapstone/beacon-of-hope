@@ -222,10 +222,10 @@ const FoodPreferencesPage: React.FC = () => {
         meal_name: mealConfigs[index]?.mealName,
         meal_time: convertTime24to12(mealConfigs[index]?.mealTime),
         meal_types: {
-          beverage: mealConfigs[index]?.mealTypes.beverage || true,
-          main_course: mealConfigs[index]?.mealTypes.mainCourse || true,
-          side: mealConfigs[index]?.mealTypes.side || true,
-          dessert: mealConfigs[index]?.mealTypes.dessert || true,
+          beverage: mealConfigs[index]?.mealTypes.beverage || false,
+          main_course: mealConfigs[index]?.mealTypes.mainCourse || false,
+          side: mealConfigs[index]?.mealTypes.side || false,
+          dessert: mealConfigs[index]?.mealTypes.dessert || false,
         },
       })
     );
