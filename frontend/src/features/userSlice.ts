@@ -124,6 +124,7 @@ export const userSlice = createSlice({
             state.user = null;
             localStorage.removeItem("user")
             localStorage.removeItem("rememberMe");
+            localStorage.removeItem("isGuest");
             sessionStorage.clear();
         },
         setGuestUser: (state) => {
@@ -172,6 +173,11 @@ export const userSlice = createSlice({
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
+
+            //state.user = guestUser;
+
+            localStorage.setItem("user", JSON.stringify(state.user));
+            localStorage.setItem("isGuest", "true");
         }
     },
     extraReducers: (builder) => {
