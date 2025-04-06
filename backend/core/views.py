@@ -203,6 +203,7 @@ def bandit_recommendation(request: HttpRequest):
         logger.info(f"Saving meal plan to firebase")
         try:
             if user_id:
+                logger.info(f"For user: {user_id}")
                 # save day plans to firebase
                 for date, day_plan in meal_plan["days"].items():
                     day_plan["user_id"] = user_id
@@ -503,8 +504,52 @@ def save_meal(request: HttpRequest):
                 },
                 status=status,
             )
-        # user.get
+        try:
+            day_plans = user.get_temp_day_plans()
+        except:
+            return JsonResponse(
+                {"Error": "There was an error in retrieving the user's day plans"},
+                status=500,
+            )
+        if date not in day_plans:
+            return JsonResponse(
+                {"Error": f"The provided date: {date} is not in the recorded plans"},
+                status=403,
+            )
+        day_plan_id = day_plans[date]
 
+        # create a day plan object in the permanent storage (if it already exists, this does nothing)
+        msg, status = firebaseManager.create_dayplan_object(user_id, day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in creating the day plan object: {msg}"},
+                status=status,
+            )
+
+        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was an error in retrieving hte previously stored meal plan: {day_plan}"
+                },
+                status=status,
+            )
+
+        for meal in day_plan["meals"]:
+            if meal["_id"] == meal_id:
+                # store meal in permanent day plan
+                msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
+
+                return JsonResponse(
+                    {"Message": msg},
+                    status=status,
+                )
+        return JsonResponse(
+            {
+                "Error": "The requested meal does not exist in temporary meal plan storage"
+            },
+            status=500,
+        )
 
     except Exception as e:
         return JsonResponse(
@@ -559,7 +604,7 @@ def create_user(request: HttpRequest):
             "meal_plan_config": {},
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-            "day_plans": {},
+            "temp_day_plans": {},
             "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
                 "Main Course": [],
@@ -797,7 +842,7 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
             )
         dates = data["dates"]
         day_plans, status = firebaseManager.get_day_plans(user_id, dates)
-        print(day_plans, status)
+
         if status != 200:
             return JsonResponse(
                 {"Error": f"There was an error retrieving the day plans: {day_plans}"},

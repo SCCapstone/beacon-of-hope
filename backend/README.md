@@ -621,3 +621,25 @@ poetry run coverage report
     - (400) Invalid request method
     - (500) Internal Server error
     - Status code 200 if successful
+
+- #### `<backend_ip>/beacon/user/save-meal`
+  - HTTP Method: `Post`
+  - Description: Move a meal from temporary storage to permanent storage
+  - Parameters:
+    - ```json
+      {
+        "user_id":"67cbasdflsdafj293",
+        "date:":"2025-04-08",
+        "meal_id":"67cbasdfls324433"
+      }
+  - Response:
+    - (200) Successfully retrieved goals
+    ```json
+    {
+      "Message": "Meal was successfully moved to permanent storage"
+    }
+    ```
+    - (400) Invalid request method
+    - (403) Missing Parameters
+    - (500) Internal Server error
+    - Status code 200 if successful

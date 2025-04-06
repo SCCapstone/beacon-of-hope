@@ -65,8 +65,8 @@ class User:
     def get_account_update_date(self):
         return self.updated_at
 
-    def get_day_plans(self) -> Dict[str, str]:
-        return self.day_plans
+    def get_temp_day_plans(self) -> Dict[str, str]:
+        return self.temp_day_plans
 
     def get_bandit_counter(self) -> int:
         return self.bandit_counter
