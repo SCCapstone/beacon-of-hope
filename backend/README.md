@@ -363,77 +363,6 @@ poetry run coverage report
       - (500) Internal Server error
 
 
-- #### `<backend_ip>/beacon/recommendation/retrieve-latest/<str:user_id>`
-   - **Deprecated**
-   - HTTP Method: `GET`
-   - Description: Retrieve latest meal plan recommendation for a particular user
-   - Parameters:
-    - `user_id`: str
-   - Returns:
-    ```json
-   {
-    "_id": PyMongo ObjectId,
-    "name": "Generated Meal Plan",
-    "start_date": DateTime,
-    "end_date": DateTime,
-    "days": [
-        {
-            "day": int,
-            "meals": [
-                {
-                    "_id": PyMongo ObjectId,
-                    "beverage": str,
-                    "main_course": str,
-                    "side_dish": str,
-                    "dessert": str
-                }
-            ]
-        }
-    ],
-    "status": str,
-    "tags": [str],
-    "created_at": DateTime,
-    "updated_at": DateTime
-    }
-    ```
-
-- #### `<backend_ip>/beacon/recommendation/retrieve-all/<str:user_id>`
-   - **Deprecated**
-   - HTTP Method: `GET`
-   - Description: Retrieve all meal plans for a particular user
-   - Parameters:
-    - `user_id`: str
-   - Returns:
-    ```json
-   {"meal_plans":[
-    {
-    "_id": PyMongo ObjectId,
-    "name": "Generated Meal Plan",
-    "start_date": DateTime,
-    "end_date": DateTime,
-    "days": [
-        {
-            "day": int,
-            "meals": [
-                {
-                    "_id": PyMongo ObjectId,
-                    "beverage": str,
-                    "main_course": str,
-                    "side_dish": str,
-                    "dessert": str
-                }
-            ]
-        }
-    ],
-    "status": str,
-    "tags": [str],
-    "created_at": DateTime,
-    "updated_at": DateTime
-    }
-    ]
-    }
-    ```
-
 - #### `<backend_ip>/beacon/recommendation/retrieve-days/<str:user_id>`
    - HTTP Method: `POST`
    - Description: Retrieve specific meal plans for a particular user based on a list of dates
@@ -560,14 +489,14 @@ poetry run coverage report
   - Login user profile
   - Parameters
     - Content-type: application/json
-    - ```json
+    - ```python
       {
-        'email': str,
-        'password': str
+        "email": str,
+        "password": str
       }
     ```
   - Returns
-    - ```json
+    - ```python
       {
           "_id": pyMongo ObjectId type,
           "username": str,
@@ -607,7 +536,7 @@ poetry run coverage report
           },
           "created_at": python DateTime,
           "updated_at": python DateTime,
-        }
+      }
 
       ```
 
@@ -690,5 +619,27 @@ poetry run coverage report
     }
     ```
     - (400) Invalid request method
+    - (500) Internal Server error
+    - Status code 200 if successful
+
+- #### `<backend_ip>/beacon/user/save-meal`
+  - HTTP Method: `Post`
+  - Description: Move a meal from temporary storage to permanent storage
+  - Parameters:
+    - ```json
+      {
+        "user_id":"67cbasdflsdafj293",
+        "date:":"2025-04-08",
+        "meal_id":"67cbasdfls324433"
+      }
+  - Response:
+    - (200) Successfully retrieved goals
+    ```json
+    {
+      "Message": "Meal was successfully moved to permanent storage"
+    }
+    ```
+    - (400) Invalid request method
+    - (403) Missing Parameters
     - (500) Internal Server error
     - Status code 200 if successful

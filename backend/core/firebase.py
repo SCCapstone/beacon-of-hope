@@ -58,6 +58,11 @@ class FirebaseManager:
         except Exception as e:
             return (f"Error getting document: {e}", 500)
 
+    def _exists_document(self, collection_name, document_id):
+        doc_ref = self.db.collection(collection_name).document(document_id)
+        doc = doc_ref.get()
+        return doc.exists
+
     def _get_documents_by_attr(self, collection_name, key, value):
         """
         Returns all documents that have {key: value} in their schema.
@@ -342,7 +347,6 @@ class FirebaseManager:
                     if status != 200:
                         return (day_plan, status)
                     day_plans[date] = day_plan
-            print(f"Vansh: {day_plans}")
             # return the day_plans
             return (day_plans, status)
         except Exception as e:
@@ -380,14 +384,14 @@ class FirebaseManager:
         except Exception as e:
             return (f"There was an issue saving the meal plan: {e}", 500)
 
-    def add_dayplan(self, user_id, date, day_plan):
+    def add_dayplan_temp(self, user_id, date, day_plan):
         # in the user object in firebase, we want to store a sub-object of the following form
         # day_plans: {"2025-03-01": day_plan_id}
         # where day_plan_id links to a day plan object in the day_plans collection
         try:
             # add a reference to the user's day plan in the user firebase object
             update_res, update_status = self._update_document_dict_attr(
-                "users", user_id, "day_plans", date, day_plan["_id"]
+                "users", user_id, "temp_day_plans", date, day_plan["_id"]
             )
             if update_status != 200:
                 print("dayplan id wasn't added")
@@ -395,7 +399,7 @@ class FirebaseManager:
 
             # save the user's dayplan
             add_res, add_status = self._add_document(
-                "day_plans", day_plan["_id"], day_plan
+                "temp_day_plans", day_plan["_id"], day_plan
             )
             if add_status != 200:
                 print("dayplan was not saved")
@@ -404,6 +408,18 @@ class FirebaseManager:
             return ("Day Plan saved successfully", 200)
         except Exception as e:
             return (f"There was an issue saving the day plan: {e}", 500)
+
+    def create_dayplan_object(self, user_id: str, day_plan_id: str):
+        if self._exists_document("day_plans", day_plan_id):
+            return ("Day Plan Object Already Exists", 200)
+        day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": []}
+        return self._add_document("day_plans", day_plan_id, day_plan)
+
+    def get_dayplan_by_id(self, day_plan_id):
+        return self._get_document("temp_day_plans", day_plan_id)
+
+    def store_meal_in_dayplan(self, day_plan_id: str, meal: Dict):
+        return self._update_document_list_attr("day_plans", day_plan_id, "meals", meal)
 
     """Object deletion functions"""
 

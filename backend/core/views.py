@@ -26,6 +26,7 @@ firebaseManager = FirebaseManager()  # DB manager
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
+GUEST_ID = "67ee9325af31921234bf1241"
 
 """Recommendation API Endpoints"""
 
@@ -72,19 +73,18 @@ def bandit_recommendation(request: HttpRequest):
         num_meals = meal_plan_config["num_meals"]
         meal_configs = meal_plan_config["meal_configs"]
 
-        if "user_preferences" not in data or "user_id" not in data:
+        if "user_preferences" not in data:
             return JsonResponse(
-                {
-                    "Error": "Request body is missing key 'user_preferences' or 'user_id'"
-                },
+                {"Error": "Request body is missing key 'user_preferences'"},
+                status=403,
+            )
+        if "user_id" not in data:
+            return JsonResponse(
+                {"Error": "Request body is missing key 'user_id'"},
                 status=403,
             )
         user_preferences = data["user_preferences"]
         user_id = data["user_id"]
-        if not user_id:
-            # TODO, handle default case
-
-            ...
         logger.info(f"User ID: {user_id}")
 
         user, status = firebaseManager.get_user_by_id(user_id)
@@ -203,10 +203,13 @@ def bandit_recommendation(request: HttpRequest):
         logger.info(f"Saving meal plan to firebase")
         try:
             if user_id:
+                logger.info(f"For user: {user_id}")
                 # save day plans to firebase
                 for date, day_plan in meal_plan["days"].items():
                     day_plan["user_id"] = user_id
-                    msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+                    msg, status = firebaseManager.add_dayplan_temp(
+                        user_id, date, day_plan
+                    )
                     if status != 200:
                         logger.info(msg)
                         return JsonResponse({"Error": msg}, status=status)
@@ -332,7 +335,7 @@ def regenerate_partial_meal_plan(request: HttpRequest):
             day_plan["user_id"] = user_id
 
             # overwrites existing dayplan for the same date
-            msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+            msg, status = firebaseManager.add_dayplan_temp(user_id, date, day_plan)
 
             if status != 200:
                 return JsonResponse(
@@ -447,7 +450,7 @@ def edit_meal_plan(request: HttpRequest):
         # Update day plan in Firebase
         day_plan["user_id"] = user_id
 
-        msg, status = firebaseManager.add_dayplan(user_id, date, day_plan)
+        msg, status = firebaseManager.add_dayplan_temp(user_id, date, day_plan)
         if status != 200:
             return JsonResponse(
                 {"Error": f"Failed to update day plan for {date}", "details": msg},
@@ -472,6 +475,86 @@ def edit_meal_plan(request: HttpRequest):
     except Exception as e:
         logger.exception("edit_meal_plan failed")
         return JsonResponse({"Error": f"Unexpected error: {str(e)}"}, status=500)
+
+
+@csrf_exempt
+def save_meal(request: HttpRequest):
+    """Saving a meal (Moving from temporary storage to permanent storage)"""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    try:
+        logger.info("Save Meal API Endpoint Called ...")
+        logger.info("Parsing Request Body ...")
+        data = json.loads(request.body)
+
+        keys = ["date", "user_id", "meal_id"]
+        for key in keys:
+            if key not in data:
+                return JsonResponse(
+                    {"Error": f"Request Body missing required attribute: {key}"},
+                    status=403,
+                )
+
+        date, user_id, meal_id = [data[key] for key in keys]
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was some error in retrieving the user from Firebase: {user}"
+                },
+                status=status,
+            )
+        try:
+            day_plans = user.get_temp_day_plans()
+        except:
+            return JsonResponse(
+                {"Error": "There was an error in retrieving the user's day plans"},
+                status=500,
+            )
+        if date not in day_plans:
+            return JsonResponse(
+                {"Error": f"The provided date: {date} is not in the recorded plans"},
+                status=403,
+            )
+        day_plan_id = day_plans[date]
+
+        # create a day plan object in the permanent storage (if it already exists, this does nothing)
+        msg, status = firebaseManager.create_dayplan_object(user_id, day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in creating the day plan object: {msg}"},
+                status=status,
+            )
+
+        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was an error in retrieving hte previously stored meal plan: {day_plan}"
+                },
+                status=status,
+            )
+
+        for meal in day_plan["meals"]:
+            if meal["_id"] == meal_id:
+                # store meal in permanent day plan
+                msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
+
+                return JsonResponse(
+                    {"Message": msg},
+                    status=status,
+                )
+        return JsonResponse(
+            {
+                "Error": "The requested meal does not exist in temporary meal plan storage"
+            },
+            status=500,
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {"Error": f"There was an error saving the meal plan: {e}"}, status=500
+        )
 
 
 """User Account API Endpoints"""
@@ -521,7 +604,7 @@ def create_user(request: HttpRequest):
             "meal_plan_config": {},
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-            "day_plans": {},
+            "temp_day_plans": {},
             "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
                 "Main Course": [],
@@ -670,26 +753,78 @@ def delete_account(request: HttpRequest, user_id: str):
         return JsonResponse({"Error": f"Couldn't delete user: {user_id}"}, status=500)
 
 
+@csrf_exempt
+def exit_default(request: HttpRequest):
+    """
+    Reset a user's data to default values while preserving their user ID.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        if "user_id" not in data:
+            return JsonResponse(
+                {"error": "Missing required field: user_id"}, status=400
+            )
+
+        user_id = data["user_id"]
+
+        default_user = {
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "password": "",
+            "plan_ids": [],
+            "dietary_preferences": {
+                "preferences": [""],
+                "numerical_preferences": {
+                    "dairy": 0,
+                    "nuts": 0,
+                    "meat": 0,
+                },
+            },
+            "health_info": {
+                "allergies": [""],
+                "conditions": [""],
+            },
+            "demographicsInfo": {},
+            "meal_plan_config": {},
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+            "day_plans": {},
+            "bandit_counter": 1,
+            "favorite_items": {
+                "Main Course": [],
+                "Side": [],
+                "Dessert": [],
+                "Beverage": [],
+            },
+            "nutritional_goals": {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0},
+        }
+
+        for field, value in default_user.items():
+            msg, status = firebaseManager.update_user_attr(user_id, field, value)
+            if status != 200:
+                return JsonResponse(
+                    {"error": f"Failed to update field '{field}': {msg}"}, status=status
+                )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Successfully reset user data to default values",
+                "user_id": user_id,
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        logger.exception("exit_default failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
+
 """Meal Plan Retrieval and Food Item Retrieval Items"""
-
-
-def retrieve_meal_plan(request: HttpRequest, user_id: str):
-    if request.method != "GET":
-        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
-    meal_plan, _ = firebaseManager.get_latest_user_meal_plan(user_id=user_id)
-    if isinstance(meal_plan, Exception):
-        return JsonResponse({"Error": str(meal_plan)}, status=500)
-    return JsonResponse(meal_plan, status=200)
-
-
-def retrieve_all_meal_plans(request: HttpRequest, user_id: str):
-    if request.method != "GET":
-        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
-
-    meal_plans, _ = firebaseManager.get_all_user_meal_plans(user_id=user_id)
-    if isinstance(meal_plans, Exception):
-        return JsonResponse({"Error": str(meal_plans)}, status=500)
-    return JsonResponse({"meal_plans": meal_plans}, status=200)
 
 
 @csrf_exempt
@@ -707,7 +842,7 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
             )
         dates = data["dates"]
         day_plans, status = firebaseManager.get_day_plans(user_id, dates)
-        print(day_plans, status)
+
         if status != 200:
             return JsonResponse(
                 {"Error": f"There was an error retrieving the day plans: {day_plans}"},
@@ -815,9 +950,7 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
             return JsonResponse(
                 {"error": "Failed to retrieve user data"}, status=status
             )
-
         nutritional_goals = user.get_nutritional_goals()
-        print(nutritional_goals)
         return JsonResponse(
             {"success": True, "daily_goals": nutritional_goals}, status=200
         )
@@ -825,7 +958,6 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
     except Exception as e:
         logger.exception("get_nutritional_goals failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
-
 
 @csrf_exempt
 def exit_default(request: HttpRequest):

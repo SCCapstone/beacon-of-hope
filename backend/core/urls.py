@@ -18,16 +18,6 @@ urlpatterns = [
         name="edit_meal_plan",
     ),
     path(
-        "recommendation/retrieve-latest/<str:user_id>",
-        views.retrieve_meal_plan,
-        name="retrieve_meal_plan",
-    ),
-    path(
-        "recommendation/retrieve-all/<str:user_id>",
-        views.retrieve_all_meal_plans,
-        name="retrieve_all_meal_plans",
-    ),
-    path(
         "recommendation/retrieve-days/<str:user_id>",
         views.retrieve_day_plans,
         name="retrieve_day_plans",
@@ -45,7 +35,6 @@ urlpatterns = [
     path("user/delete/<str:user_id>", views.delete_account, name="delete_account"),
     path("user/update/<str:user_id>", views.update_user, name="update_user"),
     path("user/exit-default", views.exit_default, name="exit_default"),
-
     path(
         "user/nutritional-goals",
         views.set_nutritional_goals,
@@ -56,4 +45,5 @@ urlpatterns = [
         views.get_nutritional_goals,
         name="get_nutritional_goals",
     ),
+    path("user/save-meal", views.save_meal, name="save_meal"),
 ]
