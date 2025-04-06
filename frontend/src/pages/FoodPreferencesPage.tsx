@@ -316,6 +316,7 @@ const FoodPreferencesPage: React.FC = () => {
       }
 
       const result = await responseBandit.json();
+      console.log("Bandit Response body:", result);
 
       // Clear Session Cache BEFORE navigating
       try {

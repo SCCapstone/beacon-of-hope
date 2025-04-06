@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { format, isValid } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
+import { formatScore } from "../utils";
 
 interface MealDetailsPanelProps {
   meal: Meal | null;
@@ -42,13 +43,14 @@ const DetailHeader: React.FC<{
   title: string;
   subtitle?: string;
   isRecommendation?: boolean;
-  score?: number;
   onClose: () => void;
-}> = ({ title, subtitle, isRecommendation, score, onClose }) => (
+}> = (
+  { title, subtitle, isRecommendation, onClose } // Removed score from destructuring
+) => (
   <div className="p-4 border-b bg-gray-50 relative">
     {isRecommendation && (
       <span className="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
-        Recommended {score !== undefined && `(${score})`}
+        Recommended
       </span>
     )}
     <button
@@ -411,7 +413,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                 isValid(recDate) ? format(recDate, "MMM d") : ""
               }`}
               isRecommendation
-              score={rec.score}
               onClose={onClose}
             />
             <RecommendationReasons
@@ -475,9 +476,15 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   <span className="font-semibold">
                     {recommendation.meal.name}
                   </span>
-                  ' recommendation (Score: {recommendation.score}). Use the
-                  buttons on the card in the calendar to accept or reject the
-                  full recommendation.
+                  ' recommendation. Use the buttons on the card in the calendar
+                  to accept or reject the full recommendation.
+                  {/* Display scores of the parent recommendation */}
+                  <span className="block mt-1">
+                    {" "}
+                    (V: {formatScore(recommendation.varietyScore)}, C:{" "}
+                    {formatScore(recommendation.coverageScore)}, N:{" "}
+                    {formatScore(recommendation.constraintScore)})
+                  </span>
                 </p>
               </div>
             )}
@@ -543,6 +550,12 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   </span>
                   ' recommendation. Accepting will save the entire recommended
                   meal.
+                  <span className="block mt-1">
+                    {" "}
+                    (V: {formatScore(recommendation.varietyScore)}, C:{" "}
+                    {formatScore(recommendation.coverageScore)}, N:{" "}
+                    {formatScore(recommendation.constraintScore)})
+                  </span>
                 </p>
               </div>
             )}

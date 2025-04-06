@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MealRecommendation } from "../types";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { FoodTypeIcon } from "./FoodTypeIcon";
+import { formatScore } from "../utils";
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
@@ -14,6 +15,7 @@ interface RecommendedMealCardProps {
 }
 
 const isMealDiabetesFriendly = (meal: MealRecommendation["meal"]): boolean => {
+  // Access diabetesFriendly from the nested meal object
   return meal.diabetesFriendly ?? false;
 };
 
@@ -25,10 +27,18 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   isSelected,
   className = "",
 }) => {
-  // Use the score directly from the recommendation object
-  const { meal, score, nutritionalImpact, healthBenefits } = recommendation;
+  // Destructure from recommendation and its nested meal
+  const { meal, nutritionalImpact, healthBenefits } = recommendation;
+  // Get scores from the MEAL object within the recommendation
+  const {
+    nutritionalInfo,
+    foods = [],
+    varietyScore,
+    coverageScore,
+    constraintScore,
+  } = meal;
+
   const diabetesFriendly = isMealDiabetesFriendly(meal);
-  const { nutritionalInfo, foods = [] } = meal;
   const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
 
   // Include fiber in calculations like non-recommended card
@@ -75,14 +85,14 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         e.stopPropagation();
         onClick();
       }}
-      className={`${className} recommendation-card relative p-2 mb-3 rounded-lg cursor-pointer
+      className={`${className} recommendation-card relative p-2 rounded-lg cursor-pointer
         transform transition-all duration-300
         ${
           isSelected
             ? "ring-2 ring-green-500"
             : "border border-dashed border-green-300"
         }
-        bg-green-50/80 backdrop-blur-sm flex flex-col min-h-[160px]`}
+        bg-green-50/80 backdrop-blur-sm flex flex-col min-h-[100px]`}
       style={{
         boxShadow: isSelected
           ? "0 0 10px rgba(16, 185, 129, 0.15)"
@@ -102,7 +112,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         </motion.div>
       )}
 
-      {/* Header Section: Name, Calories, and Score in one line */}
+      {/* Header Section: Name, Calories */}
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-sm font-medium text-gray-800 truncate">
           {meal.name}
@@ -111,20 +121,6 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           <div className="text-xs font-semibold text-gray-700 bg-gray-100/80 px-2 py-0.5 rounded-full whitespace-nowrap">
             {nutritionalInfo.calories} cal
             {formatImpact(nutritionalImpact?.calories)}
-          </div>
-          <div
-            className={`w-6 h-6 rounded-full flex items-center justify-center
-              text-xs font-semibold border
-              ${
-                score >= 80
-                  ? "bg-green-100 text-green-700 border-green-200"
-                  : score >= 60
-                  ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-                  : "bg-orange-100 text-orange-700 border-orange-200"
-              }`}
-            title={`Match Score: ${score}`}
-          >
-            {score}
           </div>
         </div>
       </div>
@@ -196,23 +192,10 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         )}
 
         {/* Footer Indicators */}
-        <div className="mt-auto pt-2 border-t border-green-100 flex justify-between items-center text-xs">
-          <div className="flex items-center">
-            <span className="text-gray-500 capitalize">{meal.type}</span>
-            {meal.time && (
-              <span className="text-gray-400 ml-2">{meal.time}</span>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {diabetesFriendly && (
-              <span
-                className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
-                title="Diabetes Friendly"
-              >
-                DF
-              </span>
-            )}
-          </div>
+        <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+          <span title="Variety Score">V: {formatScore(varietyScore)}</span>
+          <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
+          <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
         </div>
 
         {/* Health Benefits */}

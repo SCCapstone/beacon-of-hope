@@ -13,7 +13,7 @@ import {
   Ingredient,
   VisualizationLevel,
   MealRecommendation,
-  NutritionalGoals
+  NutritionalGoals,
 } from "./types";
 import { LevelSelector } from "./components/LevelSelector";
 import { MealView } from "./components/MealView";
@@ -21,7 +21,7 @@ import { FoodView } from "./components/FoodView";
 import { IngredientView } from "./components/IngredientView";
 import { WeekSelector } from "./components/WeekSelector";
 import { MealDetailsPanel } from "./components/MealDetailsPanel";
-import { calculateCurrentNutritionalValues } from "./utils/nutritionalUtils";
+import { calculateCurrentNutritionalValues } from "./utils";
 import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransformer";
 import {
   subDays,
@@ -179,7 +179,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   useEffect(() => {
     async function loadRecommendations() {
       // Check if mealPlan exists and has the expected structure (e.g., a 'days' property)
-      if (mealPlan && typeof mealPlan === 'object' && mealPlan.days && Object.keys(mealPlan.days).length > 0) {
+      if (
+        mealPlan &&
+        typeof mealPlan === "object" &&
+        mealPlan.days &&
+        Object.keys(mealPlan.days).length > 0
+      ) {
         setLoadingRecommendations(true);
         setError(null);
         console.log("Viz: Transforming meal plan to recommendations...");
@@ -207,18 +212,21 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           console.log("Viz: Transformation complete.");
           setRecommendationData(recommendations);
         } catch (transformError) {
-            console.error("Viz: Error transforming meal plan:", transformError);
-            setError("Error loading recommendations from meal plan");
-            setRecommendationData([]);
+          console.error("Viz: Error transforming meal plan:", transformError);
+          setError("Error loading recommendations from meal plan");
+          setRecommendationData([]);
         } finally {
-            setLoadingRecommendations(false);
+          setLoadingRecommendations(false);
         }
       } else {
         // Clear recommendations if mealPlan is missing, empty, or invalid
         if (mealPlan && Object.keys(mealPlan).length > 0 && !mealPlan.days) {
-            console.warn("Viz: mealPlan found in localStorage but missing 'days' property. Clearing recommendations.", mealPlan);
+          console.warn(
+            "Viz: mealPlan found in localStorage but missing 'days' property. Clearing recommendations.",
+            mealPlan
+          );
         } else {
-            // console.log("Viz: No valid meal plan provided, clearing recommendations.");
+          // console.log("Viz: No valid meal plan provided, clearing recommendations.");
         }
         setRecommendationData([]);
         setError(null); // Clear any previous error
@@ -227,7 +235,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     }
 
     loadRecommendations();
-  // Rerun when mealPlan changes OR when nutritionalGoals are updated
+    // Rerun when mealPlan changes OR when nutritionalGoals are updated
   }, [mealPlan, nutritionalGoals]);
 
   // State for nutritional values
@@ -420,9 +428,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       };
       // Remove originalBackendId if it exists on traceMealToAdd
       delete traceMealToAdd.originalBackendId;
-      // Also remove score as it's not relevant for trace meals
-      delete traceMealToAdd.score;
-
 
       setTraceData((prevTraceData) => {
         const newData = [...prevTraceData];
@@ -435,7 +440,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           newData[dayIndex] = {
             ...newData[dayIndex],
             date: mealDate, // Ensure date is normalized
-            meals: [...(newData[dayIndex].meals || []), traceMealToAdd].sort((a,b) => a.time.localeCompare(b.time)), // Sort meals by time
+            meals: [...(newData[dayIndex].meals || []), traceMealToAdd].sort(
+              (a, b) => a.time.localeCompare(b.time)
+            ), // Sort meals by time
           };
           console.log(
             `Viz: Optimistically added meal '${traceMealToAdd.id}' to existing day ${mealDateStr} in traceData state.`
@@ -501,7 +508,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 `Viz: Removed raw meal with _id '${backendIdToRemove}' from localStorage["mealPlan"] for date ${mealDateStr}.`
               );
               // If the day becomes empty, remove the day entry
-              if (finalLength === 0 && Object.keys(rawMealPlan.days[mealDateStr]).length <= 3) { // Check if only _id, user_id, meal_plan_id remain
+              if (
+                finalLength === 0 &&
+                Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
+              ) {
+                // Check if only _id, user_id, meal_plan_id remain
                 console.log(
                   `Viz: Removing empty day ${mealDateStr} from localStorage["mealPlan"].`
                 );
@@ -521,8 +532,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           if (changed) {
             // If all days are gone, remove the mealPlan entirely? Or keep the structure? Keep structure for now.
             if (Object.keys(rawMealPlan.days).length === 0) {
-                 console.log("Viz: No days left in mealPlan, but keeping structure in localStorage.");
-                 // Optionally: localStorage.removeItem("mealPlan");
+              console.log(
+                "Viz: No days left in mealPlan, but keeping structure in localStorage."
+              );
+              // Optionally: localStorage.removeItem("mealPlan");
             }
             localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
             // Object.keys(sessionStorage).forEach((key) => {
@@ -690,9 +703,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           }
 
           if (changed) {
-             if (Object.keys(rawMealPlan.days).length === 0) {
-                 console.log("Viz: No days left in mealPlan, but keeping structure in localStorage.");
-                 // Optionally: localStorage.removeItem("mealPlan");
+            if (Object.keys(rawMealPlan.days).length === 0) {
+              console.log(
+                "Viz: No days left in mealPlan, but keeping structure in localStorage."
+              );
+              // Optionally: localStorage.removeItem("mealPlan");
             }
             localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
             console.log(
@@ -965,24 +980,31 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       return [normalizeDate(new Date())]; // Fallback
     }
     try {
-        return eachDayOfInterval({ start: startDate, end: endDate });
+      return eachDayOfInterval({ start: startDate, end: endDate });
     } catch (rangeError) {
-        console.error("Error creating date interval:", rangeError, { startDate, endDate });
-        return [normalizeDate(selectedDate)]; // Fallback to selected date
+      console.error("Error creating date interval:", rangeError, {
+        startDate,
+        endDate,
+      });
+      return [normalizeDate(selectedDate)]; // Fallback to selected date
     }
   }, [selectedDate, currentLevel]);
 
   // Filter TRACE data for the visible range using the local traceData state
   const visibleTraceData = useMemo(() => {
     // Ensure datesToDisplay contains valid, normalized dates
-    const validDatesToDisplay = datesToDisplay.map(normalizeDate).filter(isValidDate);
+    const validDatesToDisplay = datesToDisplay
+      .map(normalizeDate)
+      .filter(isValidDate);
 
     return validDatesToDisplay.map((date) => {
       // Find data for the current date using normalized comparison
-      const existingDay = traceData.find((day) =>
-        isSameNormalizedDay(day.date, date) // Use robust comparison
+      const existingDay = traceData.find(
+        (day) => isSameNormalizedDay(day.date, date) // Use robust comparison
       );
-      return existingDay ? { ...existingDay, date: date } : { date: date, meals: [] };
+      return existingDay
+        ? { ...existingDay, date: date }
+        : { date: date, meals: [] };
     });
   }, [traceData, datesToDisplay]);
 
@@ -997,13 +1019,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Provide default goals if nutritionalGoals prop is null
   const defaultGoals: NutritionalGoals = {
-      dailyCalories: 2000,
-      carbohydrates: { daily: 250, unit: 'g' },
-      protein: { daily: 100, unit: 'g' },
-      fiber: { daily: 30, unit: 'g' },
+    dailyCalories: 2000,
+    carbohydrates: { daily: 250, unit: "g" },
+    protein: { daily: 100, unit: "g" },
+    fiber: { daily: 30, unit: "g" },
   };
   const goalsToDisplay = nutritionalGoals || defaultGoals;
-
 
   return (
     <div

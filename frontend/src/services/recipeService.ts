@@ -149,7 +149,7 @@ export async function fetchMealDays(userId: string, dates: string[]) {
 
   try {
     console.log(
-      `Fetching meal days for user ${userId} on dates: ${dates.join(", ")}`
+      `Calling the retrieve-days API for user ${userId} on dates: ${dates.join(", ")}`
     );
     const response = await axios.post<ApiResponse>(
       `${BACKEND_URL}/beacon/recommendation/retrieve-days/${userId}`,
@@ -462,6 +462,11 @@ export async function transformApiResponseToDayMeals(
         // Get default meal time if not provided, otherwise use provided (needs API update?)
         const mealTime = meal.meal_time || getDefaultMealTime(meal.meal_name);
 
+        // Get Individual Scores for Trace Meal
+        const varietyScore = meal.variety_score ?? 0; // Default to 0 if missing
+        const coverageScore = meal.item_coverage_score ?? 0;
+        const constraintScore = meal.nutritional_constraint_score ?? 0;
+
         // Create the Meal object
         const completeMeal: Meal = {
           // Generate a unique ID for the frontend instance (trace meal)
@@ -474,10 +479,11 @@ export async function transformApiResponseToDayMeals(
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
           foods: mealFoods,
           nutritionalInfo: mealNutritionalInfo,
-          diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly), // Base meal friendliness on foods
-          date: currentDate, // Assign the date
-          // TODO: Check if scores are generally available for trace data, does an API provide them
-          // score: undefined, // Explicitly undefined for trace meals
+          diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
+          date: currentDate,
+          varietyScore: varietyScore,
+          coverageScore: coverageScore,
+          constraintScore: constraintScore,
         };
 
         dayMeal.meals.push(completeMeal);

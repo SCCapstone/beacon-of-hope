@@ -419,29 +419,24 @@ export async function transformMealPlanToRecommendations(
       // Get meal time (use default if missing from API)
       const mealTime = mealData.meal_time || getDefaultMealTime(mealData.meal_name);
 
-      // Calculate Recommendation Score
-      // Use scores directly from the mealData object
-      const varietyScore = mealData.variety_score ?? 0.5; // Default if missing
-      const coverageScore = mealData.item_coverage_score ?? 0.5;
-      const constraintScore = mealData.nutritional_constraint_score ?? 0.5;
-
-      // Combine scores into a single 0-100 score (example weighting)
-      const combinedScore = Math.round(
-          (varietyScore * 0.2 + coverageScore * 0.3 + constraintScore * 0.5) * 100
-      );
-      const finalScore = Math.min(100, Math.max(0, combinedScore)); // Clamp between 0-100
+      // Use scores directly from the mealData object, default to 0 if missing
+      const varietyScore = mealData.variety_score ?? 0;
+      const coverageScore = mealData.item_coverage_score ?? 0;
+      const constraintScore = mealData.nutritional_constraint_score ?? 0;
 
       // Generate Dynamic Reasons & Benefits
       const reasons: string[] = [];
       const healthBenefits: string[] = [];
 
       // Add reasons based on scores
-      if (finalScore >= 80) reasons.push("Excellent match for your profile!");
-      else if (finalScore >= 60) reasons.push("Good match for your preferences.");
-      if (constraintScore > 0.8) reasons.push("Aligns well with nutritional constraints.");
+      const avgScore = (varietyScore + coverageScore + constraintScore) / 3; // Example simple average for general comments
+      if (avgScore >= 0.8) reasons.push("Excellent match for your profile!");
+      else if (avgScore >= 0.6) reasons.push("Good match for your preferences.");
+
+      if (constraintScore >= 0.8) reasons.push("Aligns well with nutritional constraints.");
       else if (constraintScore < 0.4) reasons.push("May need review for nutritional alignment.");
-      if (varietyScore > 0.8) reasons.push("Adds good variety.");
-      if (coverageScore > 0.8) reasons.push("Covers requested meal components well.");
+      if (varietyScore >= 0.8) reasons.push("Adds good variety.");
+      if (coverageScore >= 0.8) reasons.push("Covers requested meal components well.");
 
       // Add reasons/benefits based on nutrition and goals
       if (mealDiabetesFriendly) {
@@ -484,14 +479,15 @@ export async function transformMealPlanToRecommendations(
         nutritionalInfo: combinedNutritionalInfo,
         diabetesFriendly: mealDiabetesFriendly,
         date: currentDate,
-        score: finalScore,
+        varietyScore: varietyScore,
+        coverageScore: coverageScore,
+        constraintScore: constraintScore,
       };
 
       // Create the MealRecommendation object
       const recommendationItem: MealRecommendation = {
         meal: completeMeal,
-        score: finalScore, // Use the calculated score
-        reasons: reasons, // Use dynamic reasons
+        reasons: reasons,
         nutritionalImpact: {
           calories: combinedNutritionalInfo.calories,
           carbs: combinedNutritionalInfo.carbs,
@@ -499,6 +495,9 @@ export async function transformMealPlanToRecommendations(
           fiber: combinedNutritionalInfo.fiber,
         },
         healthBenefits: healthBenefits,
+        varietyScore: varietyScore,
+        coverageScore: coverageScore,
+        constraintScore: constraintScore,
       };
 
       return recommendationItem; // Return the successfully created recommendation

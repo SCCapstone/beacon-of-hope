@@ -1,4 +1,4 @@
-import { DayMeals } from "../types";
+import { DayMeals } from "./types";
 
 export const calculateCurrentNutritionalValues = (weekData: DayMeals[]) => {
   if (!weekData.length) {
@@ -50,4 +50,11 @@ export const calculateCurrentNutritionalValues = (weekData: DayMeals[]) => {
     protein: Math.round(totals.protein / numberOfDays),
     fiber: Math.round(totals.fiber / numberOfDays),
   };
+};
+
+// Helper to format score
+export const formatScore = (score: number | undefined): string => {
+  if (score === undefined || score === null) return "N/A";
+  return score.toFixed(2); // Display as decimal, e.g., 0.75
+  // Or display as percentage: return `${(score * 100).toFixed(0)}%`;
 };

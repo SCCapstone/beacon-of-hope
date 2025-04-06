@@ -71,7 +71,9 @@ export interface Meal {
   culturalTips?: string[]; // Optional tips related to culture
   healthBenefits?: string[]; // Optional health benefits summary
   date?: Date; // Date associated with the meal instance
-  score?: number; // Optional: Score (0-100) if it's a recommendation
+  varietyScore?: number; // Score from 0 to 1
+  coverageScore?: number; // Score from 0 to 1 (item_coverage_score)
+  constraintScore?: number; // Score from 0 to 1 (nutritional_constraint_score)
 }
 
 // Represents meals consumed on a specific day (Trace Data)
@@ -89,7 +91,6 @@ export interface DayRecommendations {
 // Represents a single meal recommendation
 export interface MealRecommendation {
   meal: Meal; // The recommended Meal object (includes score internally now)
-  score: number; // Overall score (0-100) for the recommendation
   reasons?: string[]; // Text reasons why it's recommended
   nutritionalImpact: { // Shows the meal's contribution
     calories: number;
@@ -98,6 +99,9 @@ export interface MealRecommendation {
     fiber: number;
   };
   healthBenefits?: string[]; // Specific health benefits text
+  varietyScore?: number;
+  coverageScore?: number;
+  constraintScore?: number;
 }
 
 

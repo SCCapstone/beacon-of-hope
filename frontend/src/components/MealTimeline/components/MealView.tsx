@@ -6,6 +6,7 @@ import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { XMarkIcon, StarIcon } from "@heroicons/react/20/solid";
+import { formatScore } from "../utils";
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -45,7 +46,17 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   onCrossClick,
   onFavoriteClick,
 }) => {
-  const { nutritionalInfo, diabetesFriendly, name, foods = [] } = meal;
+  // Destructure scores from meal object
+  const {
+    nutritionalInfo,
+    diabetesFriendly,
+    name,
+    foods = [],
+    varietyScore,
+    coverageScore,
+    constraintScore,
+  } = meal;
+
   const totalMacros =
     nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
   const carbPercent =
@@ -74,10 +85,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`meal-card relative p-2 mb-3 rounded-lg cursor-pointer
+      className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
-        flex flex-col min-h-[160px]`}
+        flex flex-col min-h-[100px]`}
       onClick={onClick}
     >
       <motion.button
@@ -106,20 +117,19 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         <StarIcon className="w-4 h-4" />
       </motion.button>
 
-      {/* Plan Name Badge (if available) */}
-      {name && (
-        <div className="mb-2">
-          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
-            {name}
-          </span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
+        {/* <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
           {meal.name}
-        </h3>
+        </h3> */}
+        {/* Plan Name Badge (if available) */}
+        {name && (
+          <div className="mb-2">
+            <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
+              {name}
+            </span>
+          </div>
+        )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
           {nutritionalInfo.calories} cal
         </div>
@@ -165,19 +175,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       )}
 
       {/* Footer Indicators */}
-      <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
-        <span className="text-gray-500 capitalize">{meal.type}</span>
-        <div className="flex items-center space-x-2">
-          {meal.time && <span className="text-gray-400">{meal.time}</span>}
-          {diabetesFriendly && (
-            <span
-              className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
-              title="Diabetes Friendly"
-            >
-              DF
-            </span>
-          )}
-        </div>
+      <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+        <span title="Variety Score">V: {formatScore(varietyScore)}</span>
+        <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
+        <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
       </div>
     </motion.div>
   );
