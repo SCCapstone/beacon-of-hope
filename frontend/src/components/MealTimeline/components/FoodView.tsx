@@ -1,7 +1,18 @@
 import React, { useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DayMeals, Food, MealRecommendation, DayRecommendations } from "../types";
-import { format, isSameDay, startOfDay, parseISO, isValid as isValidDate } from "date-fns";
+import {
+  DayMeals,
+  Food,
+  MealRecommendation,
+  DayRecommendations,
+} from "../types";
+import {
+  format,
+  isSameDay,
+  startOfDay,
+  parseISO,
+  isValid as isValidDate,
+} from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 
 // Robust date normalization
@@ -137,13 +148,17 @@ export const FoodView: React.FC<FoodViewProps> = ({
   mealBinNames,
   onMealBinUpdate,
 }) => {
-
   const getCombinedFoodsForDate = useCallback(
     (targetDate: Date): Array<Food & { isRecommended: boolean }> => {
       const normalizedTargetDate = normalizeDate(targetDate);
       if (!isValidDate(normalizedTargetDate)) return [];
 
-      console.log(`FoodView: getCombinedFoodsForDate for ${format(normalizedTargetDate, "yyyy-MM-dd")}`);
+      console.log(
+        `FoodView: getCombinedFoodsForDate for ${format(
+          normalizedTargetDate,
+          "yyyy-MM-dd"
+        )}`
+      );
 
       // 1. Get Trace Foods for the specific date from datesToDisplay
       const dayData = datesToDisplay.find((day) =>
@@ -153,16 +168,19 @@ export const FoodView: React.FC<FoodViewProps> = ({
       if (dayData) {
         (dayData.meals || []).forEach((meal) => {
           (meal.foods || []).forEach((food) => {
-            if (food && food.id) { // Ensure food and food.id exist
-                // Avoid adding duplicates within the trace itself for this view
-                if (!traceFoods.some(tf => tf.id === food.id)) {
-                    traceFoods.push(food);
-                }
+            if (food && food.id) {
+              // Ensure food and food.id exist
+              // Avoid adding duplicates within the trace itself for this view
+              if (!traceFoods.some((tf) => tf.id === food.id)) {
+                traceFoods.push(food);
+              }
             }
           });
         });
       }
-      console.log(` -> Found ${traceFoods.length} unique trace foods from datesToDisplay.`);
+      console.log(
+        ` -> Found ${traceFoods.length} unique trace foods from datesToDisplay.`
+      );
 
       // 2. Get Recommended Foods for this date from recommendationData
       const dayRecommendations = recommendationData.find((dayRec) =>
@@ -172,35 +190,41 @@ export const FoodView: React.FC<FoodViewProps> = ({
       if (dayRecommendations) {
         (dayRecommendations.recommendations || []).forEach((rec) => {
           (rec.meal.foods || []).forEach((food) => {
-             if (food && food.id) { // Ensure food and food.id exist
-                // Avoid adding duplicates within recommendations for this view
-                if (!recommendedFoods.some(rf => rf.id === food.id)) {
-                    recommendedFoods.push(food);
-                }
-             }
+            if (food && food.id) {
+              // Ensure food and food.id exist
+              // Avoid adding duplicates within recommendations for this view
+              if (!recommendedFoods.some((rf) => rf.id === food.id)) {
+                recommendedFoods.push(food);
+              }
+            }
           });
         });
       }
-      console.log(` -> Found ${recommendedFoods.length} unique recommended foods from recommendationData.`);
+      console.log(
+        ` -> Found ${recommendedFoods.length} unique recommended foods from recommendationData.`
+      );
 
       // 3. Combine using a Map to handle overlaps and set isRecommended flag
-      const combinedFoodMap = new Map<string, Food & { isRecommended: boolean }>();
+      const combinedFoodMap = new Map<
+        string,
+        Food & { isRecommended: boolean }
+      >();
 
       // Add trace foods first
-      traceFoods.forEach(food => {
-          combinedFoodMap.set(food.id, { ...food, isRecommended: false });
+      traceFoods.forEach((food) => {
+        combinedFoodMap.set(food.id, { ...food, isRecommended: false });
       });
 
       // Add/update with recommended foods
-      recommendedFoods.forEach(food => {
-          if (combinedFoodMap.has(food.id)) {
-              // If already present from trace, just update the flag
-              const existing = combinedFoodMap.get(food.id)!;
-              combinedFoodMap.set(food.id, { ...existing, isRecommended: true });
-          } else {
-              // If not present, add it as recommended
-              combinedFoodMap.set(food.id, { ...food, isRecommended: true });
-          }
+      recommendedFoods.forEach((food) => {
+        if (combinedFoodMap.has(food.id)) {
+          // If already present from trace, just update the flag
+          const existing = combinedFoodMap.get(food.id)!;
+          combinedFoodMap.set(food.id, { ...existing, isRecommended: true });
+        } else {
+          // If not present, add it as recommended
+          combinedFoodMap.set(food.id, { ...food, isRecommended: true });
+        }
       });
 
       // 4. Convert map back to array and sort
@@ -210,7 +234,12 @@ export const FoodView: React.FC<FoodViewProps> = ({
         return a.name.localeCompare(b.name);
       });
 
-      console.log(` -> Total combined foods for ${format(normalizedTargetDate, "yyyy-MM-dd")}: ${combinedFoods.length}`);
+      console.log(
+        ` -> Total combined foods for ${format(
+          normalizedTargetDate,
+          "yyyy-MM-dd"
+        )}: ${combinedFoods.length}`
+      );
       return combinedFoods;
     },
     [datesToDisplay, recommendationData]
@@ -358,29 +387,34 @@ export const FoodView: React.FC<FoodViewProps> = ({
 
                     return (
                       <div
-                        key={`${currentDate.toISOString()}-${binName}`}
-                        className={`flex-1 p-2 overflow-y-auto ${
-                          // Vertical list layout
-                          index > 0 ? "border-l" : ""
-                        }`}
+                      key={`${currentDate.toISOString()}-${binName}`}
+                      className={`flex-1 p-2 w-full flex flex-col items-stretch justify-center overflow-y-auto ${
+                        index > 0 ? "border-l" : ""
+                      }`}
                       >
                         <AnimatePresence>
-                          {binContent?.map((food) => ( // food here includes isRecommended
-                            <FoodCard
-                              key={`${food.id}-${food.isRecommended}`}
-                              food={food}
-                              isSelected={selectedFood?.id === food.id}
-                              isRecommended={food.isRecommended} // Pass isRecommended status
-                              onClick={() => {
-                                console.log(`FoodView: Clicked on ${food.name} (Recommended: ${food.isRecommended}). Current selected: ${selectedFood?.id}. Calling onFoodSelect.`);
-                                // Toggle selection: if already selected, pass null, otherwise pass the food and its recommended status
-                                onFoodSelect(
-                                  selectedFood?.id === food.id ? null : food,
-                                  food.isRecommended // Pass the flag here
-                                );
-                              }}
-                            />
-                          ))}
+                          {binContent?.map(
+                            (
+                              food // food here includes isRecommended
+                            ) => (
+                              <FoodCard
+                                key={`${food.id}-${food.isRecommended}`}
+                                food={food}
+                                isSelected={selectedFood?.id === food.id}
+                                isRecommended={food.isRecommended} // Pass isRecommended status
+                                onClick={() => {
+                                  console.log(
+                                    `FoodView: Clicked on ${food.name} (Recommended: ${food.isRecommended}). Current selected: ${selectedFood?.id}. Calling onFoodSelect.`
+                                  );
+                                  // Toggle selection: if already selected, pass null, otherwise pass the food and its recommended status
+                                  onFoodSelect(
+                                    selectedFood?.id === food.id ? null : food,
+                                    food.isRecommended // Pass the flag here
+                                  );
+                                }}
+                              />
+                            )
+                          )}
                         </AnimatePresence>
 
                         {/* Empty State */}
