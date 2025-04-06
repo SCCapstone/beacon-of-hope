@@ -4,16 +4,20 @@ import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
-// No FoodTypeIcon as we won't list foods here
+import { FoodTypeIcon } from "./FoodTypeIcon";
+import { XMarkIcon, StarIcon } from "@heroicons/react/20/solid";
+import { formatScore } from "../utils";
 
 interface MealViewProps {
   datesToDisplay: Date[];
-  allData: DayMeals[]; // All loaded data for lookups
+  allData: DayMeals[];
   recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
+  onAcceptRecommendationClick: (recommendation: MealRecommendation) => void;
+  onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -27,20 +31,53 @@ const normalizeDate = (date: Date): Date => {
   return normalized;
 };
 
-const TraceMealCard: React.FC<{
+interface TraceMealCardProps {
   meal: Meal;
   isSelected: boolean;
   onClick: () => void;
-}> = ({ meal, isSelected, onClick }) => {
-  const { nutritionalInfo, diabetesFriendly } = meal;
+  onCrossClick: () => void; // New prop
+  onFavoriteClick: () => void; // New prop
+}
+
+const TraceMealCard: React.FC<TraceMealCardProps> = ({
+  meal,
+  isSelected,
+  onClick,
+  onCrossClick,
+  onFavoriteClick,
+}) => {
+  // Destructure scores from meal object
+  const {
+    nutritionalInfo,
+    diabetesFriendly,
+    name,
+    foods = [],
+    varietyScore,
+    coverageScore,
+    constraintScore,
+  } = meal;
+
   const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fat;
+    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
   const carbPercent =
     totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
     totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
-  const fatPercent =
-    totalMacros > 0 ? (nutritionalInfo.fat / totalMacros) * 100 : 0;
+  const fiberPercent =
+    totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
+
+  const handleCrossClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCrossClick();
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFavoriteClick();
+  };
+
+  // Get unique food types from the meal
+  const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
 
   return (
     <motion.div
@@ -48,28 +85,67 @@ const TraceMealCard: React.FC<{
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`meal-card p-3 mb-3 rounded-lg cursor-pointer
+      className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
-        ${
-          isSelected
-            ? "ring-2 ring-blue-500"
-            : "border border-gray-200"
-        }
-        flex flex-col min-h-[160px]`} // Adjusted padding and min-height
+        ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
+        flex flex-col min-h-[100px]`}
       onClick={onClick}
     >
+      <motion.button
+        whileHover={{
+          scale: 1.05,
+          backgroundColor: "rgba(239, 68, 68, 0.9)",
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleCrossClick}
+        className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-red-500 shadow-md z-20 hover:bg-red-500 transition-colors"
+        title="Remove meal"
+      >
+        <XMarkIcon className="w-4 h-4" />
+      </motion.button>
+
+      <motion.button
+        whileHover={{
+          scale: 1.05,
+          backgroundColor: "rgba(245, 158, 11, 0.9)",
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleFavoriteClick}
+        className="absolute -top-2 -right-2 p-0.5 rounded-full text-white bg-yellow-500 shadow-md z-20 hover:bg-yellow-600 transition-colors"
+        title="Favorite meal"
+      >
+        <StarIcon className="w-4 h-4" />
+      </motion.button>
+
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
+        {/* <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
           {meal.name}
-        </h3>
+        </h3> */}
+        {/* Plan Name Badge (if available) */}
+        {name && (
+          <div className="mb-2">
+            <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
+              {name}
+            </span>
+          </div>
+        )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
           {nutritionalInfo.calories} cal
         </div>
       </div>
 
-      {/* Macro Visualization */}
-      <div className="flex h-1.5 rounded-full overflow-hidden my-2">
+      {/* Macro Visualization with Labels */}
+      <div className="mb-1 flex justify-between text-xs">
+        <span className="text-blue-900">Carbs {Math.round(carbPercent)}%</span>
+        <span className="text-purple-900">
+          Protein {Math.round(proteinPercent)}%
+        </span>
+        <span className="text-orange-900">
+          Fiber {Math.round(fiberPercent)}%
+        </span>
+      </div>
+      <div className="flex h-2 rounded-full overflow-hidden mb-3">
         <div
           className="bg-blue-400"
           style={{ width: `${carbPercent}%` }}
@@ -81,26 +157,28 @@ const TraceMealCard: React.FC<{
           title={`Protein: ${nutritionalInfo.protein}g`}
         />
         <div
-          className="bg-yellow-400"
-          style={{ width: `${fatPercent}%` }}
-          title={`Fat: ${nutritionalInfo.fat}g`}
+          className="bg-orange-400"
+          style={{ width: `${fiberPercent}%` }}
+          title={`Fiber: ${nutritionalInfo.fiber}g`}
         />
       </div>
 
-      {/* Footer Indicators */}
-      <div className="mt-auto pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
-        <span className="text-gray-500 capitalize">{meal.type}</span>
-        <div className="flex items-center space-x-2">
-          {diabetesFriendly && (
-            <span
-              className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
-              title="Diabetes Friendly"
-            >
-              DF
-            </span>
-          )}
-          {/* Optional: Add other simple indicators if needed */}
+      {/* Food Type Icons */}
+      {foodTypes.length > 0 && (
+        <div className="flex items-center mt-1 mb-2">
+          {foodTypes.map((type, index) => (
+            <div key={`${type}-${index}`} className="mr-1" title={type}>
+              <FoodTypeIcon type={type} className="w-4 h-4 text-gray-500" />
+            </div>
+          ))}
         </div>
+      )}
+
+      {/* Footer Indicators */}
+      <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+        <span title="Variety Score">V: {formatScore(varietyScore)}</span>
+        <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
+        <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
       </div>
     </motion.div>
   );
@@ -114,13 +192,13 @@ export const MealView: React.FC<MealViewProps> = ({
   onMealSelect,
   selectedMeal,
   onRecommendationSelect,
+  onAcceptRecommendationClick,
+  onRejectRecommendationClick,
   selectedRecommendation,
   mealBinNames,
   onMealBinUpdate,
   isLoading = false,
 }) => {
-  // const mainAreaRef = useRef<HTMLDivElement>(null);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -132,18 +210,33 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   }
 
-  // // Get adjacent dates
-  // const previousDate = subDays(selectedDate, 1);
-  // const nextDate = addDays(selectedDate, 1);
-
-  // Get data for a specific date from allData 
+  // Get data for a specific date from allData
   const getDataForDate = useCallback(
     (targetDate: Date): DayMeals | undefined => {
-      return allData.find((day) =>
-        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
-      );
+      // Ensure targetDate is normalized
+      const normalizedTarget = normalizeDate(targetDate);
+      return allData.find((day) => {
+        // Ensure day.date is treated as a Date object and normalized
+        const normalizedDayDate = normalizeDate(day.date);
+
+        // Defensive check if normalization failed (though normalizeDate has fallbacks)
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          console.warn(
+            "Invalid date encountered during comparison in getDataForDate",
+            day.date,
+            targetDate
+          );
+          return false;
+        }
+
+        // Perform the comparison using isSameDay
+        return isSameDay(normalizedDayDate, normalizedTarget);
+      });
     },
-    [allData]
+    [allData] // Dependency is correct
   );
 
   // Get meals for a specific date using getDataForDate
@@ -248,8 +341,8 @@ export const MealView: React.FC<MealViewProps> = ({
         while (newBinNames.length < allItems.length) {
           newBinNames.push(`Meal ${newBinNames.length + 1}`);
         }
-        // This will trigger a re-render with the updated bin names
-        onMealBinUpdate(newBinNames);
+        // Defer update slightly to avoid state change during render cycle if possible
+        setTimeout(() => onMealBinUpdate(newBinNames), 0);
       }
 
       // Create bins based on meal times
@@ -295,9 +388,23 @@ export const MealView: React.FC<MealViewProps> = ({
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+        onCrossClick={() => console.log("Cross clicked", meal.id)} // Replace with actual handler
+        onFavoriteClick={() => console.log("Favorite clicked", meal.id)} // Replace with actual handler
       />
     );
   };
+
+  if (isLoading) {
+    // Loading indicator remains the same
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <p className="text-gray-500">Loading your meal data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
@@ -335,7 +442,8 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${ // Adjusted min-height
+                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${
+                  // Adjusted min-height
                   isSelected ? "bg-blue-50" : "bg-white"
                 }`}
               >
@@ -377,7 +485,7 @@ export const MealView: React.FC<MealViewProps> = ({
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
-                          flex-1 p-2 overflow-y-auto flex flex-col 
+                          flex-1 p-2 overflow-y-auto flex flex-col justify-center
                           ${index > 0 ? "border-l" : ""}
                           ${isSelected ? "border-blue-200" : "border-gray-200"}
                         `}
@@ -397,9 +505,15 @@ export const MealView: React.FC<MealViewProps> = ({
                               }-${currentDate.toISOString()}`}
                               className="my-1.5 flex-shrink-0"
                               recommendation={recommendation}
+                              onAccept={() =>
+                                onAcceptRecommendationClick(recommendation)
+                              }
+                              onReject={() =>
+                                onRejectRecommendationClick(recommendation)
+                              }
                               onClick={() =>
                                 onRecommendationSelect(recommendation)
-                              }
+                              } // Selects for details panel
                               isSelected={
                                 selectedRecommendation?.meal.id ===
                                 recommendation.meal.id
