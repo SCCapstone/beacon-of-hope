@@ -230,7 +230,7 @@ const FoodPreferencesPage: React.FC = () => {
       })
     );
 
-    const requestBody = {
+    const requestBodyBandit = {
       starting_date: mealPlanStartDate,
       meal_plan_config: {
         num_days: mealPlanLength,
@@ -242,6 +242,10 @@ const FoodPreferencesPage: React.FC = () => {
         meatPreference: meat,
         nutsPreference: nuts,
       },
+      user_id: userState.user?._id,
+    };
+
+    const requestBodyNutritionalGoals = {
       daily_goals: {
         calories: calories,
         carbs: carbs,
@@ -249,14 +253,20 @@ const FoodPreferencesPage: React.FC = () => {
         fiber: fiber,
       },
       user_id: userState.user?._id,
-    };
+    }
 
-    // console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    // console.log("Request body:", JSON.stringify(requestBodyBandit, null, 2));
 
-    const requestOptions = {
+    const requestOptionsBandit = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestBodyBandit),
+    };
+
+    const requestOptionsNutritionalGoals = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBodyNutritionalGoals),
     };
 
     try {
@@ -264,7 +274,9 @@ const FoodPreferencesPage: React.FC = () => {
         "Sending request to:",
         "http://localhost:8000/beacon/recommendation/bandit"
       );
-      console.log("Request body:", JSON.stringify(requestBody, null, 2));
+      console.log("Request body to Bandit:", JSON.stringify(requestBodyBandit, null, 2));
+      console.log("Request body to Nutritional Goals:", JSON.stringify(requestBodyNutritionalGoals, null, 2));
+
 
       // Simulate different loading stages with timeouts
       setTimeout(() => {
@@ -279,19 +291,31 @@ const FoodPreferencesPage: React.FC = () => {
         setLoadingStage("Finalizing your meal plan...");
       }, 4000);
 
-      const response = await fetch(
-        "http://localhost:8000/beacon/recommendation/bandit",
-        requestOptions
+      const responseNutritionalGoals = await fetch(
+        "http://localhost:8000/beacon/user/nutritional-goals",
+        requestOptionsNutritionalGoals
       );
-      console.log("Response status:", response.status);
+      console.log("Response status:", responseNutritionalGoals.status);
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!responseNutritionalGoals.ok) {
+        const errorText = await responseNutritionalGoals.text();
         console.log("Error response body:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${responseNutritionalGoals.status}`);
       }
 
-      const result = await response.json();
+      const responseBandit = await fetch(
+        "http://localhost:8000/beacon/recommendation/bandit",
+        requestOptionsBandit
+      );
+      console.log("Bandit Response status:", responseBandit.status);
+
+      if (!responseBandit.ok) {
+        const errorText = await responseBandit.text();
+        console.log("Error response body:", errorText);
+        throw new Error(`HTTP error! status: ${responseBandit.status}`);
+      }
+
+      const result = await responseBandit.json();
 
       // Show success animation
       setLoadingStage("Success! Your meal plan is ready.");
@@ -456,7 +480,7 @@ const FoodPreferencesPage: React.FC = () => {
                   selectedPersona === "earlJones"
                     ? "bg-blue-600"
                     : "bg-blue-500"
-                } 
+                }
                            text-white rounded-lg hover:bg-blue-600 transition duration-200`}
               >
                 Earl Jones
@@ -478,7 +502,7 @@ const FoodPreferencesPage: React.FC = () => {
                 selectedPersona === "jessicaSmith"
                   ? "bg-green-600"
                   : "bg-green-500"
-              } 
+              }
                          text-white rounded-lg hover:bg-green-600 transition duration-200`}
             >
               Jessica Smith
@@ -605,8 +629,8 @@ const FoodPreferencesPage: React.FC = () => {
               isLoading
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-orange-400 hover:bg-orange-500"
-            } 
-                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out 
+            }
+                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out
                       transform hover:-translate-y-1 relative overflow-hidden`}
           >
             {isLoading ? (

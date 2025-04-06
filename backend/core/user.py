@@ -105,6 +105,11 @@ class User:
     def get_favorite_bevs(self) -> List[str]:
         return self.favorite_items["Beverage"]
 
+    def get_nutritional_goals(self) -> Dict[str, int]:
+        if self.nutritional_goals:
+            return self.nutritional_goals
+        return {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0}
+
     def __repr__(self):
         return f"User({self.__dict__})"
 

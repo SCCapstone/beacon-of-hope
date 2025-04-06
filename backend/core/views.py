@@ -950,15 +950,81 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
             return JsonResponse(
                 {"error": "Failed to retrieve user data"}, status=status
             )
-
-        nutritional_goals = user.get(
-            "nutritional_goals", {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0}
-        )
-
+        nutritional_goals = user.get_nutritional_goals()
         return JsonResponse(
             {"success": True, "daily_goals": nutritional_goals}, status=200
         )
 
     except Exception as e:
         logger.exception("get_nutritional_goals failed")
+        return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
+@csrf_exempt
+def exit_default(request: HttpRequest):
+    """
+    Reset a user's data to default values while preserving their user ID.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        if "user_id" not in data:
+            return JsonResponse(
+                {"error": "Missing required field: user_id"}, status=400
+            )
+
+        user_id = data["user_id"]
+
+        default_user = {
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "password": "",
+            "plan_ids": [],
+            "dietary_preferences": {
+                "preferences": [""],
+                "numerical_preferences": {
+                    "dairy": 0,
+                    "nuts": 0,
+                    "meat": 0,
+                },
+            },
+            "health_info": {
+                "allergies": [""],
+                "conditions": [""],
+            },
+            "demographicsInfo": {},
+            "meal_plan_config": {},
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+            "day_plans": {},
+            "bandit_counter": 1,
+            "favorite_items": {
+                "Main Course": [],
+                "Side": [],
+                "Dessert": [],
+                "Beverage": [],
+            },
+            "nutritional_goals": {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0},
+        }
+
+        for field, value in default_user.items():
+            msg, status = firebaseManager.update_user_attr(user_id, field, value)
+            if status != 200:
+                return JsonResponse(
+                    {"error": f"Failed to update field '{field}': {msg}"}, status=status
+                )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Successfully reset user data to default values",
+                "user_id": user_id,
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        logger.exception("exit_default failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
