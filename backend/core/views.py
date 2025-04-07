@@ -158,6 +158,10 @@ def bandit_recommendation(request: HttpRequest):
             logger.info("Fetching user favorite items")
             favorite_items = user.get_favorite_items()
 
+        permanent_favorite_items = user.get_permanent_favorite_items()
+        for key, item_list in permanent_favorite_items.items():
+            favorite_items[key] = list(set(favorite_items[key] + item_list))
+
         # Generate Bandit Recommendation
         start = time.time()
         logger.info("Generating recommendation")

@@ -91,6 +91,11 @@ class User:
     def get_favorite_items(self) -> Dict[str, List[str]]:
         return self.favorite_items
 
+    def get_permanent_favorite_items(self) -> Dict[str, List[str]]:
+        if hasattr(self, "permanent_favorite_items"):
+            return self.permanent_favorite_items
+        return None
+
     def set_favorite_items(self, favorite_items: Dict[str, List[str]]):
         return self.firebaseManager.update_user_attr(
             self.get_id(), "favorite_items", favorite_items
