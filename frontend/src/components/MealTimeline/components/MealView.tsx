@@ -58,10 +58,17 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   } = meal;
 
   // Defensive check for nutritionalInfo
-  const safeNutritionalInfo = nutritionalInfo || { calories: 0, protein: 0, carbs: 0, fiber: 0 };
+  const safeNutritionalInfo = nutritionalInfo || {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fiber: 0,
+  };
 
   const totalMacros =
-    safeNutritionalInfo.carbs + safeNutritionalInfo.protein + safeNutritionalInfo.fiber;
+    safeNutritionalInfo.carbs +
+    safeNutritionalInfo.protein +
+    safeNutritionalInfo.fiber;
   const carbPercent =
     totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
   const proteinPercent =
@@ -313,60 +320,69 @@ export const MealView: React.FC<MealViewProps> = ({
           type: "meal",
           item: meal,
           time: meal.time,
+          mealType: meal.type,
         })),
         ...sortedRecommendations.map((rec) => ({
           type: "recommendation",
           item: rec,
           time: rec.meal.time,
+          mealType: rec.meal.type,
         })),
       ].sort((a, b) => {
-        const timeA = a.time.split(":").map(Number);
-        const timeB = b.time.split(":").map(Number);
-        const timeCompare =
-          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+        // Sort primarily by time
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
 
-        // If times are the same, sort by item type (meal vs recommendation)
-        if (timeCompare === 0) {
-          // Prioritize actual meals over recommendations
-          return a.type === "meal" ? -1 : 1;
-        }
+        // If same time, sort by meal type priority (Breakfast, Lunch, Dinner, Snack)
+        const priorityA = mealTypePriority[a.mealType] ?? 99;
+        const priorityB = mealTypePriority[b.mealType] ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
 
-        return timeCompare;
+        // If same time and type, prioritize trace meals over recommendations
+        return a.type === "meal" ? -1 : 1;
       });
+      // Dynamically determine the number of bins needed based on the max items per time slot
+      // Or simply use the total number of items for simplicity if one item per bin is desired
+      const requiredBins = allItems.length; // One bin per item
 
-      // Check if we need more bins than currently available
-      if (allItems.length > mealBinNames.length) {
-        // Request parent component to update bin names
-        const newBinNames = [...mealBinNames];
-        while (newBinNames.length < allItems.length) {
-          newBinNames.push(`Meal ${newBinNames.length + 1}`);
+      // Adjust mealBinNames if necessary (this part seems okay, but ensure it runs *before* distribution)
+      if (requiredBins > mealBinNames.length) {
+        const newNames = [...mealBinNames];
+        while (newNames.length < requiredBins) {
+          newNames.push(`Meal ${newNames.length + 1}`);
         }
-        // Defer update slightly to avoid state change during render cycle if possible
-        setTimeout(() => onMealBinUpdate(newBinNames), 0);
+        // Defer update slightly
+        setTimeout(() => onMealBinUpdate(newNames), 0);
+        // Return early or use the old names for this render cycle to avoid immediate state issues
+        // For now, let's proceed with the potentially outdated mealBinNames for this render,
+        // the next render will have the updated names.
       }
 
-      // Create bins based on meal times
+      // Create bins based on the current mealBinNames
       const bins: Record<
         string,
         { meals: Meal[]; recommendations: MealRecommendation[] }
       > = {};
-
-      // Initialize bins with empty arrays
       mealBinNames.forEach((name) => {
         bins[name] = { meals: [], recommendations: [] };
       });
 
-      // Distribute items to bins, ensuring one item per bin
+      // Distribute items to bins sequentially
       allItems.forEach((item, index) => {
-        // Skip if we've run out of bins (this shouldn't happen after the fix)
-        if (index >= mealBinNames.length) return;
-
-        const binName = mealBinNames[index];
-
-        if (item.type === "meal") {
-          bins[binName].meals = [item.item as Meal];
+        // Ensure we don't try to access a bin that doesn't exist yet
+        if (index < mealBinNames.length) {
+          const binName = mealBinNames[index];
+          if (item.type === "meal") {
+            bins[binName].meals.push(item.item as Meal);
+          } else {
+            bins[binName].recommendations.push(item.item as MealRecommendation);
+          }
         } else {
-          bins[binName].recommendations = [item.item as MealRecommendation];
+          console.warn(
+            `MealView: Not enough bins (${mealBinNames.length}) to place item ${
+              index + 1
+            }. Item skipped.`
+          );
         }
       });
 
@@ -388,8 +404,12 @@ export const MealView: React.FC<MealViewProps> = ({
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
         // Placeholder handlers for the new actions
-        onCrossClick={() => console.warn("Remove action not implemented for meal:", meal.id)}
-        onFavoriteClick={() => console.warn("Favorite action not implemented for meal:", meal.id)}
+        onCrossClick={() =>
+          console.warn("Remove action not implemented for meal:", meal.id)
+        }
+        onFavoriteClick={() =>
+          console.warn("Favorite action not implemented for meal:", meal.id)
+        }
       />
     );
   };

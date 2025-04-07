@@ -4,6 +4,7 @@ import {
   DayMeals,
   UserPreferences,
   UserAnthropometrics,
+  Meal,
   NutritionalGoals,
 } from "../components/MealTimeline/types";
 import { MainLayout } from "../components/Layouts/MainLayout";
@@ -13,6 +14,7 @@ import {
   transformApiResponseToDayMeals,
   fetchNutritionalGoals,
   regeneratePartialMeals,
+  saveMealToTrace,
 } from "../services/recipeService";
 import {
   subDays,
@@ -55,6 +57,12 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
 // Type for the callback payload from Viz for fetching
 type FetchRequestPayload = {
   datesToFetch: string[]; // Only the dates that need fetching
+};
+
+type SaveMealPayload = {
+  userId: string;
+  date: string; // yyyy-MM-dd
+  mealId: string; // originalBackendId
 };
 
 export const MealTimelinePage: React.FC = () => {
@@ -102,6 +110,45 @@ export const MealTimelinePage: React.FC = () => {
       postPrandial: 140,
     },
   });
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      try {
+        const rawMealPlanString = localStorage.getItem("mealPlan");
+        if (rawMealPlanString) {
+          const mealPlan = JSON.parse(rawMealPlanString);
+          // Check if there are any days with meals in the plan
+          if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
+            const hasUnsavedMeals = Object.values(mealPlan.days).some(
+              (day: any) =>
+                day && Array.isArray(day.meals) && day.meals.length > 0
+            );
+            if (hasUnsavedMeals) {
+              console.log(
+                "Unsaved recommendations detected in localStorage. Prompting user."
+              );
+              event.preventDefault(); // Standard practice
+              event.returnValue =
+                "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For older browsers
+              return "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For modern browsers
+            }
+          }
+        }
+      } catch (e) {
+        console.error(
+          "Error checking localStorage for unsaved recommendations:",
+          e
+        );
+        // Don't block navigation if there's an error reading localStorage
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
 
   // Fetch Nutritional Goals
   useEffect(() => {
@@ -225,16 +272,73 @@ export const MealTimelinePage: React.FC = () => {
               .filter(([key]) => key !== "invalid") // Filter out invalid entries
           );
 
-          transformedData.forEach((day) => {
-            const normalizedDayDate = normalizeDate(day.date); // Normalize once
+          transformedData.forEach((newDayData) => {
+            // newDayData is from the API response for the specific fetched dates
+            const normalizedDayDate = normalizeDate(newDayData.date); // Normalize once
             if (isValidDate(normalizedDayDate)) {
               const dateKey = format(normalizedDayDate, "yyyy-MM-dd");
-              // Ensure the day object being set has the normalized date
-              dataMap.set(dateKey, { ...day, date: normalizedDayDate });
+              const existingDayData = dataMap.get(dateKey);
+
+              if (existingDayData) {
+                // Day exists: Merge meals carefully
+                const combinedMealsMap = new Map<string, Meal>();
+
+                // Add existing meals from the state first
+                (existingDayData.meals || []).forEach((meal) => {
+                  // Use meal.id which should be unique for each meal instance (trace or accepted rec)
+                  if (meal.id) {
+                    combinedMealsMap.set(meal.id, meal);
+                  } else {
+                    console.warn(
+                      "Existing meal missing ID during merge:",
+                      meal
+                    );
+                    // Handle fallback if needed, e.g., generate a temporary key, but ideally IDs are reliable
+                  }
+                });
+
+                // Add or update with new meals from the API response
+                (newDayData.meals || []).forEach((newMeal) => {
+                  if (newMeal.id) {
+                    // Check if a meal with this ID already exists in our map.
+                    // If it doesn't, add the new meal.
+                    // If it does, we keep the existing one to prevent overwrites due to potentially non-unique IDs
+                    // generated based on backend data. This assumes the backend returns all relevant meals.
+                    if (!combinedMealsMap.has(newMeal.id)) {
+                      combinedMealsMap.set(newMeal.id, newMeal);
+                      // console.log(`Page Merge: Added new meal ${newMeal.id} for date ${dateKey}`);
+                    } else {
+                      // Optional: Log that an overwrite was prevented.
+                      // console.log(`Page Merge: Meal with ID ${newMeal.id} already exists for date ${dateKey}. Keeping existing entry.`);
+                    }
+                  } else {
+                    console.warn("New meal missing ID during merge:", newMeal);
+                  }
+                });
+
+                // Create the updated day object with merged meals
+                const mergedDayData: DayMeals = {
+                  ...existingDayData, // Keep potential original day info like _id if relevant
+                  ...newDayData, // Overwrite with potentially new day info from API (if any, e.g., scores)
+                  date: normalizedDayDate, // Ensure normalized date
+                  meals: Array.from(combinedMealsMap.values()).sort((a, b) =>
+                    a.time.localeCompare(b.time)
+                  ), // Update meals list, sorted by time
+                };
+                dataMap.set(dateKey, mergedDayData);
+                // console.log(`Page Merged meals for date: ${dateKey}. Total meals: ${mergedDayData.meals.length}`);
+              } else {
+                // Day doesn't exist in map yet, just add the new data
+                dataMap.set(dateKey, {
+                  ...newDayData,
+                  date: normalizedDayDate,
+                });
+                // console.log(`Page Added new day data for date: ${dateKey}`);
+              }
             } else {
               console.warn(
                 "Page Skipping invalid date object during merge:",
-                day
+                newDayData
               );
             }
           });
@@ -344,39 +448,72 @@ export const MealTimelinePage: React.FC = () => {
               console.warn(
                 "Page: Invalid mealPlan structure in localStorage during regeneration. Resetting."
               );
-              currentMealPlan = { days: {} };
+              // Keep essential top-level fields if they exist, otherwise reset days
+              currentMealPlan = {
+                _id: currentMealPlan?._id,
+                user_id: currentMealPlan?.user_id,
+                name: currentMealPlan?.name,
+                scores: currentMealPlan?.scores,
+                days: {}, // Reset days
+              };
             }
           } catch (e) {
             console.error(
               "Page: Failed to parse mealPlan from localStorage during regeneration:",
               e
             );
-            currentMealPlan = { days: {} }; // Reset on parse error
+
+            // Attempt to preserve top-level fields if possible during reset
+            const tempPlan = localStorage.getItem("mealPlan");
+            let parsedTemp = {};
+            try {
+              parsedTemp = tempPlan ? JSON.parse(tempPlan) : {};
+            } catch {}
+            currentMealPlan = {
+              _id: (parsedTemp as any)?._id,
+              user_id: (parsedTemp as any)?._user_id,
+              name: (parsedTemp as any)?._name,
+              scores: (parsedTemp as any)?._scores,
+              days: {}, // Reset days
+            };
           }
+        } else {
+          // If no plan exists, initialize with a basic structure
+          currentMealPlan = { user_id: userId, days: {} };
         }
 
-        // Merge the regenerated days into the current meal plan
-        // The response 'days' object contains the *new* meal data for the regenerated dates
-        for (const [dateStr, dayData] of Object.entries(response.days)) {
-          if (dayData && Array.isArray(dayData.meals)) {
-            // Find the existing day structure in localStorage plan (if any)
-            const existingDay = currentMealPlan.days[dateStr] || {};
-            // Replace the 'meals' array entirely with the new one from the response
-            currentMealPlan.days[dateStr] = {
-              ...existingDay, // Keep existing _id, user_id etc. if present
-              ...dayData, // Overwrite with response data (including new meals array)
-              // Ensure user_id is preserved if not in response dayData
-              user_id: existingDay.user_id || dayData.user_id || userId,
-            };
-            console.log(
-              `Page: Updated recommendations in localStorage for ${dateStr}`
-            );
-          } else {
-            console.warn(
-              `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
-            );
-          }
-        }
+
+// Merge the regenerated days into the current meal plan's 'days' object
+// The response 'days' object contains the *new* meal data for the regenerated dates
+for (const [dateStr, dayDataFromResponse] of Object.entries(response.days)) {
+    // dayDataFromResponse structure: { _id, meals, user_id } from RegenerateApiResponse
+    if (dayDataFromResponse && Array.isArray(dayDataFromResponse.meals)) {
+        // Get the existing day structure from localStorage plan (if any)
+        // This structure should match BanditDayData: { _id, meals, user_id, meal_plan_id }
+        const existingDayStorage = currentMealPlan.days[dateStr] || {};
+
+        // Create the updated day structure for localStorage
+        // Prioritize keeping existing IDs if available, update meals array
+        currentMealPlan.days[dateStr] = {
+            _id: existingDayStorage._id || dayDataFromResponse._id, // Keep existing day ID or use new one
+            meals: dayDataFromResponse.meals, // *** Replace meals array entirely with the new recommendations ***
+            user_id: existingDayStorage.user_id || dayDataFromResponse.user_id || userId, // Ensure user_id
+            meal_plan_id: existingDayStorage.meal_plan_id || currentMealPlan._id, // Ensure meal_plan_id links back
+            // Include scores if they come back from regeneration API, otherwise clear them for the day?
+            // Assuming regeneration API doesn't return day-level scores, clear them:
+            // variety_score: undefined,
+            // item_coverage_score: undefined,
+            // nutritional_constraint_score: undefined,
+        };
+        console.log(
+          `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
+        );
+    } else {
+        console.warn(
+          `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
+        );
+    }
+}
 
         // Save the updated meal plan back to localStorage
         localStorage.setItem("mealPlan", JSON.stringify(currentMealPlan));
@@ -402,6 +539,58 @@ export const MealTimelinePage: React.FC = () => {
       }
     },
     [userId]
+  );
+
+  const handleSaveMeal = useCallback(
+    async (payload: SaveMealPayload): Promise<boolean> => {
+      const { userId: reqUserId, date, mealId } = payload;
+      // Basic validation, though Viz should ensure these are present
+      if (!reqUserId || !date || !mealId) {
+        console.error(
+          "Page: handleSaveMeal received invalid payload:",
+          payload
+        );
+        setError("Cannot save meal: Missing required information.");
+        return false;
+      }
+
+      // Optionally add a loading state specific to saving if needed
+      // setIsLoading(true); // Or a more specific saving state
+      setError(null);
+
+      try {
+        const success = await saveMealToTrace(reqUserId, date, mealId);
+        if (success) {
+          console.log(
+            `Page: Successfully initiated save for meal ${mealId} on ${date}.`
+          );
+          // The Viz component handles localStorage removal *after* this succeeds.
+          // The Viz component also triggers the refetch via onRequestFetch.
+          return true;
+        } else {
+          // This case might not be reached if saveMealToTrace throws on failure
+          console.warn(
+            `Page: saveMealToTrace reported failure for meal ${mealId}.`
+          );
+          setError(
+            "Failed to save the meal to your history. Please try again."
+          );
+          return false;
+        }
+      } catch (err: any) {
+        console.error(`Page: Error saving meal ${mealId}:`, err);
+        if (err instanceof ApiError) {
+          setError(`Save failed: ${err.message}`);
+        } else {
+          setError("An unexpected error occurred while saving the meal.");
+        }
+        return false; // Indicate failure
+      } finally {
+        // Optionally stop the specific saving loading state
+        // setIsLoading(false);
+      }
+    },
+    [] // No dependencies needed as it uses payload and calls service
   );
 
   // Callback for Viz to request fetching specific dates
@@ -567,8 +756,9 @@ export const MealTimelinePage: React.FC = () => {
         selectedDate={selectedDate}
         onRegeneratePartial={handleRegeneratePartial}
         isRegenerating={isRegenerating}
+        onSaveMeal={handleSaveMeal}
+        userId={userId}
       />
-      {/* Overlay loading indicator */}
       {showOverlayLoader && (
         <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 pointer-events-none">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>

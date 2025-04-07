@@ -72,9 +72,15 @@ const isSameNormalizedDay = (
   return isSameDay(d1, d2);
 };
 
+type SaveMealHandler = (payload: {
+  userId: string;
+  date: string; // yyyy-MM-dd
+  mealId: string; // originalBackendId
+}) => Promise<boolean>; // Returns true on success, false on failure
+
 // Define the type for the callback to parent for fetching
 type FetchRequestHandler = (payload: {
-  datesToFetch: string[]; // Only the dates that *need* fetching
+  datesToFetch: string[]; // Only the dates that _need_ fetching
 }) => void;
 
 // Define the type for the callback to parent for date selection
@@ -95,6 +101,8 @@ interface MealCalendarVizProps {
   selectedDate: Date; // Controlled by parent
   onRegeneratePartial: RegeneratePartialHandler;
   isRegenerating: boolean;
+  onSaveMeal: SaveMealHandler;
+  userId: string;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -106,6 +114,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   selectedDate,
   onRegeneratePartial,
   isRegenerating,
+  onSaveMeal,
+  userId,
 }) => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +142,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   });
   const traceDataRef = useRef<DayMeals[]>(initialTraceData);
 
-  // --- State Synchronization and Data Handling ---
+  // State Synchronization and Data Handling
 
   // Effect to update local traceData state when initialTraceData prop changes
   useEffect(() => {
@@ -395,7 +405,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // --- Accept Recommendation Handler ---
   const handleAcceptRecommendation = useCallback(
-    (acceptedRec: MealRecommendation) => {
+    async (acceptedRec: MealRecommendation) => {
       const confirmAccept = window.confirm(
         `Add "${acceptedRec.meal.name}" to your meal history for ${format(
           acceptedRec.meal.date || selectedDate,
@@ -414,34 +424,36 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         acceptedRec.meal.id
       );
       const acceptedMeal = acceptedRec.meal;
-      const backendIdToRemove = acceptedMeal.originalBackendId; // ID of the recommendation *source*
+      const backendIdToSave = acceptedMeal.originalBackendId; // ID of the recommendation source to save
       const mealDate = normalizeDate(acceptedMeal.date || selectedDate); // Ensure date is normalized
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
       console.log(
-        `Viz: Accepting recommendation: Name='${acceptedMeal.name}', ID='${acceptedMeal.id}', OriginalBackendID='${backendIdToRemove}', Date='${mealDateStr}'`
+        `Viz: Accepting recommendation: Name='${acceptedMeal.name}', ID='${acceptedMeal.id}', OriginalBackendID='${backendIdToSave}', Date='${mealDateStr}'`
       );
 
-      if (!backendIdToRemove) {
-        console.error(
-          "Viz: CRITICAL - Cannot process acceptance. originalBackendId is missing:",
-          acceptedRec
-        );
+      if (!backendIdToSave) {
+        // ... (keep error handling for missing ID)
         alert(
-          "Error: Could not accept recommendation due to missing internal ID."
+          "Error: Cannot accept recommendation due to missing internal ID."
+        );
+        return;
+      }
+      if (!userId) {
+        console.error("Viz: Cannot accept recommendation, userId is missing.");
+        alert(
+          "Error: Cannot accept recommendation. User information is missing."
         );
         return;
       }
 
-      // 1. Optimistic UI Update for Trace Data (using setTraceData and traceDataRef)
+      // 1. Add to Trace Data State (Visually)
       const traceMealToAdd: Meal = {
         ...acceptedMeal,
-        id: `trace-${acceptedMeal.id}-${Date.now()}`, // Create a unique ID for the trace version
-        date: mealDate, // Assign the correct normalized date
-        // Ensure originalBackendId is NOT copied to the trace meal unless specifically needed
-        // originalBackendId: undefined, // Or remove the property
+        id: `trace-optimistic-${acceptedMeal.id}-${Date.now()}`, // Unique optimistic ID
+        date: mealDate,
+        // Remove originalBackendId from the trace version
       };
-      // Remove originalBackendId if it exists on traceMealToAdd
       delete traceMealToAdd.originalBackendId;
 
       setTraceData((prevTraceData) => {
@@ -457,7 +469,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             date: mealDate, // Ensure date is normalized
             meals: [...(newData[dayIndex].meals || []), traceMealToAdd].sort(
               (a, b) => a.time.localeCompare(b.time)
-            ), // Sort meals by time
+            ),
           };
           console.log(
             `Viz: Optimistically added meal '${traceMealToAdd.id}' to existing day ${mealDateStr} in traceData state.`
@@ -474,131 +486,231 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           (a, b) => a.date.getTime() - b.date.getTime()
         );
         traceDataRef.current = sortedData; // Update ref immediately
+        console.log(
+          `Viz: Optimistically added meal '${traceMealToAdd.id}' to traceData state.`
+        );
         return sortedData;
       });
 
-      // 2. Optimistic Update for Recommendation Data State (Remove the accepted one)
+      // 2. Remove from Recommendation Data State (Visually)
+      const originalRecommendationData = recommendationData; // Store original state for potential revert
       setRecommendationData((prevRecData) => {
         const updatedRecData = prevRecData
           .map((dayRec) => {
             if (isSameNormalizedDay(dayRec.date, mealDate)) {
               return {
                 ...dayRec,
-                date: normalizeDate(dayRec.date), // Ensure date is normalized
+                date: normalizeDate(dayRec.date),
                 recommendations: dayRec.recommendations.filter(
-                  (rec) => rec.meal.id !== acceptedRec.meal.id // Filter by the recommendation's unique meal ID
+                  (rec) => rec.meal.id !== acceptedRec.meal.id
                 ),
               };
             }
-            return { ...dayRec, date: normalizeDate(dayRec.date) }; // Ensure date is normalized
+            return { ...dayRec, date: normalizeDate(dayRec.date) };
           })
-          .filter((dayRec) => dayRec.recommendations.length > 0); // Remove day if no recommendations left
+          .filter((dayRec) => dayRec.recommendations.length > 0);
         console.log(
-          "Viz: Optimistically updated recommendationData state (removed accepted visual)."
+          "Viz: Optimistically removed accepted recommendation from recommendationData state."
         );
         return updatedRecData;
       });
 
-      // 3. Update localStorage["mealPlan"] (Remove the source recommendation)
-      try {
-        const rawMealPlanString = localStorage.getItem("mealPlan");
-        if (rawMealPlanString) {
-          let rawMealPlan = JSON.parse(rawMealPlanString);
-          let changed = false;
-          if (
-            rawMealPlan.days &&
-            rawMealPlan.days[mealDateStr] &&
-            Array.isArray(rawMealPlan.days[mealDateStr].meals) // Check if meals is an array
-          ) {
-            const initialLength = rawMealPlan.days[mealDateStr].meals.length;
-            // Filter out the meal using the originalBackendId
-            rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
-              mealDateStr
-            ].meals.filter((rawMeal: any) => rawMeal._id !== backendIdToRemove);
-            const finalLength = rawMealPlan.days[mealDateStr].meals.length;
-
-            if (finalLength < initialLength) {
-              changed = true;
-              console.log(
-                `Viz: Removed raw meal with _id '${backendIdToRemove}' from localStorage["mealPlan"] for date ${mealDateStr}.`
-              );
-              // If the day becomes empty, remove the day entry
-              if (
-                finalLength === 0 &&
-                Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
-              ) {
-                // Check if only _id, user_id, meal_plan_id remain
-                console.log(
-                  `Viz: Removing empty day ${mealDateStr} from localStorage["mealPlan"].`
-                );
-                delete rawMealPlan.days[mealDateStr];
-              }
-            } else {
-              console.warn(
-                `Viz: Did not find raw meal with _id '${backendIdToRemove}' in localStorage["mealPlan"] for date ${mealDateStr} to remove.`
-              );
-            }
-          } else {
-            console.warn(
-              `Viz: Could not find day ${mealDateStr} or its meals array in localStorage["mealPlan"] for removal.`
-            );
-          }
-
-          if (changed) {
-            // If all days are gone, remove the mealPlan entirely? Or keep the structure? Keep structure for now.
-            if (Object.keys(rawMealPlan.days).length === 0) {
-              console.log(
-                "Viz: No days left in mealPlan, but keeping structure in localStorage."
-              );
-              // Optionally: localStorage.removeItem("mealPlan");
-            }
-            localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
-            // Object.keys(sessionStorage).forEach((key) => {
-            //   if (key.startsWith("recommendations-"))
-            //     sessionStorage.removeItem(key);
-            // });
-            console.log(
-              "Viz: Updated localStorage['mealPlan'] after acceptance."
-            );
-          }
-        } else {
-          console.warn(
-            "Viz: localStorage['mealPlan'] not found, cannot remove accepted meal source."
-          );
-        }
-      } catch (e) {
-        console.error(
-          "Viz: Failed to update localStorage['mealPlan'] during acceptance:",
-          e
-        );
-      }
-
-      // 4. Clear Selections
+      // 3. Clear Selections (Optimistically)
       setSelectedRecommendation(null);
       setSelectedMeal(null);
       setSelectedFood(null);
       setSelectedIngredient(null);
 
-      // 5. Trigger Re-fetch for Persistence (Tell parent to confirm the state)
-      // This is crucial. The parent will fetch, get the updated data (including the newly added meal),
-      // and pass it back down via initialTraceData, replacing the optimistic update with confirmed data.
-      console.log(
-        "Viz: Requesting parent fetch to confirm acceptance for date:",
-        mealDateStr
-      );
-      // We only need to fetch the specific day that was modified
-      onRequestFetch({ datesToFetch: [mealDateStr] });
+      // --- Call Backend to Save ---
+      try {
+        console.log(
+          `Viz: Calling onSaveMeal for meal ${backendIdToSave} on ${mealDateStr}`
+        );
+        const saveSuccess = await onSaveMeal({
+          userId: userId,
+          date: mealDateStr,
+          mealId: backendIdToSave,
+        });
+
+        if (saveSuccess) {
+          console.log(
+            `Viz: onSaveMeal successful for meal ${backendIdToSave}.`
+          );
+
+          // 4. Update localStorage["mealPlan"] (Remove the source recommendation) - *Only after successful save*
+          try {
+            const rawMealPlanString = localStorage.getItem("mealPlan");
+            if (rawMealPlanString) {
+              let rawMealPlan = JSON.parse(rawMealPlanString);
+              let changed = false;
+              if (
+                rawMealPlan.days &&
+                rawMealPlan.days[mealDateStr] &&
+                Array.isArray(rawMealPlan.days[mealDateStr].meals) // Check if meals is an array
+              ) {
+                console.log(
+                  `Attempting to remove meal with backendId ${backendIdToSave} from localStorage['mealPlan'] for date ${mealDateStr}`
+                );
+                const initialLength =
+                  rawMealPlan.days[mealDateStr].meals.length;
+                // Filter out the meal using the originalBackendId
+                rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
+                  mealDateStr
+                ].meals.filter((rawMeal: any) => {
+                  const shouldRemove = rawMeal._id === backendIdToSave;
+                  // Optional detailed log:
+                  // if (shouldRemove) console.log(` -> Found match for removal in localStorage: ID=${rawMeal._id}`);
+                  return !shouldRemove; // Keep if NOT matching
+                });
+                const finalLength = rawMealPlan.days[mealDateStr].meals.length;
+                console.log(
+                  ` -> localStorage meal count for ${mealDateStr}: ${initialLength} -> ${finalLength}`
+                );
+
+                if (finalLength < initialLength) {
+                  changed = true;
+                  // If the day becomes empty, remove the day entry
+                  if (
+                    finalLength === 0 &&
+                    Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
+                  ) {
+                    // Check if only _id, user_id, meal_plan_id remain
+                    console.log(
+                      `Viz: Removing empty day ${mealDateStr} from localStorage["mealPlan"].`
+                    );
+                    delete rawMealPlan.days[mealDateStr];
+                  }
+                } else {
+                  console.warn(
+                    `Viz: Did not find raw meal with _id '${backendIdToSave}' in localStorage["mealPlan"] for date ${mealDateStr} to remove.`
+                  );
+                }
+              } else {
+                console.warn(
+                  `Viz: Could not find day ${mealDateStr} or its meals array in localStorage["mealPlan"] for removal.`
+                );
+              }
+
+              if (changed) {
+                // If all days are gone, remove the mealPlan entirely? Or keep the structure? Keep structure for now.
+                if (Object.keys(rawMealPlan.days).length === 0) {
+                  console.log(
+                    "Viz: No days left in mealPlan, but keeping structure in localStorage."
+                  );
+                  // Optionally: localStorage.removeItem("mealPlan");
+                }
+                localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
+                // Object.keys(sessionStorage).forEach((key) => {
+                //   if (key.startsWith("recommendations-"))
+                //     sessionStorage.removeItem(key);
+                // });
+                console.log(
+                  "Viz: Updated localStorage['mealPlan'] after successful save."
+                );
+              }
+            } else {
+              console.warn(
+                "Viz: localStorage['mealPlan'] not found, cannot remove accepted meal source."
+              );
+            }
+          } catch (e) {
+            console.error(
+              "Viz: Failed to update localStorage['mealPlan'] after save:",
+              e
+            );
+          }
+
+          // 5. Trigger Re-fetch for Persistence Confirmation
+          // This gets the updated trace data from the backend, replacing the optimistic one.
+          console.log(
+            "Viz: Requesting parent fetch to confirm acceptance for date:",
+            mealDateStr
+          );
+          onRequestFetch({ datesToFetch: [mealDateStr] });
+        } else {
+          // --- Revert UI on Save Failure ---
+          console.error(
+            `Viz: onSaveMeal failed for meal ${backendIdToSave}. Reverting UI.`
+          );
+          alert(
+            "Failed to save the meal to your history. The recommendation has been restored."
+          );
+          // Revert trace data (remove optimistic addition)
+          setTraceData((prevTraceData) => {
+            const revertedData = prevTraceData
+              .map((day) => {
+                if (isSameNormalizedDay(day.date, mealDate)) {
+                  return {
+                    ...day,
+                    meals: day.meals.filter((m) => m.id !== traceMealToAdd.id), // Filter out the optimistic meal
+                  };
+                }
+                return day;
+              })
+              .filter(
+                (day) =>
+                  !(
+                    day.meals.length === 0 &&
+                    !prevTraceData.find((pd) =>
+                      isSameNormalizedDay(pd.date, day.date)
+                    )?.meals.length
+                  )
+              ); // Remove day if it became empty due to revert
+
+            traceDataRef.current = revertedData; // Update ref
+            return revertedData;
+          });
+          // Revert recommendation data (add back the visual)
+          setRecommendationData(originalRecommendationData);
+          // Selections remain cleared, which is acceptable.
+        }
+      } catch (error) {
+        // --- Revert UI on Save Error (Exception) ---
+        console.error("Viz: Error during onSaveMeal call:", error);
+        alert(
+          "An error occurred while saving the meal. The recommendation has been restored."
+        );
+        // Revert trace data
+        setTraceData((prevTraceData) => {
+          const revertedData = prevTraceData
+            .map((day) => {
+              if (isSameNormalizedDay(day.date, mealDate)) {
+                return {
+                  ...day,
+                  meals: day.meals.filter((m) => m.id !== traceMealToAdd.id),
+                };
+              }
+              return day;
+            })
+            .filter(
+              (day) =>
+                !(
+                  day.meals.length === 0 &&
+                  !prevTraceData.find((pd) =>
+                    isSameNormalizedDay(pd.date, day.date)
+                  )?.meals.length
+                )
+            );
+          traceDataRef.current = revertedData;
+          return revertedData;
+        });
+        // Revert recommendation data
+        setRecommendationData(originalRecommendationData);
+      }
 
       console.log("Viz: Recommendation acceptance processing finished.");
     },
     [
       selectedDate,
+      userId,
+      recommendationData,
       setTraceData,
       setRecommendationData,
       setSelectedRecommendation,
       setSelectedMeal,
       setSelectedFood,
       setSelectedIngredient,
+      onSaveMeal,
       onRequestFetch,
     ]
   );
@@ -759,11 +871,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         setSelectedIngredient(null);
       }
 
-      console.log("Viz: Recommendation rejection processing finished.");
+      console.log("Viz: Recommendation rejection processing finished (Frontend Only).");
     },
     [
       selectedDate,
-      // recommendationData,
       setRecommendationData,
       selectedRecommendation,
       setSelectedRecommendation,
@@ -773,7 +884,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ]
   );
 
-  // --- Event Handlers for User Interaction ---
+  // Event Handlers for User Interaction
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1025,11 +1136,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   const hasRecommendationsInView = useMemo(() => {
     const visibleDateStrings = new Set(
-        datesToDisplay.map(date => format(normalizeDate(date), 'yyyy-MM-dd'))
+      datesToDisplay.map((date) => format(normalizeDate(date), "yyyy-MM-dd"))
     );
-    return recommendationData.some(dayRec => {
-        const dayDateStr = format(normalizeDate(dayRec.date), 'yyyy-MM-dd');
-        return visibleDateStrings.has(dayDateStr) && dayRec.recommendations.length > 0;
+    return recommendationData.some((dayRec) => {
+      const dayDateStr = format(normalizeDate(dayRec.date), "yyyy-MM-dd");
+      return (
+        visibleDateStrings.has(dayDateStr) && dayRec.recommendations.length > 0
+      );
     });
   }, [recommendationData, datesToDisplay]);
 
@@ -1040,38 +1153,50 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
     // 1. Create a Set of date strings (yyyy-MM-dd) that have recommendations
     const datesWithRecsSet = new Set<string>();
-    recommendationData.forEach(dayRec => {
-        if (dayRec.recommendations && dayRec.recommendations.length > 0) {
-            const normalizedDate = normalizeDate(dayRec.date);
-            if (isValidDate(normalizedDate)) {
-                datesWithRecsSet.add(format(normalizedDate, 'yyyy-MM-dd'));
-            }
+    recommendationData.forEach((dayRec) => {
+      if (dayRec.recommendations && dayRec.recommendations.length > 0) {
+        const normalizedDate = normalizeDate(dayRec.date);
+        if (isValidDate(normalizedDate)) {
+          datesWithRecsSet.add(format(normalizedDate, "yyyy-MM-dd"));
         }
+      }
     });
 
     // 2. Filter the currently displayed dates to include only those with recommendations
     const datesToRegenerate = datesToDisplay
-        .map(date => {
-            const normalizedVisibleDate = normalizeDate(date);
-            return isValidDate(normalizedVisibleDate) ? format(normalizedVisibleDate, 'yyyy-MM-dd') : null;
-        })
-        .filter((dateStr): dateStr is string =>
-            dateStr !== null && datesWithRecsSet.has(dateStr) // Check if the visible date has recommendations
-        );
+      .map((date) => {
+        const normalizedVisibleDate = normalizeDate(date);
+        return isValidDate(normalizedVisibleDate)
+          ? format(normalizedVisibleDate, "yyyy-MM-dd")
+          : null;
+      })
+      .filter(
+        (dateStr): dateStr is string =>
+          dateStr !== null && datesWithRecsSet.has(dateStr) // Check if the visible date has recommendations
+      );
 
     // 3. Check if any dates remain after filtering
     if (datesToRegenerate.length === 0) {
-        console.log("Viz: No recommendations found in the current view to regenerate.");
-        // Optionally show a user message/tooltip update here if needed
-        return;
+      console.log(
+        "Viz: No recommendations found in the current view to regenerate."
+      );
+      // Optionally show a user message/tooltip update here if needed
+      return;
     }
 
     // 4. Call the parent handler with the filtered list
-    console.log("Viz: Regenerate button clicked. Calling onRegeneratePartial for dates with recommendations:", datesToRegenerate.join(', '));
+    console.log(
+      "Viz: Regenerate button clicked. Calling onRegeneratePartial for dates with recommendations:",
+      datesToRegenerate.join(", ")
+    );
     onRegeneratePartial(datesToRegenerate);
-
-  }, [datesToDisplay, recommendationData, onRegeneratePartial, isRegenerating, hasRecommendationsInView]); // Added recommendationData dependency
-
+  }, [
+    datesToDisplay,
+    recommendationData,
+    onRegeneratePartial,
+    isRegenerating,
+    hasRecommendationsInView,
+  ]); // Added recommendationData dependency
 
   // Rendering
   if (error) {
