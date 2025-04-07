@@ -618,6 +618,77 @@ def delete_meal(request: HttpRequest):
         )
 
 
+@csrf_exempt
+def favorite_meal(request: HttpRequest):
+    """Deleting a meal from permanent storage"""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    try:
+        logger.info("Favorite Meal API Endpoint Called ...")
+        logger.info("Parsing Request Body ...")
+        data = json.loads(request.body)
+
+        keys = ["date", "user_id", "meal_id"]
+        for key in keys:
+            if key not in data:
+                return JsonResponse(
+                    {"Error": f"Request Body missing required attribute: {key}"},
+                    status=403,
+                )
+
+        date, user_id, meal_id = [data[key] for key in keys]
+
+        logger.info(
+            f"Getting corresponding day plan id for date {date} for user {user_id}"
+        )
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was some error in retrieving the user from Firebase: {user}"
+                },
+                status=status,
+            )
+        try:
+            day_plans = user.get_day_plans()
+        except:
+            return JsonResponse(
+                {"Error": "There was an error in retrieving the user's day plans"},
+                status=500,
+            )
+        if date not in day_plans:
+            return JsonResponse(
+                {"Error": f"The provided date: {date} is not in the recorded plans"},
+                status=403,
+            )
+        day_plan_id = day_plans[date]
+
+        logger.info("Getting Meal Items ...")
+        meal_items, status = firebaseManager.get_meal_items(meal_id, day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in retrieving that meal: {meal_items}"},
+                status=status,
+            )
+
+        logger.info(f"Updating Permanent Items with {meal_items}...")
+        msg, status = user.update_permanent_favorite_items(meal_items)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was an error in updating the permanent favorite items {msg}"
+                },
+                status=status,
+            )
+
+        return JsonResponse({"Message": msg}, status=status)
+
+    except Exception as e:
+        return JsonResponse(
+            {"Error": f"There was an error favoriting the meal: {e}"}, status=500
+        )
+
+
 """User Account API Endpoints"""
 
 

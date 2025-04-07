@@ -63,6 +63,11 @@ class FirebaseManager:
         doc = doc_ref.get()
         return doc.exists
 
+    def _exists_field_in_document(self, collection_name, document_id, field):
+        doc_ref = self.db.collection(collection_name).document(document_id)
+        doc = doc_ref.get()
+        return field in doc.to_dict()
+
     def _get_documents_by_attr(self, collection_name, key, value):
         """
         Returns all documents that have {key: value} in their schema.
@@ -215,6 +220,28 @@ class FirebaseManager:
         except Exception as e:
             return (
                 f"Error editing user {user_id} with value {val} for attr {attr}: {e}",
+                500,
+            )
+
+    def get_user_attr(self, user_id: str, attr: str):
+        """
+        Get user's particular attribute
+        """
+        try:
+            user_dict, status = self._get_document("users", user_id)
+            if status != 200:
+                return (
+                    f"There was an error in retrieving the user: {user_dict}",
+                    status,
+                )
+
+            if attr in user_dict:
+                return (user_dict[attr], 200)
+            return ("This attribute doesn't exist", 500)
+
+        except Exception as e:
+            return (
+                f"Error retrieving user {user_id} with value for attr {attr}: {e}",
                 500,
             )
 
@@ -441,6 +468,21 @@ class FirebaseManager:
     def store_meal_in_dayplan(self, day_plan_id: str, meal: Dict):
         return self._update_document_list_attr("day_plans", day_plan_id, "meals", meal)
 
+    def get_meal_items(self, meal_id: str, day_plan_id: str) -> Dict:
+        day_plan, status = self.get_dayplan_by_id(day_plan_id)
+        if status != 200:
+            return (
+                f"There was an error in retrieving the previously stored meal plan: {day_plan}",
+                status,
+            )
+
+        # skip over requested meal and updates
+        for meal in day_plan["meals"]:
+            if meal["_id"] == meal_id:
+                return (meal["meal_types"], 200)
+
+        return ("That meal does not exist in the database", 500)
+
     """Object deletion functions"""
 
     def delete_user(self, user_id):
@@ -467,3 +509,52 @@ class FirebaseManager:
             if meal["_id"] != meal_id:
                 meals.append(meal)
         return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
+
+    def add_favorite_items(self, user_id: str, new_favorite_items: Dict[str, int]):
+        # create the permanent favorite items if the field doesn't already exist
+        try:
+            if not self._exists_field_in_document(
+                "users", user_id, "permanent_favorite_items"
+            ):
+                favorite_items = {
+                    "Main Course": [],
+                    "Side": [],
+                    "Beverage": [],
+                    "Dessert": [],
+                }
+                msg, status = self.update_user_attr(
+                    user_id, "permanent_favorite_items", favorite_items
+                )
+                if status != 200:
+                    return (
+                        f"There was an error in creating a new favorite items field in the user: {msg}",
+                        status,
+                    )
+
+            # get the current permanent favorite items
+            permanent_favorite_items, status = self.get_user_attr(
+                user_id, "permanent_favorite_items"
+            )
+            if status != 200:
+                return (
+                    f"There was some error in retrieving the permanent favorite items from the user: {permanent_favorite_items}",
+                    status,
+                )
+            for key, val in new_favorite_items.items():
+                new_items = set(permanent_favorite_items[key] + [val])
+                permanent_favorite_items[key] = list(new_items)
+
+            msg, status = self.update_user_attr(
+                user_id, "permanent_favorite_items", permanent_favorite_items
+            )
+            if status != 200:
+                return (
+                    f"There was an error in updating the new favorite items field in the user: {msg}",
+                    status,
+                )
+            return (msg, status)
+        except Exception as e:
+            return (
+                f"There was an error in favoriting the item (firebase.py): {e}",
+                500,
+            )

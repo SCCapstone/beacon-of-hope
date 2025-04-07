@@ -665,3 +665,27 @@ poetry run coverage report
     - (403) Missing Parameters
     - (500) Internal Server error
     - Status code 200 if successful
+
+
+
+- #### `<backend_ip>/beacon/user/favorite-meal`
+  - HTTP Method: `POST`
+  - Description: Favorite meal to influence future recommendations
+  - Parameters:
+    - ```json
+      {
+        "user_id":"67cbasdflsdafj293",
+        "date:":"2025-04-08",
+        "meal_id":"67cbasdfls324433"
+      }
+  - Response:
+    - (200) Successfully favorited meal
+    ```json
+    {
+      "Message": "Meal was successfully favoritd"
+    }
+    ```
+    - (400) Invalid request method
+    - (403) Missing Parameters
+    - (500) Internal Server error
+    - Status code 200 if successful
