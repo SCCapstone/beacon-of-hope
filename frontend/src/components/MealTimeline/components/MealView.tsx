@@ -1,12 +1,14 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
-import { XMarkIcon, StarIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon, StarIcon as StarIconSolid } from "@heroicons/react/20/solid"; // Use Solid Star
 import { formatScore } from "../utils";
+import { isValid as isValidDate } from "date-fns";
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline"; // Use Outline Star
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -18,6 +20,8 @@ interface MealViewProps {
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
   onAcceptRecommendationClick: (recommendation: MealRecommendation) => void;
   onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
+  onDeleteMealClick: (mealId: string, date: Date) => Promise<void>;
+  onFavoriteMealClick: (mealId: string, date: Date) => Promise<void>;
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -35,21 +39,24 @@ interface TraceMealCardProps {
   meal: Meal;
   isSelected: boolean;
   onClick: () => void;
-  onCrossClick: () => void; // New prop
-  onFavoriteClick: () => void; // New prop
+  onDeleteClick: () => void;
+  onFavoriteClick: () => void;
 }
 
 const TraceMealCard: React.FC<TraceMealCardProps> = ({
   meal,
   isSelected,
   onClick,
-  onCrossClick,
+  onDeleteClick,
   onFavoriteClick,
 }) => {
+  const [isFavoriting, setIsFavoriting] = useState(false);
+  const [optimisticFavorite, setOptimisticFavorite] = useState(meal.isFavorited || false);
+
   // Destructure scores from meal object
   const {
     nutritionalInfo,
-    diabetesFriendly,
+    // diabetesFriendly,
     name,
     foods = [],
     varietyScore,
@@ -57,23 +64,48 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     constraintScore,
   } = meal;
 
-  const totalMacros =
-    nutritionalInfo.carbs + nutritionalInfo.protein + nutritionalInfo.fiber;
-  const carbPercent =
-    totalMacros > 0 ? (nutritionalInfo.carbs / totalMacros) * 100 : 0;
-  const proteinPercent =
-    totalMacros > 0 ? (nutritionalInfo.protein / totalMacros) * 100 : 0;
-  const fiberPercent =
-    totalMacros > 0 ? (nutritionalInfo.fiber / totalMacros) * 100 : 0;
-
-  const handleCrossClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCrossClick();
+  // Defensive check for nutritionalInfo
+  const safeNutritionalInfo = nutritionalInfo || {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fiber: 0,
   };
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const totalMacros =
+    safeNutritionalInfo.carbs +
+    safeNutritionalInfo.protein +
+    safeNutritionalInfo.fiber;
+  const carbPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
+  const proteinPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0;
+  const fiberPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0;
+
+  const handleDeleteButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    onDeleteClick(); // Call the passed handler
+  };
+
+  const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onFavoriteClick();
+    if (isFavoriting) return; // Prevent double clicks
+
+    setIsFavoriting(true);
+    setOptimisticFavorite(true); // Optimistically show as favorited
+
+    try {
+      await onFavoriteClick(); // Call the handler passed from MealView
+      // Success message/handling is done in the parent (MealTimelinePage)
+    } catch (error) {
+      console.error("Error during favorite click:", error);
+      setOptimisticFavorite(false); // Revert optimistic state on error
+      // Error message is shown in parent
+    } finally {
+      // Reset loading state after a short delay to allow visual feedback
+      setTimeout(() => setIsFavoriting(false), 500);
+    }
   };
 
   // Get unique food types from the meal
@@ -85,19 +117,21 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.15 }}
       className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
+        ${optimisticFavorite ? 'border-yellow-400' : ''} // Add visual cue for favorite
         flex flex-col min-h-[100px]`}
       onClick={onClick}
     >
       <motion.button
         whileHover={{
           scale: 1.05,
-          backgroundColor: "rgba(239, 68, 68, 0.9)",
+          backgroundColor: "rgba(239, 68, 68, 0.9)", // Red hover
         }}
         whileTap={{ scale: 0.9 }}
-        onClick={handleCrossClick}
+        onClick={handleDeleteButtonClick}
         className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-red-500 shadow-md z-20 hover:bg-red-500 transition-colors"
         title="Remove meal"
       >
@@ -106,23 +140,31 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       <motion.button
         whileHover={{
-          scale: 1.05,
-          backgroundColor: "rgba(245, 158, 11, 0.9)",
+          scale: 1.1, // Slightly larger hover effect
+          backgroundColor: isFavoriting ? "rgba(200, 150, 10, 0.9)" : "rgba(245, 158, 11, 0.9)", // Yellow hover
         }}
         whileTap={{ scale: 0.9 }}
-        onClick={handleFavoriteClick}
-        className="absolute -top-2 -right-2 p-0.5 rounded-full text-white bg-yellow-500 shadow-md z-20 hover:bg-yellow-600 transition-colors"
-        title="Favorite meal"
+        onClick={handleFavoriteButtonClick}
+        disabled={isFavoriting} // Disable while processing
+        className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
+                    ${isFavoriting ? 'bg-yellow-600 animate-pulse' : 'bg-yellow-500 hover:bg-yellow-600'}
+                  `}
+        title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
       >
-        <StarIcon className="w-4 h-4" />
+        {isFavoriting ? (
+           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+        ) : optimisticFavorite ? (
+          <StarIconSolid className="w-4 h-4" /> // Show solid star if favorited
+        ) : (
+          <StarIconOutline className="w-4 h-4" /> // Show outline star if not
+        )}
       </motion.button>
 
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
-        {/* <h3 className="text-sm font-medium text-gray-800 truncate pr-2">
-          {meal.name}
-        </h3> */}
-        {/* Plan Name Badge (if available) */}
         {name && (
           <div className="mb-2">
             <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
@@ -131,7 +173,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           </div>
         )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-          {nutritionalInfo.calories} cal
+          {safeNutritionalInfo.calories} cal
         </div>
       </div>
 
@@ -149,17 +191,17 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         <div
           className="bg-blue-400"
           style={{ width: `${carbPercent}%` }}
-          title={`Carbs: ${nutritionalInfo.carbs}g`}
+          title={`Carbs: ${safeNutritionalInfo.carbs}g`}
         />
         <div
           className="bg-purple-400"
           style={{ width: `${proteinPercent}%` }}
-          title={`Protein: ${nutritionalInfo.protein}g`}
+          title={`Protein: ${safeNutritionalInfo.protein}g`}
         />
         <div
           className="bg-orange-400"
           style={{ width: `${fiberPercent}%` }}
-          title={`Fiber: ${nutritionalInfo.fiber}g`}
+          title={`Fiber: ${safeNutritionalInfo.fiber}g`}
         />
       </div>
 
@@ -174,8 +216,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         </div>
       )}
 
-      {/* Footer Indicators */}
-      <div className="pt-2 flex justify-around border-t border-gray-100 text-xs text-gray-600">
+      {/* Footer Indicators (Scores) */}
+      <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
         <span title="Variety Score">V: {formatScore(varietyScore)}</span>
         <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
         <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
@@ -194,6 +236,8 @@ export const MealView: React.FC<MealViewProps> = ({
   onRecommendationSelect,
   onAcceptRecommendationClick,
   onRejectRecommendationClick,
+  onDeleteMealClick,
+  onFavoriteMealClick,
   selectedRecommendation,
   mealBinNames,
   onMealBinUpdate,
@@ -313,60 +357,69 @@ export const MealView: React.FC<MealViewProps> = ({
           type: "meal",
           item: meal,
           time: meal.time,
+          mealType: meal.type,
         })),
         ...sortedRecommendations.map((rec) => ({
           type: "recommendation",
           item: rec,
           time: rec.meal.time,
+          mealType: rec.meal.type,
         })),
       ].sort((a, b) => {
-        const timeA = a.time.split(":").map(Number);
-        const timeB = b.time.split(":").map(Number);
-        const timeCompare =
-          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+        // Sort primarily by time
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
 
-        // If times are the same, sort by item type (meal vs recommendation)
-        if (timeCompare === 0) {
-          // Prioritize actual meals over recommendations
-          return a.type === "meal" ? -1 : 1;
-        }
+        // If same time, sort by meal type priority (Breakfast, Lunch, Dinner, Snack)
+        const priorityA = mealTypePriority[a.mealType] ?? 99;
+        const priorityB = mealTypePriority[b.mealType] ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
 
-        return timeCompare;
+        // If same time and type, prioritize trace meals over recommendations
+        return a.type === "meal" ? -1 : 1;
       });
+      // Dynamically determine the number of bins needed based on the max items per time slot
+      // Or simply use the total number of items for simplicity if one item per bin is desired
+      const requiredBins = allItems.length; // One bin per item
 
-      // Check if we need more bins than currently available
-      if (allItems.length > mealBinNames.length) {
-        // Request parent component to update bin names
-        const newBinNames = [...mealBinNames];
-        while (newBinNames.length < allItems.length) {
-          newBinNames.push(`Meal ${newBinNames.length + 1}`);
+      // Adjust mealBinNames if necessary (this part seems okay, but ensure it runs *before* distribution)
+      if (requiredBins > mealBinNames.length) {
+        const newNames = [...mealBinNames];
+        while (newNames.length < requiredBins) {
+          newNames.push(`Meal ${newNames.length + 1}`);
         }
-        // Defer update slightly to avoid state change during render cycle if possible
-        setTimeout(() => onMealBinUpdate(newBinNames), 0);
+        // Defer update slightly
+        setTimeout(() => onMealBinUpdate(newNames), 0);
+        // Return early or use the old names for this render cycle to avoid immediate state issues
+        // For now, let's proceed with the potentially outdated mealBinNames for this render,
+        // the next render will have the updated names.
       }
 
-      // Create bins based on meal times
+      // Create bins based on the current mealBinNames
       const bins: Record<
         string,
         { meals: Meal[]; recommendations: MealRecommendation[] }
       > = {};
-
-      // Initialize bins with empty arrays
       mealBinNames.forEach((name) => {
         bins[name] = { meals: [], recommendations: [] };
       });
 
-      // Distribute items to bins, ensuring one item per bin
+      // Distribute items to bins sequentially
       allItems.forEach((item, index) => {
-        // Skip if we've run out of bins (this shouldn't happen after the fix)
-        if (index >= mealBinNames.length) return;
-
-        const binName = mealBinNames[index];
-
-        if (item.type === "meal") {
-          bins[binName].meals = [item.item as Meal];
+        // Ensure we don't try to access a bin that doesn't exist yet
+        if (index < mealBinNames.length) {
+          const binName = mealBinNames[index];
+          if (item.type === "meal") {
+            bins[binName].meals.push(item.item as Meal);
+          } else {
+            bins[binName].recommendations.push(item.item as MealRecommendation);
+          }
         } else {
-          bins[binName].recommendations = [item.item as MealRecommendation];
+          console.warn(
+            `MealView: Not enough bins (${mealBinNames.length}) to place item ${
+              index + 1
+            }. Item skipped.`
+          );
         }
       });
 
@@ -381,15 +434,34 @@ export const MealView: React.FC<MealViewProps> = ({
 
   // Function to render a meal card
   const renderMealCard = (meal: Meal, date: Date) => {
-    // Pass date for unique key
+    // Ensure meal.date is valid or fallback to the date passed in
+    const validMealDate = meal.date instanceof Date && isValidDate(meal.date) ? meal.date : date;
+
     return (
       <TraceMealCard
         key={`meal-${meal.id}-${date.toISOString()}`}
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
-        onCrossClick={() => console.log("Cross clicked", meal.id)} // Replace with actual handler
-        onFavoriteClick={() => console.log("Favorite clicked", meal.id)} // Replace with actual handler
+        onDeleteClick={() => {
+            if (meal.id && validMealDate) {
+                 const confirmDelete = window.confirm(`Are you sure you want to remove "${meal.name}" from your history for ${format(validMealDate, "MMM d")}?`);
+                 if (confirmDelete) {
+                    onDeleteMealClick(meal.id, validMealDate);
+                 }
+            } else {
+                console.error("Cannot delete meal: Missing ID or valid date.", meal);
+                alert("Error: Cannot delete this meal due to missing information.");
+            }
+        }}
+        onFavoriteClick={() => { // <-- Call the main handler with ID and Date
+            if (meal.id && validMealDate) {
+                onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
+            } else {
+                console.error("Cannot favorite meal: Missing ID or valid date.", meal);
+                alert("Error: Cannot favorite this meal due to missing information.");
+            }
+        }}
       />
     );
   };
@@ -437,7 +509,8 @@ export const MealView: React.FC<MealViewProps> = ({
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
             );
-            const bins = organizeMealsIntoBins(currentDate);
+            // Get the bins object for the current date
+            const binsForDate = organizeMealsIntoBins(currentDate);
 
             return (
               <div
@@ -480,7 +553,30 @@ export const MealView: React.FC<MealViewProps> = ({
                 {/* Meal Bins for this date */}
                 <div className="flex flex-1">
                   {mealBinNames.map((binName, index) => {
-                    const bin = bins[binName];
+                    // Get the specific bin content using the name
+                    const binContent = binsForDate[binName];
+
+                    // Add a check to ensure binContent exists and has the expected structure
+                    if (!binContent || !Array.isArray(binContent.meals) || !Array.isArray(binContent.recommendations)) {
+                        // Handle the case where the bin might be missing or malformed (shouldn't happen with current logic, but safe)
+                        console.warn(`MealView: Invalid or missing bin content for bin '${binName}' on date ${format(currentDate, 'yyyy-MM-dd')}`);
+                        return (
+                            <div
+                                key={`${currentDate.toISOString()}-${binName}-error`}
+                                className={`flex-1 p-2 ${index > 0 ? "border-l" : ""} ${isSelected ? "border-blue-200" : "border-gray-200"}`}
+                            >
+                                <div className="h-full flex items-center justify-center text-center text-red-500 text-xs p-2">
+                                    Error
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Explicitly get the arrays
+                    const mealsInBin = binContent.meals;
+                    const recommendationsInBin = binContent.recommendations;
+                    // --- END FIX ---
+
                     return (
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
@@ -492,13 +588,15 @@ export const MealView: React.FC<MealViewProps> = ({
                       >
                         {/* Meals */}
                         <AnimatePresence>
-                          {bin.meals.map((meal) =>
+                          {/* Use the explicitly defined array */}
+                          {mealsInBin.map((meal) =>
                             renderMealCard(meal, currentDate)
                           )}
                         </AnimatePresence>
                         {/* Recommendations */}
                         <AnimatePresence>
-                          {bin.recommendations.map((recommendation) => (
+                          {/* Use the explicitly defined array */}
+                          {recommendationsInBin.map((recommendation) => (
                             <RecommendedMealCard
                               key={`rec-${
                                 recommendation.meal.id
@@ -513,7 +611,7 @@ export const MealView: React.FC<MealViewProps> = ({
                               }
                               onClick={() =>
                                 onRecommendationSelect(recommendation)
-                              } // Selects for details panel
+                              }
                               isSelected={
                                 selectedRecommendation?.meal.id ===
                                 recommendation.meal.id
@@ -522,8 +620,9 @@ export const MealView: React.FC<MealViewProps> = ({
                           ))}
                         </AnimatePresence>
                         {/* Empty State */}
-                        {bin.meals.length === 0 &&
-                          bin.recommendations.length === 0 && (
+                        {/* Use the explicitly defined arrays */}
+                        {mealsInBin.length === 0 &&
+                          recommendationsInBin.length === 0 && (
                             <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
                               No items
                             </div>

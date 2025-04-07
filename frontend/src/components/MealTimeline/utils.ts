@@ -14,10 +14,10 @@ export const calculateCurrentNutritionalValues = (weekData: DayMeals[]) => {
     (acc, day) => {
       const dayTotals = day.meals.reduce(
         (mealAcc, meal) => ({
-          calories: mealAcc.calories + meal.nutritionalInfo.calories,
-          carbs: mealAcc.carbs + meal.nutritionalInfo.carbs,
-          protein: mealAcc.protein + meal.nutritionalInfo.protein,
-          fiber: mealAcc.fiber + (meal.nutritionalInfo.fiber || 0),
+          calories: mealAcc.calories + (meal.nutritionalInfo?.calories || 0),
+          carbs: mealAcc.carbs + (meal.nutritionalInfo?.carbs || 0),
+          protein: mealAcc.protein + (meal.nutritionalInfo?.protein || 0),
+          fiber: mealAcc.fiber + (meal.nutritionalInfo?.fiber || 0),
         }),
         {
           calories: 0,
@@ -53,8 +53,11 @@ export const calculateCurrentNutritionalValues = (weekData: DayMeals[]) => {
 };
 
 // Helper to format score
-export const formatScore = (score: number | undefined): string => {
+export const formatScore = (score: number | undefined | null): string => {
   if (score === undefined || score === null) return "N/A";
-  return score.toFixed(2); // Display as decimal, e.g., 0.75
-  // Or display as percentage: return `${(score * 100).toFixed(0)}%`;
+  // Ensure score is treated as a number before calling toFixed
+  const numericScore = Number(score);
+  if (isNaN(numericScore)) return "N/A";
+  return numericScore.toFixed(2); // Display as decimal, e.g., 0.75
+  // Or display as percentage: return `${(numericScore * 100).toFixed(0)}%`;
 };

@@ -74,6 +74,7 @@ export interface Meal {
   varietyScore?: number; // Score from 0 to 1
   coverageScore?: number; // Score from 0 to 1 (item_coverage_score)
   constraintScore?: number; // Score from 0 to 1 (nutritional_constraint_score)
+  isFavorited?: boolean;
 }
 
 // Represents meals consumed on a specific day (Trace Data)
