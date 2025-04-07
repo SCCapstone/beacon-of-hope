@@ -15,6 +15,7 @@ import {
   fetchNutritionalGoals,
   regeneratePartialMeals,
   saveMealToTrace,
+  deleteMealFromTrace,
 } from "../services/recipeService";
 import {
   subDays,
@@ -406,6 +407,77 @@ export const MealTimelinePage: React.FC = () => {
     [userId, isLoading]
   );
 
+  // Handler for deleting a trace meal
+  const handleDeleteMeal = useCallback(
+    async (mealIdToDelete: string, mealDate: Date) => {
+      if (!userId) {
+        setError("Cannot delete meal: User not logged in.");
+        return;
+      }
+      if (!mealIdToDelete || !mealDate) {
+        setError("Cannot delete meal: Missing meal ID or date.");
+        console.error("handleDeleteMeal missing data:", {
+          mealIdToDelete,
+          mealDate,
+        });
+        return;
+      }
+
+      const normalizedMealDate = normalizeDate(mealDate);
+      const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
+
+      console.log(
+        `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
+      );
+
+      // Store original data for potential rollback
+      const originalWeekData = [...weekData]; // Shallow copy is enough here
+
+      // --- Optimistic UI Update ---
+      setWeekData((prevData) => {
+        const newData = prevData.map((day) => {
+          // Find the correct day
+          if (isSameDay(normalizeDate(day.date), normalizedMealDate)) {
+            // Filter out the meal to be deleted
+            const updatedMeals = day.meals.filter(
+              (meal) => meal.id !== mealIdToDelete
+            );
+            // Return the updated day object
+            return { ...day, meals: updatedMeals };
+          }
+          // Return unchanged day if it's not the target date
+          return day;
+        });
+        // Filter out days that might become empty (optional, depends on desired behavior)
+        // return newData.filter(day => day.meals.length > 0);
+        return newData;
+      });
+      console.log(
+        `Page: Optimistically removed meal ${mealIdToDelete} from UI.`
+      );
+      setError(null); // Clear previous errors
+
+      // --- Call Backend API ---
+      try {
+        await deleteMealFromTrace(userId, dateStr, mealIdToDelete);
+        console.log(
+          `Page: Successfully deleted meal ${mealIdToDelete} from backend.`
+        );
+        // UI is already updated, no further action needed on success
+      } catch (err: any) {
+        console.error(`Page: Error deleting meal ${mealIdToDelete}:`, err);
+        // --- Rollback UI on Failure ---
+        setWeekData(originalWeekData); // Restore previous state
+        if (err instanceof ApiError) {
+          setError(`Delete failed: ${err.message}`);
+        } else {
+          setError("An unexpected error occurred while deleting the meal.");
+        }
+      }
+    },
+    [userId, weekData] // Add weekData dependency for rollback
+  );
+
   const handleRegeneratePartial = useCallback(
     async (datesToRegenerate: string[]) => {
       if (!userId) {
@@ -482,38 +554,43 @@ export const MealTimelinePage: React.FC = () => {
           currentMealPlan = { user_id: userId, days: {} };
         }
 
+        // Merge the regenerated days into the current meal plan's 'days' object
+        // The response 'days' object contains the *new* meal data for the regenerated dates
+        for (const [dateStr, dayDataFromResponse] of Object.entries(
+          response.days
+        )) {
+          // dayDataFromResponse structure: { _id, meals, user_id } from RegenerateApiResponse
+          if (dayDataFromResponse && Array.isArray(dayDataFromResponse.meals)) {
+            // Get the existing day structure from localStorage plan (if any)
+            // This structure should match BanditDayData: { _id, meals, user_id, meal_plan_id }
+            const existingDayStorage = currentMealPlan.days[dateStr] || {};
 
-// Merge the regenerated days into the current meal plan's 'days' object
-// The response 'days' object contains the *new* meal data for the regenerated dates
-for (const [dateStr, dayDataFromResponse] of Object.entries(response.days)) {
-    // dayDataFromResponse structure: { _id, meals, user_id } from RegenerateApiResponse
-    if (dayDataFromResponse && Array.isArray(dayDataFromResponse.meals)) {
-        // Get the existing day structure from localStorage plan (if any)
-        // This structure should match BanditDayData: { _id, meals, user_id, meal_plan_id }
-        const existingDayStorage = currentMealPlan.days[dateStr] || {};
-
-        // Create the updated day structure for localStorage
-        // Prioritize keeping existing IDs if available, update meals array
-        currentMealPlan.days[dateStr] = {
-            _id: existingDayStorage._id || dayDataFromResponse._id, // Keep existing day ID or use new one
-            meals: dayDataFromResponse.meals, // *** Replace meals array entirely with the new recommendations ***
-            user_id: existingDayStorage.user_id || dayDataFromResponse.user_id || userId, // Ensure user_id
-            meal_plan_id: existingDayStorage.meal_plan_id || currentMealPlan._id, // Ensure meal_plan_id links back
-            // Include scores if they come back from regeneration API, otherwise clear them for the day?
-            // Assuming regeneration API doesn't return day-level scores, clear them:
-            // variety_score: undefined,
-            // item_coverage_score: undefined,
-            // nutritional_constraint_score: undefined,
-        };
-        console.log(
-          `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
-        );
-    } else {
-        console.warn(
-          `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
-        );
-    }
-}
+            // Create the updated day structure for localStorage
+            // Prioritize keeping existing IDs if available, update meals array
+            currentMealPlan.days[dateStr] = {
+              _id: existingDayStorage._id || dayDataFromResponse._id, // Keep existing day ID or use new one
+              meals: dayDataFromResponse.meals, // *** Replace meals array entirely with the new recommendations ***
+              user_id:
+                existingDayStorage.user_id ||
+                dayDataFromResponse.user_id ||
+                userId, // Ensure user_id
+              meal_plan_id:
+                existingDayStorage.meal_plan_id || currentMealPlan._id, // Ensure meal_plan_id links back
+              // Include scores if they come back from regeneration API, otherwise clear them for the day?
+              // Assuming regeneration API doesn't return day-level scores, clear them:
+              // variety_score: undefined,
+              // item_coverage_score: undefined,
+              // nutritional_constraint_score: undefined,
+            };
+            console.log(
+              `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
+            );
+          } else {
+            console.warn(
+              `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
+            );
+          }
+        }
 
         // Save the updated meal plan back to localStorage
         localStorage.setItem("mealPlan", JSON.stringify(currentMealPlan));
@@ -757,6 +834,7 @@ for (const [dateStr, dayDataFromResponse] of Object.entries(response.days)) {
         onRegeneratePartial={handleRegeneratePartial}
         isRegenerating={isRegenerating}
         onSaveMeal={handleSaveMeal}
+        onDeleteMeal={handleDeleteMeal}
         userId={userId}
       />
       {showOverlayLoader && (

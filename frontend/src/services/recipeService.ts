@@ -660,18 +660,22 @@ export async function transformApiResponseToDayMeals(
             apiMeal._id === meal._id && apiMeal.meal_name === meal.meal_name
         );
 
+        // Find the index (optional, might not be needed if _id is truly unique per trace)
+        // const mealIndexInResponse = dayData.meals.findIndex(
+        //   (apiMeal) => apiMeal._id === meal._id
+        // );
+
         // Generate a potentially more unique ID by including the index
-        // WARNING: This is a workaround. The ideal solution is a unique meal._id from the backend for each trace record.
-        const uniqueFrontendId = `trace-${dateStr}-${meal.meal_name}-${meal._id}-${mealIndexInResponse}`;
+        // const uniqueFrontendId = `trace-${dateStr}-${meal.meal_name}-${meal._id}-${mealIndexInResponse}`;
 
         // Create the Meal object
         const completeMeal: Meal = {
-          // id: `trace-${dateStr}-${meal.meal_name}-${meal._id}`,
-          id: uniqueFrontendId, // Use the potentially more unique ID
+          // id: uniqueFrontendId,
+          id: meal._id,
           originalBackendId: meal._id, // Keep track of original ID
           name: `${
             meal.meal_name.charAt(0).toUpperCase() + meal.meal_name.slice(1)
-          }`, // Just use the name, e.g., "Breakfast"
+          }`,
           time: mealTime,
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
           foods: mealFoods,
@@ -701,4 +705,86 @@ export async function transformApiResponseToDayMeals(
   finalDayMeals.sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return finalDayMeals;
+}
+
+export async function deleteMealFromTrace(
+  userId: string,
+  date: string, // Expecting "yyyy-MM-dd" format
+  mealId: string // The backend ID (_id) of the trace meal record
+): Promise<boolean> {
+  if (!userId || !date || !mealId) {
+    console.error("deleteMealFromTrace: Missing required parameters.", {
+      userId,
+      date,
+      mealId,
+    });
+    throw new Error(
+      "User ID, date, and meal ID are required to delete a meal."
+    );
+  }
+
+  try {
+    console.log(
+      `Calling delete-meal API for user ${userId}, date ${date}, meal ${mealId}`
+    );
+    // Note: Axios DELETE typically sends data in config.data
+    const response = await axios.delete(
+      `${BACKEND_URL}/beacon/user/delete-meal`,
+      {
+        data: {
+          // Data needs to be nested under 'data' for axios.delete
+          user_id: userId,
+          date: date,
+          meal_id: mealId,
+        },
+      }
+    );
+
+    // Rely primarily on the HTTP status code for success indication.
+    // Axios typically throws for non-2xx statuses by default,
+    // so reaching this point often implies a 2xx status.
+    // We explicitly check for 200 for clarity and robustness.
+    if (response.status === 200) {
+      console.log(
+        `Successfully deleted meal ${mealId} for date ${date} from trace (Status 200). Response data:`,
+        response.data // Log the actual response data
+      );
+      return true;
+    } else {
+      // This block handles cases where the status might be 2xx but not 200,
+      // or if Axios is configured not to throw on non-2xx errors.
+      console.warn(
+        `delete-meal API returned unexpected status for meal ${mealId}:`,
+        response.status,
+        response.data
+      );
+      throw new ApiError(
+        `Failed to delete meal: Server responded with status ${response.status}`, // More accurate error message
+        response.status,
+        response.data
+      );
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `Error deleting meal ${mealId} from trace: ${error.message}`,
+        error.response?.status,
+        error.response?.data
+      );
+      throw new ApiError(
+        `Failed to delete meal: ${
+          error.response?.data?.detail || // Use backend detail if available
+          error.response?.data?.Message || // Use backend Message if available
+          error.message // Fallback to Axios message
+        }`,
+        error.response?.status,
+        error.response?.data
+      );
+    }
+    console.error(
+      `Unexpected error deleting meal ${mealId} from trace:`,
+      error
+    );
+    throw error; // Re-throw unexpected errors
+  }
 }
