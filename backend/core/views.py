@@ -159,6 +159,13 @@ def bandit_recommendation(request: HttpRequest):
             favorite_items = user.get_favorite_items()
 
         permanent_favorite_items = user.get_permanent_favorite_items()
+        if permanent_favorite_items is None:
+            permanent_favorite_items = {
+                "Main Course": [],
+                "Side": [],
+                "Dessert": [],
+                "Beverage": []
+            }
         for key, item_list in permanent_favorite_items.items():
             favorite_items[key] = list(set(favorite_items[key] + item_list))
 
