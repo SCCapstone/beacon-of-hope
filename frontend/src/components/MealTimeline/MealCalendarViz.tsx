@@ -89,6 +89,7 @@ type DateSelectHandler = (newDate: Date) => void;
 type RegeneratePartialHandler = (dates: string[]) => void;
 
 type DeleteMealHandler = (mealId: string, date: Date) => Promise<void>;
+type FavoriteMealHandler = (mealId: string, date: Date) => Promise<void>;
 
 interface MealCalendarVizProps {
   mealData: DayMeals[]; // This prop represents the initial/fetched trace data
@@ -105,6 +106,7 @@ interface MealCalendarVizProps {
   isRegenerating: boolean;
   onSaveMeal: SaveMealHandler;
   onDeleteMeal: DeleteMealHandler;
+  onFavoriteMeal: FavoriteMealHandler;
   userId: string;
 }
 
@@ -118,6 +120,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   onRegeneratePartial,
   isRegenerating,
   onSaveMeal,
+  onFavoriteMeal,
   onDeleteMeal,
   userId,
 }) => {
@@ -1292,6 +1295,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       onRecommendationSelect={handleRecommendationSelect}
                       onAcceptRecommendationClick={handleAcceptRecommendation}
                       onRejectRecommendationClick={handleRejectRecommendation}
+                      onFavoriteMealClick={onFavoriteMeal}
                       onDeleteMealClick={onDeleteMeal}
                       selectedRecommendation={selectedRecommendation}
                       mealBinNames={mealBinNames}

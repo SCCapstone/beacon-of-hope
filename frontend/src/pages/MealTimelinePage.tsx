@@ -16,6 +16,7 @@ import {
   regeneratePartialMeals,
   saveMealToTrace,
   deleteMealFromTrace,
+  favoriteMealInTrace,
 } from "../services/recipeService";
 import {
   subDays,
@@ -670,6 +671,67 @@ export const MealTimelinePage: React.FC = () => {
     [] // No dependencies needed as it uses payload and calls service
   );
 
+  const handleFavoriteMeal = useCallback(
+    async (mealIdToFavorite: string, mealDate: Date) => {
+      if (!userId) {
+        setError("Cannot favorite meal: User not logged in.");
+        return;
+      }
+      if (!mealIdToFavorite || !mealDate) {
+        setError("Cannot favorite meal: Missing meal ID or date.");
+        console.error("handleFavoriteMeal missing data:", {
+          mealIdToFavorite,
+          mealDate,
+        });
+        return;
+      }
+
+      const normalizedMealDate = normalizeDate(mealDate);
+      const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
+
+      console.log(
+        `Page: Attempting to favorite meal ${mealIdToFavorite} on ${dateStr}`
+      );
+      setError(null); // Clear previous errors
+
+      // --- Call Backend API ---
+      try {
+        await favoriteMealInTrace(userId, dateStr, mealIdToFavorite);
+        console.log(
+          `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
+        );
+        // Optional: Show a success toast/message to the user
+        alert(`Meal marked as favorite! This will influence future recommendations.`);
+
+        // Optional: Optimistic UI update (if Meal type has isFavorited)
+        // setWeekData(prevData => {
+        //   return prevData.map(day => {
+        //     if (isSameDay(normalizeDate(day.date), normalizedMealDate)) {
+        //       return {
+        //         ...day,
+        //         meals: day.meals.map(meal =>
+        //           meal.id === mealIdToFavorite ? { ...meal, isFavorited: true } : meal
+        //         ),
+        //       };
+        //     }
+        //     return day;
+        //   });
+        // });
+
+      } catch (err: any) {
+        console.error(`Page: Error favoriting meal ${mealIdToFavorite}:`, err);
+        if (err instanceof ApiError) {
+          setError(`Favorite failed: ${err.message}`);
+        } else {
+          setError("An unexpected error occurred while favoriting the meal.");
+        }
+        // Optional: Show an error toast/message
+        alert(`Error: Could not mark meal as favorite. ${err.message || ''}`);
+      }
+    },
+    [userId] // Dependency on userId
+  );
+
   // Callback for Viz to request fetching specific dates
   const handleFetchRequest = useCallback(
     (payload: FetchRequestPayload) => {
@@ -835,6 +897,7 @@ export const MealTimelinePage: React.FC = () => {
         isRegenerating={isRegenerating}
         onSaveMeal={handleSaveMeal}
         onDeleteMeal={handleDeleteMeal}
+        onFavoriteMeal={handleFavoriteMeal}
         userId={userId}
       />
       {showOverlayLoader && (

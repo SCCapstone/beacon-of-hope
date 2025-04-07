@@ -788,3 +788,79 @@ export async function deleteMealFromTrace(
     throw error; // Re-throw unexpected errors
   }
 }
+
+export async function favoriteMealInTrace(
+  userId: string,
+  date: string, // Expecting "yyyy-MM-dd" format
+  mealId: string // The backend ID (_id) of the trace meal record
+): Promise<boolean> {
+  if (!userId || !date || !mealId) {
+    console.error("favoriteMealInTrace: Missing required parameters.", {
+      userId,
+      date,
+      mealId,
+    });
+    throw new Error(
+      "User ID, date, and meal ID are required to favorite a meal."
+    );
+  }
+
+  try {
+    console.log(
+      `Calling favorite-meal API for user ${userId}, date ${date}, meal ${mealId}`
+    );
+    const response = await axios.post(
+      `${BACKEND_URL}/beacon/user/favorite-meal`,
+      {
+        user_id: userId,
+        date: date,
+        meal_id: mealId,
+      }
+    );
+
+    // Rely primarily on the HTTP status code for success indication.
+    if (response.status === 200) {
+      console.log(
+        `Successfully favorited meal ${mealId} for date ${date} (Status 200). Response data:`,
+        response.data // Log the actual response data (which might contain useful info)
+      );
+      return true;
+    } else {
+      // This block handles cases where the status might be 2xx but not 200,
+      // or if Axios is configured not to throw on non-2xx errors.
+      // It's less likely to be reached if Axios default behavior is used,
+      // but good practice to keep.
+      console.warn(
+        `favorite-meal API returned unexpected status for meal ${mealId}:`,
+        response.status,
+        response.data
+      );
+      throw new ApiError(
+        `Failed to favorite meal: Server responded with status ${response.status}`, // More accurate error message
+        response.status,
+        response.data
+      );
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `Error favoriting meal ${mealId}: ${error.message}`,
+        error.response?.status,
+        error.response?.data
+      );
+      // Throw a more specific error for handling upstream
+      throw new ApiError(
+        `Failed to favorite meal: ${
+          error.response?.data?.detail || // Use backend detail if available
+          error.response?.data?.Message || // Use backend Message if available
+          error.message // Fallback to Axios message
+        }`,
+        error.response?.status,
+        error.response?.data
+      );
+    }
+    // Handle non-Axios errors
+    console.error(`Unexpected error favoriting meal ${mealId}:`, error);
+    throw error; // Re-throw unexpected errors
+  }
+}

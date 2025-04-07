@@ -1,13 +1,14 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
 import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
-import { XMarkIcon, StarIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon, StarIcon as StarIconSolid } from "@heroicons/react/20/solid"; // Use Solid Star
 import { formatScore } from "../utils";
 import { isValid as isValidDate } from "date-fns";
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline"; // Use Outline Star
 
 interface MealViewProps {
   datesToDisplay: Date[];
@@ -20,6 +21,7 @@ interface MealViewProps {
   onAcceptRecommendationClick: (recommendation: MealRecommendation) => void;
   onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
   onDeleteMealClick: (mealId: string, date: Date) => Promise<void>;
+  onFavoriteMealClick: (mealId: string, date: Date) => Promise<void>;
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -48,6 +50,9 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   onDeleteClick,
   onFavoriteClick,
 }) => {
+  const [isFavoriting, setIsFavoriting] = useState(false);
+  const [optimisticFavorite, setOptimisticFavorite] = useState(meal.isFavorited || false);
+
   // Destructure scores from meal object
   const {
     nutritionalInfo,
@@ -83,9 +88,24 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     onDeleteClick(); // Call the passed handler
   };
 
-  const handleFavoriteButtonClick = (e: React.MouseEvent) => {
+  const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onFavoriteClick();
+    if (isFavoriting) return; // Prevent double clicks
+
+    setIsFavoriting(true);
+    setOptimisticFavorite(true); // Optimistically show as favorited
+
+    try {
+      await onFavoriteClick(); // Call the handler passed from MealView
+      // Success message/handling is done in the parent (MealTimelinePage)
+    } catch (error) {
+      console.error("Error during favorite click:", error);
+      setOptimisticFavorite(false); // Revert optimistic state on error
+      // Error message is shown in parent
+    } finally {
+      // Reset loading state after a short delay to allow visual feedback
+      setTimeout(() => setIsFavoriting(false), 500);
+    }
   };
 
   // Get unique food types from the meal
@@ -101,6 +121,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
+        ${optimisticFavorite ? 'border-yellow-400' : ''} // Add visual cue for favorite
         flex flex-col min-h-[100px]`}
       onClick={onClick}
     >
@@ -119,15 +140,27 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       <motion.button
         whileHover={{
-          scale: 1.05,
-          backgroundColor: "rgba(245, 158, 11, 0.9)", // Yellow hover
+          scale: 1.1, // Slightly larger hover effect
+          backgroundColor: isFavoriting ? "rgba(200, 150, 10, 0.9)" : "rgba(245, 158, 11, 0.9)", // Yellow hover
         }}
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteButtonClick}
-        className="absolute -top-2 -right-2 p-0.5 rounded-full text-white bg-yellow-500 shadow-md z-20 hover:bg-yellow-600 transition-colors"
-        title="Favorite meal"
+        disabled={isFavoriting} // Disable while processing
+        className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
+                    ${isFavoriting ? 'bg-yellow-600 animate-pulse' : 'bg-yellow-500 hover:bg-yellow-600'}
+                  `}
+        title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
       >
-        <StarIcon className="w-4 h-4" />
+        {isFavoriting ? (
+           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+        ) : optimisticFavorite ? (
+          <StarIconSolid className="w-4 h-4" /> // Show solid star if favorited
+        ) : (
+          <StarIconOutline className="w-4 h-4" /> // Show outline star if not
+        )}
       </motion.button>
 
       {/* Header */}
@@ -204,6 +237,7 @@ export const MealView: React.FC<MealViewProps> = ({
   onAcceptRecommendationClick,
   onRejectRecommendationClick,
   onDeleteMealClick,
+  onFavoriteMealClick,
   selectedRecommendation,
   mealBinNames,
   onMealBinUpdate,
@@ -409,7 +443,7 @@ export const MealView: React.FC<MealViewProps> = ({
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
-        onDeleteClick={() => { // <-- Call the main handler with ID and Date
+        onDeleteClick={() => {
             if (meal.id && validMealDate) {
                  const confirmDelete = window.confirm(`Are you sure you want to remove "${meal.name}" from your history for ${format(validMealDate, "MMM d")}?`);
                  if (confirmDelete) {
@@ -420,7 +454,14 @@ export const MealView: React.FC<MealViewProps> = ({
                 alert("Error: Cannot delete this meal due to missing information.");
             }
         }}
-        onFavoriteClick={() => console.warn("Favorite action not implemented for meal:", meal.id)}
+        onFavoriteClick={() => { // <-- Call the main handler with ID and Date
+            if (meal.id && validMealDate) {
+                onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
+            } else {
+                console.error("Cannot favorite meal: Missing ID or valid date.", meal);
+                alert("Error: Cannot favorite this meal due to missing information.");
+            }
+        }}
       />
     );
   };
