@@ -8,6 +8,7 @@ import "../App.css";
 import Modal from "../pages/SettingsPages/Modal";
 import TermsAndConditionsModal from "./SignUpPages/TermsAndConditionsModal";
 import { useDispatch } from "react-redux";
+import { loginUser } from "../features/userSlice";
 import { setGuestUser } from "../features/userSlice";
 
 const SignUpPage: React.FC = () => {
@@ -78,6 +79,19 @@ const SignUpPage: React.FC = () => {
       
       if(response) {
         navigate("/food-preferences");
+        try {
+          await dispatch(loginUser({ 
+            email, 
+            password,
+            rememberMe: true // You can make this configurable if needed
+          })).unwrap();
+          
+          // Only navigate after successful login
+          navigate("/food-preferences");
+        } catch (err: any) {
+          setError("Signup successful but login failed. Please try logging in manually.");
+          navigate("/login");
+        }
       }
       //navigate("/"); // Navigate to home page after successful signup
     } catch (err: any) {
