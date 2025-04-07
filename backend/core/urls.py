@@ -46,4 +46,5 @@ urlpatterns = [
         name="get_nutritional_goals",
     ),
     path("user/save-meal", views.save_meal, name="save_meal"),
+    path("user/delete-meal", views.delete_meal, name="delete_meal"),
 ]

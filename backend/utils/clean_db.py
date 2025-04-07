@@ -1,6 +1,8 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
-import os
+from tqdm import tqdm
+
+GUEST_ID = "67ee9325af31921234bf1241"
 
 
 def initialize_firestore():
@@ -21,6 +23,10 @@ def delete_document(collection_name, document_id):
     """
     Deletes a single document from the specified collection.
     """
+
+    # keep the guest user
+    if collection_name == "users" and document_id == GUEST_ID:
+        return
     try:
         doc_ref = db.collection(collection_name).document(document_id)
         doc_ref.delete()
@@ -39,7 +45,7 @@ def depopulate_collection(collection_name):
     if not docs:
         print(f"No documents found in collection {collection_name}.")
         return
-    for doc in docs:
+    for doc in tqdm(docs, total=len(docs)):
         delete_document(collection_name, doc.id)
 
 
@@ -47,8 +53,8 @@ def depopulate_all_data():
     """
     Depopulates the database by clearing out only the 'users' and 'mealplans' collections.
     """
-    collections_to_clear = ["users", "mealplans"]
-    for coll in collections_to_clear:
+    collections_to_clear = ["users", "meal_plans", "day_plans", "temp_day_plans"]
+    for coll in tqdm(collections_to_clear, total=len(collections_to_clear)):
         print(f"\nDepopulating collection: {coll}")
         depopulate_collection(coll)
         print(f"Finished depopulating collection: {coll}")
