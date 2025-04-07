@@ -91,6 +91,11 @@ class User:
     def get_favorite_items(self) -> Dict[str, List[str]]:
         return self.favorite_items
 
+    def get_permanent_favorite_items(self) -> Dict[str, List[str]]:
+        if hasattr(self, "permanent_favorite_items"):
+            return self.permanent_favorite_items
+        return None
+
     def set_favorite_items(self, favorite_items: Dict[str, List[str]]):
         return self.firebaseManager.update_user_attr(
             self.get_id(), "favorite_items", favorite_items
@@ -107,6 +112,17 @@ class User:
 
     def get_favorite_bevs(self) -> List[str]:
         return self.favorite_items["Beverage"]
+
+    def update_permanent_favorite_items(self, meal_items: Dict[str, int]):
+        meal_items = {
+            "Main Course": meal_items.get("main_course", None),
+            "Side": meal_items.get("side", None),
+            "Dessert": meal_items.get("dessert", None),
+            "Beverage": meal_items.get("beverage", None),
+        }
+
+        meal_items = {key: val for key, val in meal_items.items() if val}
+        return self.firebaseManager.add_favorite_items(self.get_id(), meal_items)
 
     def get_nutritional_goals(self) -> Dict[str, int]:
         if self.nutritional_goals:

@@ -47,4 +47,5 @@ urlpatterns = [
     ),
     path("user/save-meal", views.save_meal, name="save_meal"),
     path("user/delete-meal", views.delete_meal, name="delete_meal"),
+    path("user/favorite-meal", views.favorite_meal, name="favorite_meal"),
 ]
