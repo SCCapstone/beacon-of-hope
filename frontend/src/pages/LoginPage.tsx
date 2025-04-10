@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 import { useDispatch, useSelector } from "react-redux";
-import { loginUser } from "../features/userSlice";
+import { loginUser, setGuestUser } from "../features/userSlice";
 import { AppStore, RootState } from "../app/store";
 
 const LoginPage: React.FC = () => {
@@ -20,16 +20,21 @@ const LoginPage: React.FC = () => {
 
     try {
       await dispatch(loginUser({email, password, rememberMe})).unwrap();
-      navigate("/meal-plan");
+      navigate("/food-preferences");
     } catch(err: any) {
       setError(err.response?.data?.message);
     }
   };
 
+  const handleGuestAccess = () => {
+    dispatch(setGuestUser());
+    navigate("/food-preferences");
+  };
+
   return (
     <div id="login--page">
       <div id="login--left">
-        <img src="../../login-img.png"></img>
+        <img src="../../login-img.png" alt="Login" />
       </div>
       <div id="login--right">
         <div id="login--header">
@@ -63,9 +68,9 @@ const LoginPage: React.FC = () => {
               opacity: 0.6,
               cursor: "not-allowed",
             }}
-            title="Coming soon!" // Basic tooltip
+            title="Coming soon!"
           >
-            <img src="../../google-logo.png" />
+            <img src="../../google-logo.png" alt="Google" />
             <p
               style={{
                 fontWeight: "700",
@@ -113,7 +118,6 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
         <div id="login--content">
-
           <form onSubmit={handleSubmit}>
             {error && <div className="error-message">{error}</div>}
             <div className="login--input">
@@ -132,10 +136,7 @@ const LoginPage: React.FC = () => {
                 id="email"
                 placeholder="mail@abc.com"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  console.log(email);
-                }}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="login--input" style={{ marginTop: "24px" }}>
@@ -154,10 +155,7 @@ const LoginPage: React.FC = () => {
                 id="password"
                 placeholder="***********"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  console.log(password);
-                }}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
@@ -211,10 +209,17 @@ const LoginPage: React.FC = () => {
               Login
             </button>
           </form>
-
+          <div 
+          style={{
+            marginTop: "24px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}>
           <p
             id="create--account"
-            style={{ fontWeight: "400", fontSize: "18px", color: "#828282" }}
+            style={{ fontWeight: "400", fontSize: "16px", color: "#828282" }}
           >
             Not registered yet?{" "}
             <a
@@ -233,24 +238,24 @@ const LoginPage: React.FC = () => {
             style={{
               fontStyle: "italic",
               fontWeight: "400",
-              fontSize: "18px",
+              fontSize: "16px",
               color: "#828282",
             }}
           >
-            Want to try before commiting?{" "}
+            Want to try before committing?{" "}
             <a
-              onClick={() => {
-                navigate("/food-preferences");
-              }}
+              onClick={handleGuestAccess}
               style={{
                 color: "#7f265b",
                 textDecoration: "none",
                 cursor: "pointer",
+                fontWeight: "600",
               }}
             >
               Continue as guest
             </a>
           </p>
+          </div>
         </div>
       </div>
     </div>

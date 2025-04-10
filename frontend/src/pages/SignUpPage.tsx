@@ -7,18 +7,26 @@ import AuthService from "../services/auth.service";
 import "../App.css";
 import Modal from "../pages/SettingsPages/Modal";
 import TermsAndConditionsModal from "./SignUpPages/TermsAndConditionsModal";
+import { useDispatch } from "react-redux";
+import { loginUser } from "../features/userSlice";
+import { setGuestUser } from "../features/userSlice";
 
 const SignUpPage: React.FC = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string>("");
   const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
   const [termsModal, setTermsModal] = useState<string | null>(null);
-
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const handleGuestAccess = () => {
+    dispatch(setGuestUser());
+    navigate("/food-preferences");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,15 +46,52 @@ const SignUpPage: React.FC = () => {
     // Split full name into first and last name
     const [firstName, lastName] = fullName.trim().split(" ");
 
+    // Calculate age from dateOfBirth
+    const calculateAge = (birthDate: Date | null): number => {
+      if (!birthDate) return 0;
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return age;
+    };
+
+    const calculatedAge = calculateAge(dateOfBirth);
+
     try {
       const response = await AuthService.signup({
         first_name: firstName,
         last_name: lastName || "", // In case last name wasn't provided
         email,
         password,
+        demographicsInfo: {
+          ethnicity: "",
+          height: "",
+          weight: "",
+          age: calculatedAge,
+          gender: ""
+        }
       });
+      
       if(response) {
         navigate("/food-preferences");
+        try {
+          await dispatch(loginUser({ 
+            email, 
+            password,
+            rememberMe: true // You can make this configurable if needed
+          })).unwrap();
+          
+          // Only navigate after successful login
+          navigate("/food-preferences");
+        } catch (err: any) {
+          setError("Signup successful but login failed. Please try logging in manually.");
+          navigate("/login");
+        }
       }
       //navigate("/"); // Navigate to home page after successful signup
     } catch (err: any) {
@@ -194,9 +239,10 @@ const SignUpPage: React.FC = () => {
                 <DatePicker
                   value={dateOfBirth ? new Date(dateOfBirth) : null}
                   onChange={(newValue) => {
-                    setDateOfBirth(
-                      newValue ? newValue.toISOString().split("T")[0] : ""
-                    );
+                    // setDateOfBirth(
+                    //   newValue ? newValue.toISOString().split("T")[0] : ""
+                    // );
+                    setDateOfBirth(newValue);
                   }}
                   slotProps={{
                     textField: {
@@ -328,7 +374,7 @@ const SignUpPage: React.FC = () => {
             >
               Want to try before committing?{" "}
               <a
-                onClick={() => navigate("/")}
+                onClick={handleGuestAccess}
                 style={{
                   color: "#7f265b",
                   textDecoration: "none",

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useSelector } from 'react-redux';
-import { RootState } from '../app/store';
+import { useSelector } from "react-redux";
+import { RootState } from "../app/store";
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
 import DietaryPreferences from "../components/FoodPreferencesCards/DietPreferences";
 import MealPlanConfigCard from "../components/FoodPreferencesCards/MealPlanConfigCard";
 import MealSpecificOptionsCard from "../components/FoodPreferencesCards/MealSpecificOptionsCard";
+import NutritionalGoalsCard from "../components/FoodPreferencesCards/NutritionalGoalsCard";
 import { MainLayout } from "../components/Layouts/MainLayout";
 import { personas } from "./personas";
 import { motion, AnimatePresence } from "framer-motion";
@@ -95,6 +96,12 @@ const FoodPreferencesPage: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add new state variables for nutritional goals
+  const [calories, setCalories] = useState<number>(2000);
+  const [carbs, setCarbs] = useState<number>(250);
+  const [protein, setProtein] = useState<number>(100);
+  const [fiber, setFiber] = useState<number>(30);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
     setter: React.Dispatch<React.SetStateAction<string>>
@@ -125,6 +132,12 @@ const FoodPreferencesPage: React.FC = () => {
     setDiabetes(persona.dietaryPreferences.diabetes);
     setVegetarian(persona.dietaryPreferences.vegetarian);
     setVegan(persona.dietaryPreferences.vegan);
+
+    // Set Nutritional Goals
+    setCalories(persona.nutritionalGoals.calories);
+    setCarbs(persona.nutritionalGoals.carbs);
+    setProtein(persona.nutritionalGoals.protein);
+    setFiber(persona.nutritionalGoals.fiber);
 
     // Update Meal Plan Configuration
     setMealPlanLength(persona.mealPlanConfig.mealPlanLength);
@@ -209,15 +222,15 @@ const FoodPreferencesPage: React.FC = () => {
         meal_name: mealConfigs[index]?.mealName,
         meal_time: convertTime24to12(mealConfigs[index]?.mealTime),
         meal_types: {
-          beverage: mealConfigs[index]?.mealTypes.beverage || true,
-          main_course: mealConfigs[index]?.mealTypes.mainCourse || true,
-          side: mealConfigs[index]?.mealTypes.side || true,
-          dessert: mealConfigs[index]?.mealTypes.dessert || true,
+          beverage: mealConfigs[index]?.mealTypes.beverage || false,
+          main_course: mealConfigs[index]?.mealTypes.mainCourse || false,
+          side: mealConfigs[index]?.mealTypes.side || false,
+          dessert: mealConfigs[index]?.mealTypes.dessert || false,
         },
       })
     );
 
-    const requestBody = {
+    const requestBodyBandit = {
       starting_date: mealPlanStartDate,
       meal_plan_config: {
         num_days: mealPlanLength,
@@ -229,15 +242,31 @@ const FoodPreferencesPage: React.FC = () => {
         meatPreference: meat,
         nutsPreference: nuts,
       },
-      user_id: userState.user._id,
+      user_id: userState.user?._id,
     };
 
-    // console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    const requestBodyNutritionalGoals = {
+      daily_goals: {
+        calories: calories,
+        carbs: carbs,
+        protein: protein,
+        fiber: fiber,
+      },
+      user_id: userState.user?._id,
+    }
 
-    const requestOptions = {
+    // console.log("Request body:", JSON.stringify(requestBodyBandit, null, 2));
+
+    const requestOptionsBandit = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestBodyBandit),
+    };
+
+    const requestOptionsNutritionalGoals = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBodyNutritionalGoals),
     };
 
     try {
@@ -245,8 +274,10 @@ const FoodPreferencesPage: React.FC = () => {
         "Sending request to:",
         "http://localhost:8000/beacon/recommendation/bandit"
       );
-      console.log("Request body:", JSON.stringify(requestBody, null, 2));
-      
+      console.log("Request body to Bandit:", JSON.stringify(requestBodyBandit, null, 2));
+      console.log("Request body to Nutritional Goals:", JSON.stringify(requestBodyNutritionalGoals, null, 2));
+
+
       // Simulate different loading stages with timeouts
       setTimeout(() => {
         setLoadingStage("Analyzing dietary needs...");
@@ -260,19 +291,56 @@ const FoodPreferencesPage: React.FC = () => {
         setLoadingStage("Finalizing your meal plan...");
       }, 4000);
 
-      const response = await fetch(
-        "http://localhost:8000/beacon/recommendation/bandit",
-        requestOptions
+      const responseNutritionalGoals = await fetch(
+        "http://localhost:8000/beacon/user/nutritional-goals",
+        requestOptionsNutritionalGoals
       );
-      console.log("Response status:", response.status);
+      console.log("Response status:", responseNutritionalGoals.status);
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!responseNutritionalGoals.ok) {
+        const errorText = await responseNutritionalGoals.text();
         console.log("Error response body:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${responseNutritionalGoals.status}`);
       }
 
-      const result = await response.json();
+      const responseBandit = await fetch(
+        "http://localhost:8000/beacon/recommendation/bandit",
+        requestOptionsBandit
+      );
+      console.log("Bandit Response status:", responseBandit.status);
+
+      if (!responseBandit.ok) {
+        const errorText = await responseBandit.text();
+        console.log("Error response body:", errorText);
+        throw new Error(`HTTP error! status: ${responseBandit.status}`);
+      }
+
+      const result = await responseBandit.json();
+      console.log("Bandit Response body:", result);
+
+      // Clear Session Cache BEFORE navigating
+      try {
+        let clearedCount = 0;
+        console.log(
+          "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
+        );
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("recommendations-")) {
+            sessionStorage.removeItem(key);
+            // console.log(`FoodPreferencesPage: Cleared sessionStorage cache key: ${key}`); // Can be verbose
+            clearedCount++;
+          }
+        });
+        console.log(
+          `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
+        );
+      } catch (cacheError) {
+        console.error(
+          "FoodPreferencesPage: Error clearing sessionStorage:",
+          cacheError
+        );
+      }
+      // End Cache Clearing
 
       // Show success animation
       setLoadingStage("Success! Your meal plan is ready.");
@@ -280,7 +348,7 @@ const FoodPreferencesPage: React.FC = () => {
 
       console.log("Successful response:", result);
 
-      localStorage.setItem("mealPlan", JSON.stringify(result));
+      localStorage.setItem("mealPlan", JSON.stringify(result)); // Save the NEW plan
 
       // Navigate after showing success for a moment
       setTimeout(() => {
@@ -303,13 +371,13 @@ const FoodPreferencesPage: React.FC = () => {
         {/* Loading Overlay */}
         <AnimatePresence>
           {isLoading && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black bg-opacity-70 z-50 flex flex-col items-center justify-center"
             >
-              <motion.div 
+              <motion.div
                 className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -323,38 +391,44 @@ const FoodPreferencesPage: React.FC = () => {
                     className="flex flex-col items-center"
                   >
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                      <motion.svg 
-                        className="w-10 h-10 text-green-500" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <motion.svg
+                        className="w-10 h-10 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
                       >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth={3} 
-                          d="M5 13l4 4L19 7" 
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
                         />
                       </motion.svg>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Success!</h3>
-                    <p className="text-gray-600 mb-4">Your meal plan has been created successfully.</p>
-                    <motion.div 
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      Success!
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Your meal plan has been created successfully.
+                    </p>
+                    <motion.div
                       className="h-1 bg-gray-200 w-full rounded-full overflow-hidden"
                       initial={{ width: 0 }}
                       animate={{ width: "100%" }}
                     >
-                      <motion.div 
+                      <motion.div
                         className="h-full bg-green-500"
                         initial={{ width: 0 }}
                         animate={{ width: "100%" }}
                         transition={{ duration: 1.5 }}
                       />
                     </motion.div>
-                    <p className="text-sm text-gray-500 mt-2">Redirecting to your meal plan...</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Redirecting to your meal plan...
+                    </p>
                   </motion.div>
                 ) : (
                   <>
@@ -364,23 +438,29 @@ const FoodPreferencesPage: React.FC = () => {
                         <div className="w-16 h-16 border-l-4 border-r-4 border-transparent rounded-full absolute top-0 animate-ping opacity-75"></div>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Creating Your Meal Plan</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      Creating Your Meal Plan
+                    </h3>
                     <p className="text-gray-600 mb-6">{loadingStage}</p>
-                    
+
                     {/* Progress bar */}
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <motion.div 
+                      <motion.div
                         className="h-full bg-orange-500"
                         initial={{ width: "5%" }}
-                        animate={{ 
-                          width: loadingStage.includes("Preparing") ? "25%" :
-                                 loadingStage.includes("Analyzing") ? "50%" :
-                                 loadingStage.includes("Crafting") ? "75%" : "95%" 
+                        animate={{
+                          width: loadingStage.includes("Preparing")
+                            ? "25%"
+                            : loadingStage.includes("Analyzing")
+                            ? "50%"
+                            : loadingStage.includes("Crafting")
+                            ? "75%"
+                            : "95%",
                         }}
                         transition={{ duration: 0.5 }}
                       />
                     </div>
-                    
+
                     {/* Loading tips */}
                     <div className="mt-6 text-sm text-gray-500 italic">
                       <motion.p
@@ -388,18 +468,18 @@ const FoodPreferencesPage: React.FC = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
                       >
-                        {diabetes ? 
-                          "Optimizing for diabetes-friendly meals with lower glycemic index..." :
-                          "Balancing nutritional content for your optimal health..."}
+                        {diabetes
+                          ? "Optimizing for diabetes-friendly meals with lower glycemic index..."
+                          : "Balancing nutritional content for your optimal health..."}
                       </motion.p>
                     </div>
                   </>
                 )}
-                
+
                 {error && (
                   <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md">
                     {error}
-                    <button 
+                    <button
                       onClick={() => setIsLoading(false)}
                       className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                     >
@@ -411,43 +491,6 @@ const FoodPreferencesPage: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Persona Selection Section */}
-        <div className="flex justify-center items-center gap-4 mt-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-large text-gray-700">
-              Select Our Recommended Personas
-            </span>
-            <div className="relative group">
-              <button
-                onClick={() => applyPersona("earlJones")}
-                className={`px-4 py-2 ${selectedPersona === "earlJones" ? "bg-blue-600" : "bg-blue-500"} 
-                           text-white rounded-lg hover:bg-blue-600 transition duration-200`}
-              >
-                Earl Jones
-              </button>
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                              px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10">
-                Earl, a busy African American forklift operator, prefers culturally relevant meals, especially soul food.
-              </div>
-            </div>
-          </div>
-
-          <div className="relative group">
-            <button
-              onClick={() => applyPersona("jessicaSmith")}
-              className={`px-4 py-2 ${selectedPersona === "jessicaSmith" ? "bg-green-600" : "bg-green-500"} 
-                         text-white rounded-lg hover:bg-green-600 transition duration-200`}
-            >
-              Jessica Smith
-            </button>
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 hidden group-hover:block
-                            px-3 py-2 bg-white text-black text-xs rounded shadow-lg inline-block max-w-xs whitespace-normal z-10">
-              A college student with type 1 diabetes, Jessica needs a meal recommendation system that prioritizes
-              low-glycemic, diabetic-friendly meals.
-            </div>
-          </div>
-        </div>
 
         {/* Content Section with Grid Layout */}
         <div className="px-6 pb-16">
@@ -485,6 +528,18 @@ const FoodPreferencesPage: React.FC = () => {
               setVegan={setVegan}
             />
 
+            {/* Nutritional Goals Card */}
+            <NutritionalGoalsCard
+              calories={calories}
+              carbs={carbs}
+              protein={protein}
+              fiber={fiber}
+              setCalories={setCalories}
+              setCarbs={setCarbs}
+              setProtein={setProtein}
+              setFiber={setFiber}
+            />
+
             {/* Meal Plan Configuration Card */}
             <MealPlanConfigCard
               mealPlanLength={mealPlanLength}
@@ -504,7 +559,6 @@ const FoodPreferencesPage: React.FC = () => {
               mealIndex={currentMealIndex}
               totalMeals={mealsPerDay}
               mealName={mealConfigs[currentMealIndex].mealName}
-              mealTime={mealConfigs[currentMealIndex].mealTime}
               mealTypes={mealConfigs[currentMealIndex].mealTypes}
               onMealNameChange={(value) => {
                 setMealConfigs((prev) => {
@@ -512,16 +566,6 @@ const FoodPreferencesPage: React.FC = () => {
                   newConfigs[currentMealIndex] = {
                     ...newConfigs[currentMealIndex],
                     mealName: value,
-                  };
-                  return newConfigs;
-                });
-              }}
-              onMealTimeChange={(value) => {
-                setMealConfigs((prev) => {
-                  const newConfigs = [...prev];
-                  newConfigs[currentMealIndex] = {
-                    ...newConfigs[currentMealIndex],
-                    mealTime: value,
                   };
                   return newConfigs;
                 });
@@ -545,6 +589,61 @@ const FoodPreferencesPage: React.FC = () => {
               onPreviousMeal={handlePreviousMeal}
               onNextMeal={handleNextMeal}
             />
+            {/* Persona Selection Section */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+                Select Our Recommended Personas
+              </h2>
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => applyPersona("earlJones")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "earlJones"
+                      ? "bg-blue-50 border-2 border-blue-500"
+                      : "bg-gray-50 border-2 border-transparent hover:border-blue-300"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Earl"
+                    alt="Earl"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">Earl Jones</h3>
+                      <p className="text-xs text-gray-500">Forklift Operator</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Prefers culturally relevant meals, especially soul food, with focus on hearty, satisfying dishes.
+                    </p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => applyPersona("jessicaSmith")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "jessicaSmith"
+                      ? "bg-green-50 border-2 border-green-500"
+                      : "bg-gray-50 border-2 border-transparent hover:border-green-300"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica"
+                    alt="Jessica"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">Jessica Smith</h3>
+                      <p className="text-xs text-gray-500">College Student</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Type 1 diabetes-focused meal plan with low-glycemic foods and balanced nutrition.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -555,15 +654,35 @@ const FoodPreferencesPage: React.FC = () => {
             disabled={isLoading}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className={`px-12 ${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-400 hover:bg-orange-500'} 
-                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out 
+            className={`px-12 ${
+              isLoading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-orange-400 hover:bg-orange-500"
+            }
+                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out
                       transform hover:-translate-y-1 relative overflow-hidden`}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 PROCESSING...
               </span>
@@ -575,6 +694,6 @@ const FoodPreferencesPage: React.FC = () => {
       </div>
     </MainLayout>
   );
-}
+};
 
 export default FoodPreferencesPage;

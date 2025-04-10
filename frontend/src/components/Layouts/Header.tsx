@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "../../assets/LOGO.svg";
+import { useSelector } from "react-redux";
+import { RootState } from "../../app/store";
+
+const BACKEND_URL = "http://127.0.0.1:8000";
 
 interface HeaderProps {
   title: string;
@@ -30,15 +34,13 @@ const navigationItems: NavigationItem[] = [
 export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const location = useLocation();
+  const userData = useSelector((state: RootState) => state.user.user);
+  const isGuest = userData?._id === "67ee9325af31921234bf1241";
 
   return (
     <header
-      className="sticky top-0 z-50 w-full"
-      style={
-        {
-          "--thickness": "4px",
-        } as React.CSSProperties
-      }
+      className="fixed top-0 left-0 right-0 z-30"
+      style={{ "--thickness": "4px" } as React.CSSProperties}
     >
       {/* Backdrop layers */}
       <div
@@ -78,11 +80,16 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             </div>
           </Link>
 
-          {/* <div className="h-12 w-px bg-[#FF9F1C]/20" /> */}
-
-          <div>
-            <h1 className="text-2xl font-bold text-[#FF9F1C]">{title}</h1>
-            <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
+          <div className="flex items-center space-x-8">
+            <div>
+              <h1 className="text-2xl font-bold text-[#FF9F1C]">{title}</h1>
+              <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
+            </div>
+            <div className="text-xl font-medium text-[#1A1A1A]">
+              {!isGuest
+                ? `Welcome, ${userData?.first_name}!`
+                : "You are currently in Guest Mode. Log In to access more"}
+            </div>
           </div>
         </div>
 
@@ -129,21 +136,52 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                   exit={{ opacity: 0, y: 10 }}
                   className="absolute right-0 mt-2 w-48 py-2 bg-white/90 backdrop-blur-lg rounded-xl shadow-lg"
                 >
-                  <Link
-                    to="/settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
-                  >
-                    Settings
-                  </Link>
+                  {!isGuest && (
+                    <Link
+                      to="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                    >
+                      Settings
+                    </Link>
+                  )}
                   <button
-  onClick={() => {
-    console.log("Logout clicked");
-    window.location.href = "/"; // Redirect to the default home page
-  }}
-  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
->
-  Logout
-</button>
+                    onClick={async () => {
+                      if (isGuest) {
+                        try {
+                          const response = await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ user_id: userData._id }),
+                          });
+                          
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            console.error("Error while exiting guest mode:", errorData);
+                            alert("Failed to exit guest mode. Please try again.");
+                            return;
+                          }
+                          
+                          const data = await response.json();
+                          if (data.success) {
+                            window.location.href = "/";
+                          } else {
+                            alert("Failed to exit guest mode. Please try again.");
+                          }
+                        } catch (error) {
+                          console.error("Error while exiting guest mode:", error);
+                          alert("Failed to exit guest mode. Please try again.");
+                        }
+                      } else {
+                        console.log("Logout clicked");
+                        window.location.href = "/";
+                      }
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                  >
+                    {isGuest ? "Exit Guest Mode" : "Logout"}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

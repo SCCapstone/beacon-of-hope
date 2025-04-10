@@ -2,19 +2,24 @@ import random
 import json
 import os
 import re
-from .firebase import get_r3, get_beverages
+from .firebase import FirebaseManager
 import shutil
 import subprocess
 from bson import ObjectId
 from django.conf import settings
 from datetime import datetime, timedelta
-
+from .metrics import (
+    food_variety_score,
+    food_item_coverage_score,
+    nutritional_constraint_score,
+)
 from typing import Dict, List
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
 
-food_items, _ = get_r3()
-beverages, _ = get_beverages()
+firebaseManager = FirebaseManager()
+food_items, _ = firebaseManager.get_r3()
+beverages, _ = firebaseManager.get_beverages()
 
 
 def get_highest_prob_foods(items_probs, num_users):
@@ -469,26 +474,9 @@ def test_bandit(bandit_trial_path):
         return False
 
 
-def gen_bandit_rec(
-    trial_num: int,
-    user_preferences: Dict[str, int],
-    num_days: int,
-    meal_configs: List[Dict],
-    starting_date: datetime,
-) -> Dict:
-    """Take Bandit Output and generate a meal plan
-
-    Positional arguments:
-    trial_num        -- Number of the bandit training session
-    user_preferences -- Dictionary of the form {'dairyPreference': 1, 'meatPreference': 0, 'nutsPreference': -1}.
-                        Contains ternary preference (-1(dislike); 0(neutral); 1(like)) for dairy meat and nuts
-    num_days         -- Length of the meal plan in days
-    meal_configs     -- List of configuration objects that contain the structure of each user requested meal
-    starting_date    -- Starting date of the meal plan
-
-    Returns:
-    days             -- A dictionary of meal plans, consisting of a sequence of meals for each day
-    """
+def get_bandit_favorite_items(
+    trial_num: int, user_preferences: Dict[str, int]
+) -> Dict[str, List[str]]:
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
         f"boosted_bandit/trial{trial_num}/test/results_recommendation.db", "r"
@@ -542,13 +530,40 @@ def gen_bandit_rec(
     ]
 
     # get dairy, meat, and nut opinions for the particular user
-    print(user_preferences)
     user_opinions = list(user_preferences.values())
     user = all_users_opinions.index(user_opinions)
 
     # get corresponding bandit recommended foods and bevs for the user
     bevs = rec_user_bevs[user + 1]
     foods = rec_user_foods[user + 1]
+
+    return {
+        "Main Course": foods["Main Course"],
+        "Side": foods["Side"],
+        "Dessert": foods["Dessert"],
+        "Beverage": bevs,
+    }
+
+
+def gen_bandit_rec(
+    favorite_items: Dict[str, List[str]],
+    num_days: int,
+    meal_configs: List[Dict],
+    starting_date: datetime,
+) -> Dict:
+    """Take Bandit Output and generate a meal plan
+
+    Positional arguments:
+    trial_num        -- Number of the bandit training session
+    user_preferences -- Dictionary of the form {'dairyPreference': 1, 'meatPreference': 0, 'nutsPreference': -1}.
+                        Contains ternary preference (-1(dislike); 0(neutral); 1(like)) for dairy meat and nuts
+    num_days         -- Length of the meal plan in days
+    meal_configs     -- List of configuration objects that contain the structure of each user requested meal
+    starting_date    -- Starting date of the meal plan
+
+    Returns:
+    days             -- A dictionary of meal plans, consisting of a sequence of meals for each day
+    """
 
     # create a skeleton structure of meals that will be recommended throughout a single day
     meal_list = []
@@ -566,7 +581,7 @@ def gen_bandit_rec(
         meal = {
             "_id": str(ObjectId()),  # Unique ID for the meal
             "meal_name": meal_config["meal_name"],
-            "meal_time": meal_config.get("meal_time", ""),
+            # "meal_time": meal_config.get("meal_time", ""),
             "meal_types": meal_components,
         }
         meal_list.append(meal)
@@ -581,6 +596,10 @@ def gen_bandit_rec(
     }
 
     # popoulate each day recommendation for the user
+    mains = favorite_items["Main Course"]
+    sides = favorite_items["Side"]
+    desserts = favorite_items["Dessert"]
+    bevs = favorite_items["Beverage"]
     for day_rec in days.values():
         # iterate over meals
         for meal in day_rec["meals"]:
@@ -594,16 +613,49 @@ def gen_bandit_rec(
                     meal["beverage"] = beverages[bev_num]
 
             if "main_course" in meal:
-                meal["main_course"] = food_items[random.choice(foods["Main Course"])][
-                    "recipe-id"
-                ]
+                meal["main_course"] = food_items[random.choice(mains)]["recipe-id"]
 
             if "side" in meal:
-                meal["side"] = food_items[random.choice(foods["Side"])]["recipe-id"]
+                meal["side"] = food_items[random.choice(sides)]["recipe-id"]
 
             if "dessert" in meal:
-                meal["dessert"] = food_items[random.choice(foods["Dessert"])][
-                    "recipe-id"
-                ]
+                meal["dessert"] = food_items[random.choice(desserts)]["recipe-id"]
 
     return days
+
+
+def calculate_goodness(
+    meal_plan: Dict, meal_configs: List[Dict], user_preferences: Dict[str, int]
+):
+    """Given meal plan calculates 3 scores for each meal: variety, item coverage, and nutritional constraints (see metrics.py for more details)
+    Edits meal_plan dictionary parameter by reference, inserting 3 new keys for 3 scores for each meal
+    Also edits 3 lists of 3 scores, which can be used for further statistical analysis
+    """
+
+    variety_scores = []
+    coverage_scores = []
+    constraint_scores = []
+
+    for day_meals in meal_plan.values():
+        day_meals = day_meals["meals"]
+        for meal, meal_config in zip(day_meals, meal_configs):
+            # meal = meal["meal_types"]
+
+            meal_dup_score = food_variety_score(meal["meal_types"])
+            meal["variety_score"] = meal_dup_score
+            variety_scores.append(meal_dup_score)
+
+            meal_item_coverage_score = food_item_coverage_score(meal, meal_config)
+            meal["item_coverage_score"] = meal_item_coverage_score
+            coverage_scores.append(meal_item_coverage_score)
+
+            meal_nutritional_constraint_score = nutritional_constraint_score(
+                meal, user_preferences
+            )
+            meal["nutritional_constraint_score"] = meal_nutritional_constraint_score
+            constraint_scores.append(meal_nutritional_constraint_score)
+    return {
+        "variety_scores": variety_scores,
+        "coverage_scores": coverage_scores,
+        "constraint_scores": constraint_scores,
+    }

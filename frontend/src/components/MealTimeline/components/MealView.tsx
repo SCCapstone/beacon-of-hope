@@ -1,30 +1,246 @@
-import React, { useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
+import React, { useCallback, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { DayMeals, Meal } from "../types";
-import { TIME_SLOTS } from "../constants";
-import { format, addDays, isSameDay, subDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
 import { MealRecommendation, DayRecommendations } from "../types";
+import { FoodTypeIcon } from "./FoodTypeIcon";
+import { XMarkIcon, StarIcon as StarIconSolid } from "@heroicons/react/20/solid"; // Use Solid Star
+import { formatScore } from "../utils";
+import { isValid as isValidDate } from "date-fns";
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline"; // Use Outline Star
 
 interface MealViewProps {
-  weekData: DayMeals[];
+  datesToDisplay: Date[];
+  allData: DayMeals[];
   recommendationData: DayRecommendations[];
   selectedDate: Date;
   onMealSelect: (meal: Meal | null) => void;
   selectedMeal: Meal | null;
   onRecommendationSelect: (recommendation: MealRecommendation | null) => void;
+  onAcceptRecommendationClick: (recommendation: MealRecommendation) => void;
+  onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
+  onDeleteMealClick: (mealId: string, date: Date) => Promise<void>;
+  onFavoriteMealClick: (mealId: string, date: Date) => Promise<void>;
   selectedRecommendation: MealRecommendation | null;
+  mealBinNames: string[];
+  onMealBinUpdate: (newBinNames: string[]) => void;
   isLoading?: boolean;
 }
 
+// Helper function
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+interface TraceMealCardProps {
+  meal: Meal;
+  isSelected: boolean;
+  onClick: () => void;
+  onDeleteClick: () => void;
+  onFavoriteClick: () => void;
+}
+
+const TraceMealCard: React.FC<TraceMealCardProps> = ({
+  meal,
+  isSelected,
+  onClick,
+  onDeleteClick,
+  onFavoriteClick,
+}) => {
+  const [isFavoriting, setIsFavoriting] = useState(false);
+  const [optimisticFavorite, setOptimisticFavorite] = useState(meal.isFavorited || false);
+
+  // Destructure scores from meal object
+  const {
+    nutritionalInfo,
+    // diabetesFriendly,
+    name,
+    foods = [],
+    varietyScore,
+    coverageScore,
+    constraintScore,
+  } = meal;
+
+  // Defensive check for nutritionalInfo
+  const safeNutritionalInfo = nutritionalInfo || {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fiber: 0,
+  };
+
+  const totalMacros =
+    safeNutritionalInfo.carbs +
+    safeNutritionalInfo.protein +
+    safeNutritionalInfo.fiber;
+  const carbPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
+  const proteinPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0;
+  const fiberPercent =
+    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0;
+
+  const handleDeleteButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    onDeleteClick(); // Call the passed handler
+  };
+
+  const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFavoriting) return; // Prevent double clicks
+
+    setIsFavoriting(true);
+    setOptimisticFavorite(true); // Optimistically show as favorited
+
+    try {
+      await onFavoriteClick(); // Call the handler passed from MealView
+      // Success message/handling is done in the parent (MealTimelinePage)
+    } catch (error) {
+      console.error("Error during favorite click:", error);
+      setOptimisticFavorite(false); // Revert optimistic state on error
+      // Error message is shown in parent
+    } finally {
+      // Reset loading state after a short delay to allow visual feedback
+      setTimeout(() => setIsFavoriting(false), 500);
+    }
+  };
+
+  // Get unique food types from the meal
+  const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
+
+  return (
+    <motion.div
+      key={`meal-${meal.id}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.15 }}
+      className={`meal-card relative p-2 rounded-lg cursor-pointer
+        bg-white shadow-sm hover:shadow transition-all duration-300
+        ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
+        ${optimisticFavorite ? 'border-yellow-400' : ''} // Add visual cue for favorite
+        flex flex-col min-h-[100px]`}
+      onClick={onClick}
+    >
+      <motion.button
+        whileHover={{
+          scale: 1.05,
+          backgroundColor: "rgba(239, 68, 68, 0.9)", // Red hover
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleDeleteButtonClick}
+        className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-red-500 shadow-md z-20 hover:bg-red-500 transition-colors"
+        title="Remove meal"
+      >
+        <XMarkIcon className="w-4 h-4" />
+      </motion.button>
+
+      <motion.button
+        whileHover={{
+          scale: 1.1, // Slightly larger hover effect
+          backgroundColor: isFavoriting ? "rgba(200, 150, 10, 0.9)" : "rgba(245, 158, 11, 0.9)", // Yellow hover
+        }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleFavoriteButtonClick}
+        disabled={isFavoriting} // Disable while processing
+        className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
+                    ${isFavoriting ? 'bg-yellow-600 animate-pulse' : 'bg-yellow-500 hover:bg-yellow-600'}
+                  `}
+        title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
+      >
+        {isFavoriting ? (
+           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+        ) : optimisticFavorite ? (
+          <StarIconSolid className="w-4 h-4" /> // Show solid star if favorited
+        ) : (
+          <StarIconOutline className="w-4 h-4" /> // Show outline star if not
+        )}
+      </motion.button>
+
+      {/* Header */}
+      <div className="flex justify-between items-start mb-2">
+        {name && (
+          <div className="mb-2">
+            <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
+              {name}
+            </span>
+          </div>
+        )}
+        <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+          {safeNutritionalInfo.calories} cal
+        </div>
+      </div>
+
+      {/* Macro Visualization with Labels */}
+      <div className="mb-1 flex justify-between text-xs">
+        <span className="text-blue-900">Carbs {Math.round(carbPercent)}%</span>
+        <span className="text-purple-900">
+          Protein {Math.round(proteinPercent)}%
+        </span>
+        <span className="text-orange-900">
+          Fiber {Math.round(fiberPercent)}%
+        </span>
+      </div>
+      <div className="flex h-2 rounded-full overflow-hidden mb-3">
+        <div
+          className="bg-blue-400"
+          style={{ width: `${carbPercent}%` }}
+          title={`Carbs: ${safeNutritionalInfo.carbs}g`}
+        />
+        <div
+          className="bg-purple-400"
+          style={{ width: `${proteinPercent}%` }}
+          title={`Protein: ${safeNutritionalInfo.protein}g`}
+        />
+        <div
+          className="bg-orange-400"
+          style={{ width: `${fiberPercent}%` }}
+          title={`Fiber: ${safeNutritionalInfo.fiber}g`}
+        />
+      </div>
+
+      {/* Food Type Icons */}
+      {foodTypes.length > 0 && (
+        <div className="flex items-center mt-1 mb-2">
+          {foodTypes.map((type, index) => (
+            <div key={`${type}-${index}`} className="mr-1" title={type}>
+              <FoodTypeIcon type={type} className="w-4 h-4 text-gray-500" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer Indicators (Scores) */}
+      <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
+        <span title="Variety Score">V: {formatScore(varietyScore)}</span>
+        <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
+        <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
+      </div>
+    </motion.div>
+  );
+};
+
 export const MealView: React.FC<MealViewProps> = ({
-  weekData,
+  datesToDisplay,
+  allData,
   recommendationData,
   selectedDate,
   onMealSelect,
   selectedMeal,
   onRecommendationSelect,
+  onAcceptRecommendationClick,
+  onRejectRecommendationClick,
+  onDeleteMealClick,
+  onFavoriteMealClick,
   selectedRecommendation,
+  mealBinNames,
+  onMealBinUpdate,
   isLoading = false,
 }) => {
   if (isLoading) {
@@ -38,255 +254,386 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   }
 
-  // Generate 3-day dates centered on selected date
-  const threeDayDates = useMemo(() => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setHours(0, 0, 0, 0);
+  // Get data for a specific date from allData
+  const getDataForDate = useCallback(
+    (targetDate: Date): DayMeals | undefined => {
+      // Ensure targetDate is normalized
+      const normalizedTarget = normalizeDate(targetDate);
+      return allData.find((day) => {
+        // Ensure day.date is treated as a Date object and normalized
+        const normalizedDayDate = normalizeDate(day.date);
 
-    return [subDays(currentDate, 1), currentDate, addDays(currentDate, 1)];
-  }, [selectedDate]);
+        // Defensive check if normalization failed (though normalizeDate has fallbacks)
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          console.warn(
+            "Invalid date encountered during comparison in getDataForDate",
+            day.date,
+            targetDate
+          );
+          return false;
+        }
 
-  console.log(
-    "MealView rendering with dates:",
-    threeDayDates.map((d) => format(d, "yyyy-MM-dd")),
-    "and data for dates:",
-    weekData.map((d) => format(new Date(d.date), "yyyy-MM-dd"))
-  );
-
-  const getMealsForDate = useCallback(
-    (targetDate: Date): { meals: Meal[] } => {
-      const dayData = weekData.find((day) =>
-        isSameDay(new Date(day.date), targetDate)
-      );
-
-      return {
-        meals: dayData?.meals || [],
-      };
+        // Perform the comparison using isSameDay
+        return isSameDay(normalizedDayDate, normalizedTarget);
+      });
     },
-    [weekData]
+    [allData] // Dependency is correct
   );
 
-  const renderEmptyDayIndicator = (date: Date) => {
-    const dayData = weekData.find((day) => isSameDay(new Date(day.date), date));
+  // Get meals for a specific date using getDataForDate
+  const getMealsForDate = useCallback(
+    (targetDate: Date): Meal[] => {
+      const dayData = getDataForDate(targetDate);
+      return dayData?.meals || [];
+    },
+    [getDataForDate]
+  );
 
-    if (!dayData?.meals.length) {
-      return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-gray-400 text-sm">No meals scheduled</div>
-        </div>
+  // Keep getRecommendationsForDate (adapt if needed based on recommendationData structure)
+  const getRecommendationsForDate = useCallback(
+    (targetDate: Date): MealRecommendation[] => {
+      const dayRecs = recommendationData.find((day) =>
+        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
       );
-    }
-    return null;
-  };
+      return dayRecs?.recommendations || [];
+    },
+    [recommendationData]
+  );
 
-  const getDayData = (targetDate: Date) => {
-    return weekData.find((day) => isSameDay(new Date(day.date), targetDate));
-  };
+  // Organize meals into bins for each date
+  const organizeMealsIntoBins = useCallback(
+    (date: Date) => {
+      const meals = getMealsForDate(date);
+      const recommendations = getRecommendationsForDate(date);
 
-  const getRecommendationsForDate = (
-    targetDate: Date
-  ): MealRecommendation[] => {
-    const dayRecs = recommendationData.find((day) =>
-      isSameDay(new Date(day.date), targetDate)
-    );
-    return dayRecs?.recommendations || [];
-  };
+      // Define meal type priority for sorting (breakfast, lunch, dinner, snack)
+      const mealTypePriority = {
+        breakfast: 0,
+        lunch: 1,
+        dinner: 2,
+        snack: 3,
+      };
 
-  const getTimePosition = (time: string): string => {
-    const [hours, minutes] = time.split(":").map(Number);
-    const slotsFromStart = hours - 6;
-    const slotHeight = 100;
+      // Sort all meals by time, then by meal type priority if times are the same
+      const sortedMeals = [...meals].sort((a, b) => {
+        const timeA = a.time.split(":").map(Number);
+        const timeB = b.time.split(":").map(Number);
 
-    // Calculate base position from hours
-    const basePosition = slotsFromStart * slotHeight;
+        // First compare by time
+        const timeCompare =
+          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
 
-    // Add partial position from minutes (80px per hour = 1.333... px per minute)
-    const minutePosition = (minutes / 60) * slotHeight;
+        // If times are the same, sort by meal type priority
+        if (timeCompare === 0) {
+          return mealTypePriority[a.type] - mealTypePriority[b.type];
+        }
 
-    return `${basePosition + minutePosition}px`;
-  };
+        return timeCompare;
+      });
+
+      // Sort all recommendations by time, then by meal type priority if times are the same
+      const sortedRecommendations = [...recommendations].sort((a, b) => {
+        const timeA = a.meal.time.split(":").map(Number);
+        const timeB = b.meal.time.split(":").map(Number);
+
+        // First compare by time
+        const timeCompare =
+          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
+
+        // If times are the same, sort by meal type priority
+        if (timeCompare === 0) {
+          return mealTypePriority[a.meal.type] - mealTypePriority[b.meal.type];
+        }
+
+        return timeCompare;
+      });
+
+      // Create time slots for all items (meals and recommendations)
+      const allItems = [
+        ...sortedMeals.map((meal) => ({
+          type: "meal",
+          item: meal,
+          time: meal.time,
+          mealType: meal.type,
+        })),
+        ...sortedRecommendations.map((rec) => ({
+          type: "recommendation",
+          item: rec,
+          time: rec.meal.time,
+          mealType: rec.meal.type,
+        })),
+      ].sort((a, b) => {
+        // Sort primarily by time
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
+
+        // If same time, sort by meal type priority (Breakfast, Lunch, Dinner, Snack)
+        const priorityA = mealTypePriority[a.mealType] ?? 99;
+        const priorityB = mealTypePriority[b.mealType] ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+
+        // If same time and type, prioritize trace meals over recommendations
+        return a.type === "meal" ? -1 : 1;
+      });
+      // Dynamically determine the number of bins needed based on the max items per time slot
+      // Or simply use the total number of items for simplicity if one item per bin is desired
+      const requiredBins = allItems.length; // One bin per item
+
+      // Adjust mealBinNames if necessary (this part seems okay, but ensure it runs *before* distribution)
+      if (requiredBins > mealBinNames.length) {
+        const newNames = [...mealBinNames];
+        while (newNames.length < requiredBins) {
+          newNames.push(`Meal ${newNames.length + 1}`);
+        }
+        // Defer update slightly
+        setTimeout(() => onMealBinUpdate(newNames), 0);
+        // Return early or use the old names for this render cycle to avoid immediate state issues
+        // For now, let's proceed with the potentially outdated mealBinNames for this render,
+        // the next render will have the updated names.
+      }
+
+      // Create bins based on the current mealBinNames
+      const bins: Record<
+        string,
+        { meals: Meal[]; recommendations: MealRecommendation[] }
+      > = {};
+      mealBinNames.forEach((name) => {
+        bins[name] = { meals: [], recommendations: [] };
+      });
+
+      // Distribute items to bins sequentially
+      allItems.forEach((item, index) => {
+        // Ensure we don't try to access a bin that doesn't exist yet
+        if (index < mealBinNames.length) {
+          const binName = mealBinNames[index];
+          if (item.type === "meal") {
+            bins[binName].meals.push(item.item as Meal);
+          } else {
+            bins[binName].recommendations.push(item.item as MealRecommendation);
+          }
+        } else {
+          console.warn(
+            `MealView: Not enough bins (${mealBinNames.length}) to place item ${
+              index + 1
+            }. Item skipped.`
+          );
+        }
+      });
+
+      return bins;
+    },
+    [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
+  );
 
   const isMealSelected = (meal: Meal) => {
+    return selectedMeal?.id === meal.id;
+  };
+
+  // Function to render a meal card
+  const renderMealCard = (meal: Meal, date: Date) => {
+    // Ensure meal.date is valid or fallback to the date passed in
+    const validMealDate = meal.date instanceof Date && isValidDate(meal.date) ? meal.date : date;
+
     return (
-      selectedMeal?.id === meal.id &&
-      selectedMeal?.name === meal.name &&
-      selectedMeal?.time === meal.time
+      <TraceMealCard
+        key={`meal-${meal.id}-${date.toISOString()}`}
+        meal={meal}
+        isSelected={isMealSelected(meal)}
+        onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
+        onDeleteClick={() => {
+            if (meal.id && validMealDate) {
+                 const confirmDelete = window.confirm(`Are you sure you want to remove "${meal.name}" from your history for ${format(validMealDate, "MMM d")}?`);
+                 if (confirmDelete) {
+                    onDeleteMealClick(meal.id, validMealDate);
+                 }
+            } else {
+                console.error("Cannot delete meal: Missing ID or valid date.", meal);
+                alert("Error: Cannot delete this meal due to missing information.");
+            }
+        }}
+        onFavoriteClick={() => { // <-- Call the main handler with ID and Date
+            if (meal.id && validMealDate) {
+                onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
+            } else {
+                console.error("Cannot favorite meal: Missing ID or valid date.", meal);
+                alert("Error: Cannot favorite this meal due to missing information.");
+            }
+        }}
+      />
     );
   };
 
-  return (
-    <div className="w-full h-full flex flex-col">
-      {/* Fixed header for days */}
-      <div className="flex border-b bg-white z-20">
-        {/* Time column header */}
-        <div className="w-20 flex-shrink-0" />
+  if (isLoading) {
+    // Loading indicator remains the same
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <p className="text-gray-500">Loading your meal data...</p>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Days headers */}
-        {threeDayDates.map((date) => (
-          <div key={date.toISOString()} className="relative flex-1">
-            {renderEmptyDayIndicator(date)}
-            <div className="text-sm font-medium text-gray-600">
-              {format(date, "EEEE")}
-            </div>
-            <div className="text-xs text-gray-500">{format(date, "MMM d")}</div>
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden box-border">
+      {/* Fixed header for meal bins */}
+      <div className="flex border-b bg-white z-20 sticky top-0">
+        {/* Date column header */}
+        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
+          Date
+        </div>
+
+        {/* Meal bin headers */}
+        {mealBinNames.map((binName, index) => (
+          <div
+            key={binName}
+            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
+              index > 0 ? "border-l" : ""
+            }`}
+          >
+            {binName}
           </div>
         ))}
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="flex h-full">
-          {/* Time slots column */}
-          <div className="w-20 flex-shrink-0 bg-white z-10 border-r">
-            {TIME_SLOTS.map((time) => (
-              <div
-                key={time}
-                className="h-[100px] border-b border-gray-200 flex items-center justify-end pr-2"
-              >
-                <span className="text-sm text-gray-500">
-                  {format(new Date(`2000-01-01T${time}`), "h:mm a")}
-                </span>
-              </div>
-            ))}
-          </div>
+      {/* Scrollable container for all displayed days */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="min-h-full flex flex-col">
+          {/*  Iterate over datesToDisplay  */}
+          {datesToDisplay.map((currentDate) => {
+            const isSelected = isSameDay(
+              normalizeDate(currentDate),
+              normalizeDate(selectedDate)
+            );
+            // Get the bins object for the current date
+            const binsForDate = organizeMealsIntoBins(currentDate);
 
-          {/* Main grid area */}
-          <div className="flex-1 relative">
-            {/* Background grid */}
-            <div className="absolute inset-0">
-              {TIME_SLOTS.map((time) => (
-                <div key={time} className="flex h-[100px]">
-                  {threeDayDates.map((date) => {
-                    const dayData = getDayData(date);
-                    const isEmpty = dayData?.meals.length === 0 || false;
+            return (
+              <div
+                key={currentDate.toISOString()}
+                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${
+                  // Adjusted min-height
+                  isSelected ? "bg-blue-50" : "bg-white"
+                }`}
+              >
+                {/* Date Cell */}
+                <div
+                  className={`
+                    w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start
+                    ${isSelected ? "border-blue-200" : "border-gray-200"}
+                  `}
+                >
+                  <div
+                    className={`font-semibold ${
+                      isSelected ? "text-blue-800" : "text-gray-800"
+                    }`}
+                  >
+                    {format(currentDate, "EEE")}
+                  </div>
+                  <div
+                    className={`text-sm ${
+                      isSelected ? "text-blue-600" : "text-gray-500"
+                    }`}
+                  >
+                    {format(currentDate, "MMM d")}
+                  </div>
+                  <div
+                    className={`text-xs ${
+                      isSelected ? "text-blue-500" : "text-gray-400"
+                    }`}
+                  >
+                    {format(currentDate, "yyyy")}
+                  </div>
+                </div>
+
+                {/* Meal Bins for this date */}
+                <div className="flex flex-1">
+                  {mealBinNames.map((binName, index) => {
+                    // Get the specific bin content using the name
+                    const binContent = binsForDate[binName];
+
+                    // Add a check to ensure binContent exists and has the expected structure
+                    if (!binContent || !Array.isArray(binContent.meals) || !Array.isArray(binContent.recommendations)) {
+                        // Handle the case where the bin might be missing or malformed (shouldn't happen with current logic, but safe)
+                        console.warn(`MealView: Invalid or missing bin content for bin '${binName}' on date ${format(currentDate, 'yyyy-MM-dd')}`);
+                        return (
+                            <div
+                                key={`${currentDate.toISOString()}-${binName}-error`}
+                                className={`flex-1 p-2 ${index > 0 ? "border-l" : ""} ${isSelected ? "border-blue-200" : "border-gray-200"}`}
+                            >
+                                <div className="h-full flex items-center justify-center text-center text-red-500 text-xs p-2">
+                                    Error
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Explicitly get the arrays
+                    const mealsInBin = binContent.meals;
+                    const recommendationsInBin = binContent.recommendations;
+                    // --- END FIX ---
 
                     return (
                       <div
-                        key={`${date.toISOString()}-${time}`}
-                        className={`flex-1 border-b border-l ${
-                          isEmpty ? "bg-gray-50" : "border-gray-100"
-                        }`}
-                      />
+                        key={`${currentDate.toISOString()}-${binName}`}
+                        className={`
+                          flex-1 p-2 overflow-y-auto flex flex-col justify-center
+                          ${index > 0 ? "border-l" : ""}
+                          ${isSelected ? "border-blue-200" : "border-gray-200"}
+                        `}
+                      >
+                        {/* Meals */}
+                        <AnimatePresence>
+                          {/* Use the explicitly defined array */}
+                          {mealsInBin.map((meal) =>
+                            renderMealCard(meal, currentDate)
+                          )}
+                        </AnimatePresence>
+                        {/* Recommendations */}
+                        <AnimatePresence>
+                          {/* Use the explicitly defined array */}
+                          {recommendationsInBin.map((recommendation) => (
+                            <RecommendedMealCard
+                              key={`rec-${
+                                recommendation.meal.id
+                              }-${currentDate.toISOString()}`}
+                              className="my-1.5 flex-shrink-0"
+                              recommendation={recommendation}
+                              onAccept={() =>
+                                onAcceptRecommendationClick(recommendation)
+                              }
+                              onReject={() =>
+                                onRejectRecommendationClick(recommendation)
+                              }
+                              onClick={() =>
+                                onRecommendationSelect(recommendation)
+                              }
+                              isSelected={
+                                selectedRecommendation?.meal.id ===
+                                recommendation.meal.id
+                              }
+                            />
+                          ))}
+                        </AnimatePresence>
+                        {/* Empty State */}
+                        {/* Use the explicitly defined arrays */}
+                        {mealsInBin.length === 0 &&
+                          recommendationsInBin.length === 0 && (
+                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                              No items
+                            </div>
+                          )}
+                      </div>
                     );
                   })}
                 </div>
-              ))}
-            </div>
-
-            {/* Regular Meals */}
-            <div className="absolute inset-0">
-              {threeDayDates.map((date, dayIndex) => {
-                const { meals } = getMealsForDate(date);
-                return meals.map((meal) => (
-                  <motion.div
-                    key={`meal-${date.toISOString()}-${meal.id}-${dayIndex}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    className={`meal-card absolute p-3 rounded-lg cursor-pointer
-                      transform transition-all duration-300
-                      ${isMealSelected(meal) ? "ring-2 ring-blue-500" : ""}
-                      bg-white/90 backdrop-blur-sm`}
-                    style={{
-                      top: getTimePosition(meal.time),
-                      left: `${(dayIndex * 100) / 3}%`,
-                      width: `${85 / 3}%`, // Match recommendation width
-                      transform: "translateX(7.5%)", // Match recommendation centering
-                      height: "80px", // Match recommendation height
-                      boxShadow: isMealSelected(meal)
-                        ? "0 0 15px rgba(16, 185, 129, 0.2)"
-                        : "0 2px 4px rgba(0,0,0,0.05)",
-                      zIndex: isMealSelected(meal) ? 20 : 15,
-                    }}
-                    onClick={() =>
-                      onMealSelect(isMealSelected(meal) ? null : meal)
-                    }
-                  >
-                    {/* Header Section */}
-                    <div className="relative h-full flex flex-col justify-between">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-800 truncate pr-10">
-                          {meal.name}
-                        </h3>
-                        <div className="flex items-center space-x-2 mt-0.5">
-                          <span className="text-xs text-gray-500">
-                            {meal.time}
-                          </span>
-                          {meal.diabetesFriendly && (
-                            <span className="px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
-                              DF
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Footer Section */}
-                      <div className="flex items-center justify-between text-xs text-gray-600">
-                        <span>{meal.nutritionalInfo.calories} cal</span>
-                        <span>{meal.nutritionalInfo.carbs}g carbs</span>
-                      </div>
-                    </div>
-
-                    {/* Selection Effect */}
-                    {isMealSelected(meal) && (
-                      <motion.div
-                        className="absolute inset-0 rounded-lg pointer-events-none"
-                        animate={{
-                          boxShadow: [
-                            "0 0 0 rgba(59, 130, 246, 0)",
-                            "0 0 20px rgba(59, 130, 246, 0.3)",
-                            "0 0 0 rgba(59, 130, 246, 0)",
-                          ],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          repeatType: "reverse",
-                        }}
-                      />
-                    )}
-                  </motion.div>
-                ));
-              })}
-            </div>
-
-            {/* Recommendations */}
-            <div className="absolute inset-0">
-              {threeDayDates.map((date, dayIndex) => {
-                const recommendations = getRecommendationsForDate(date);
-                const isEmpty = recommendations.length === 0;
-
-                return recommendations.map((recommendation, recIndex) => (
-                  <motion.div
-                    key={`rec-${date.toISOString()}-${
-                      recommendation.meal.id
-                    }-${recIndex}`}
-                    className="absolute"
-                    style={{
-                      top: getTimePosition(recommendation.meal.time),
-                      left: `${(dayIndex * 100) / 3}%`,
-                      width: `${85 / 3}%`,
-                      transform: "translateX(7.5%)",
-                      zIndex: isEmpty ? 15 : 10,
-                    }}
-                  >
-                    <RecommendedMealCard
-                      key={`rec-card-${date.toISOString()}-${
-                        recommendation.meal.id
-                      }-${recIndex}`}
-                      className="recommendation-card"
-                      recommendation={recommendation}
-                      onClick={() => onRecommendationSelect(recommendation)}
-                      isSelected={
-                        selectedRecommendation?.meal.id ===
-                        recommendation.meal.id
-                      }
-                    />
-                  </motion.div>
-                ));
-              })}
-            </div>
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

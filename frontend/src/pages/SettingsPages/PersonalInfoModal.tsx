@@ -1,31 +1,72 @@
 import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../app/store";
+import { updateUser } from "../../features/userSlice.ts";
 import "./css/SettingsModals.css";
 
 interface PersonalInfo {
   name: string;
-  dateOfBirth: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  phone: string;
-  ethnicity: string;
-  dietaryRestrictions: string[];
   allowPersonalization: boolean;
+  demographicsInfo: {
+    ethnicity: string;
+    height: string;
+    weight: string;
+    age: number;
+    gender: string;
+  };
+  dietaryRestrictions: string;
+  dietary_preferences: {
+    preferences: string[];
+    numerical_preferences: {
+      dairy: number;
+      nuts: number;
+      meat: number;
+    };
+  };
+  health_info: {
+    allergies: string[];
+    conditions: string[];
+  };
 }
 
 const PersonalInfoModal: React.FC = () => {
+  const dispatch = useDispatch();
+  const userData = useSelector((state: RootState) => state.user.user);
+  const isGuest = !userData?._id; // Check if user is a guest by looking for _id
+
   const [info, setInfo] = useState<PersonalInfo>({
-    name: "John Smith",
-    dateOfBirth: "1990-01-01",
-    email: "john@example.com",
-    phone: "+1 (555) 123-4567",
-    ethnicity: "",
-    dietaryRestrictions: [],
-    allowPersonalization: true,
+    name: userData?.first_name + " " + userData?.last_name || "Guest User",
+    first_name: userData?.first_name || "Guest",
+    last_name: userData?.last_name || "User",
+    email: userData?.email || "guest@example.com",
+    allowPersonalization: userData?.allowPersonalization ?? false,
+    demographicsInfo: userData?.demographicsInfo || {
+      ethnicity: "",
+      height: "",
+      weight: "",
+      age: 0,
+      gender: ""
+    },
+    dietaryRestrictions: userData?.dietaryRestrictions || "",
+    dietary_preferences: userData?.dietary_preferences || {
+      preferences: [],
+      numerical_preferences: {
+        dairy: 0,
+        nuts: 0,
+        meat: 0
+      }
+    },
+    health_info: userData?.health_info || {
+      allergies: [],
+      conditions: []
+    }
   });
 
   const [editing, setEditing] = useState<keyof PersonalInfo | null>(null);
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof PersonalInfo, string>>
-  >({});
+  const [errors, setErrors] = useState<Partial<Record<keyof PersonalInfo, string>>>({});
 
   const dietaryOptions = [
     "Vegetarian",
@@ -39,24 +80,13 @@ const PersonalInfoModal: React.FC = () => {
     "Halal",
   ];
 
-  const validateField = (field: keyof PersonalInfo, value: any) => {
+  const validateField = (field: keyof PersonalInfo, value: string | number | boolean) => {
     const newErrors: Partial<Record<keyof PersonalInfo, string>> = {};
 
     switch (field) {
       case "email":
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value as string)) {
           newErrors.email = "Please enter a valid email address";
-        }
-        break;
-      case "phone":
-        if (!/^\+?[\d\s-()]+$/.test(value)) {
-          newErrors.phone = "Please enter a valid phone number";
-        }
-        break;
-      case "dateOfBirth":
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-          newErrors.dateOfBirth = "Please enter a valid date";
         }
         break;
     }
@@ -65,9 +95,13 @@ const PersonalInfoModal: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = (field: keyof PersonalInfo, value: any) => {
+  const handleSave = (field: keyof PersonalInfo, value: string | number | boolean) => {
     if (validateField(field, value)) {
-      setInfo((prev) => ({ ...prev, [field]: value }));
+      setInfo((prev) => {
+        const updatedUser = { ...prev, [field]: value };
+        dispatch(updateUser({ [field]: value }) as any);
+        return updatedUser;
+      });
       setEditing(null);
     }
   };
@@ -80,7 +114,7 @@ const PersonalInfoModal: React.FC = () => {
     <div className="form-group">
       <label className="form-label">{label}</label>
       <div className="field-content">
-        {editing === field ? (
+        {editing === field && !isGuest ? (
           <div className="edit-mode">
             <input
               type={type}
@@ -113,10 +147,12 @@ const PersonalInfoModal: React.FC = () => {
           </div>
         ) : (
           <div className="display-mode">
-            <span>{info[field]}</span>
-            <button className="btn-edit" onClick={() => setEditing(field)}>
-              Edit
-            </button>
+            <span>{String(info[field])}</span>
+            {!isGuest && (
+              <button className="btn-edit" onClick={() => setEditing(field)}>
+                Edit
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -126,8 +162,11 @@ const PersonalInfoModal: React.FC = () => {
   return (
     <div className="modal-content">
       <div className="info-description">
-        Manage your personal information and preferences to help us provide you
-        with a better experience.
+        {isGuest ? (
+          <p>You are currently using the application as a guest. Create an account to save your preferences and personalize your experience.</p>
+        ) : (
+          <p>Manage your personal information and preferences to help us provide you with a better experience.</p>
+        )}
       </div>
 
       <div className="info-section">
@@ -136,9 +175,7 @@ const PersonalInfoModal: React.FC = () => {
           <b>Basic Information</b>
         </h2>
         {renderField("name", "Full Name")}
-        {renderField("dateOfBirth", "Date of Birth", "date")}
         {renderField("email", "Email")}
-        {renderField("phone", "Phone Number", "tel")}
 
         <div className="form-group disabled">
           <label className="form-label">Address</label>
@@ -155,31 +192,39 @@ const PersonalInfoModal: React.FC = () => {
         <div className="form-group">
           <label className="form-label">Ethnicity</label>
           <select
-            value={info.ethnicity}
+            value={info.demographicsInfo.ethnicity}
             onChange={(e) =>
-              setInfo((prev) => ({ ...prev, ethnicity: e.target.value }))
+              !isGuest && setInfo((prev) => ({
+                ...prev,
+                demographicsInfo: { ...prev.demographicsInfo, ethnicity: e.target.value }
+              }))
             }
-            className="form-select"
+            className={`form-select ${isGuest ? 'disabled' : ''}`}
+            disabled={isGuest}
           >
             <option value="">Prefer not to say</option>
             <option value="hispanic">Hispanic/Latino</option>
-            <option value="hispanic">Not Hispanic/Latino</option>
+            <option value="not_hispanic">Not Hispanic/Latino</option>
           </select>
         </div>
 
         <div className="form-group">
           <label className="form-label">Race</label>
           <select
-            value={info.ethnicity}
+            value={info.demographicsInfo.ethnicity}
             onChange={(e) =>
-              setInfo((prev) => ({ ...prev, ethnicity: e.target.value }))
+              !isGuest && setInfo((prev) => ({
+                ...prev,
+                demographicsInfo: { ...prev.demographicsInfo, ethnicity: e.target.value }
+              }))
             }
-            className="form-select"
+            className={`form-select ${isGuest ? 'disabled' : ''}`}
+            disabled={isGuest}
           >
             <option value="">Prefer not to say</option>
             <option value="white">White</option>
             <option value="black">Black or African American</option>
-            <option value="black">Native American</option>
+            <option value="native_american">Native American</option>
             <option value="asian">Asian</option>
             <option value="other">Other</option>
           </select>
@@ -187,8 +232,11 @@ const PersonalInfoModal: React.FC = () => {
       </div>
 
       <p className="info-note">
-        Your information helps us provide personalized meal recommendations and
-        improve your experience.
+        {isGuest ? (
+          <span>Create an account to save your preferences and get personalized meal recommendations.</span>
+        ) : (
+          <span>Your information helps us provide personalized meal recommendations and improve your experience.</span>
+        )}
       </p>
     </div>
   );

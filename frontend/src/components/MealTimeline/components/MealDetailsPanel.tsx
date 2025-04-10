@@ -1,560 +1,748 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Meal } from "../types";
-import { COLOR_SCHEMES } from "../constants";
-import { MealRecommendation } from "../types";
+import {
+  Meal,
+  Food,
+  Ingredient,
+  MealRecommendation,
+  NutritionalInfo,
+  NutritionalGoals,
+  VisualizationLevel,
+  COLOR_SCHEMES,
+} from "../types";
+import { format, isValid } from "date-fns";
+import { FoodTypeIcon } from "./FoodTypeIcon";
+import { formatScore } from "../utils";
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
+// import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
 interface MealDetailsPanelProps {
-  meal: Meal | null;
-  recommendation: MealRecommendation | null; // Add this
+  meal: Meal | null; // Parent trace meal (if selected)
+  food: Food | null; // Selected food item
+  ingredient: Ingredient | null; // Selected ingredient item
+  recommendation: MealRecommendation | null; // Parent recommendation (if selected)
   onClose: () => void;
-  nutritionalGoals: {
-    dailyCalories: number;
-    carbohydrates: { min: number; max: number; unit: string };
-    protein: { min: number; max: number; unit: string };
-    fiber: { daily: number; unit: string };
-  };
-  currentNutritionalValues: {
+  nutritionalGoals: NutritionalGoals | null; // Accept null
+  currentNutritionalValues: { // Values for the day (potentially simulated)
     calories: number;
     carbs: number;
     protein: number;
     fiber: number;
   };
-  baseNutritionalValues: {
+  baseNutritionalValues: { // Base values before simulation
     calories: number;
     carbs: number;
     protein: number;
     fiber: number;
   };
+  selectedDate: Date;
+  currentLevel: VisualizationLevel["type"];
+  // Add callbacks for actions if needed later
+  // onFavoriteToggle?: (mealId: string) => void;
 }
 
-const formatNutritionalValue = (key: string, value: number): string => {
-  switch (key) {
-    case "calories":
-      return `${value} kcal`;
-    case "glycemicIndex":
-      return value.toString();
-    case "glycemicLoad":
-      return value.toString();
-    default:
-      return `${value}g`;
-  }
-};
-
-const isDiabetesFriendly = (meal: Meal): boolean => {
-  // Check if meal is explicitly marked as diabetes friendly
-  if (meal.diabetesFriendly !== undefined) return meal.diabetesFriendly;
-
-  // If not explicitly marked, check if all foods are diabetes friendly
-  if (meal.foods.every((food) => food.diabetesFriendly)) return true;
-
-  // Check glycemic index if available
-  const avgGI =
-    meal.foods.reduce((sum, food) => {
-      return sum + (food.nutritionalInfo.glycemicIndex || 0);
-    }, 0) / meal.foods.length;
-
-  return avgGI < 55; // Low glycemic index threshold
-};
-
-export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
-  meal,
-  recommendation,
+const DetailHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  isRecommendation?: boolean;
+  isTraceMeal?: boolean; // Specific flag for trace meal header
+  onClose: () => void;
+  // onFavoriteClick?: () => void; // Optional favorite handler
+  // isFavorited?: boolean; // Optional favorite state
+}> = ({
+  title,
+  subtitle,
+  isRecommendation,
+  isTraceMeal,
   onClose,
-  nutritionalGoals,
-  currentNutritionalValues,
-  baseNutritionalValues,
-}) => {
+  // onFavoriteClick,
+  // isFavorited
+}) => (
+  <div className="p-4 border-b bg-gray-50 relative">
+    {isRecommendation && (
+      <span className="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium z-10">
+        Recommended
+      </span>
+    )}
+    {/* Close Button */}
+    <button
+      onClick={onClose}
+      className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full z-10"
+      aria-label="Close details"
+    >
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fillRule="evenodd"
+          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
+    {/* Favorite Button for Trace Meals */}
+    {isTraceMeal && (
+       <button
+          // onClick={onFavoriteClick}
+          onClick={() => console.warn("Favorite click not implemented")}
+          className="absolute top-2 right-10 p-1 text-yellow-400 hover:text-yellow-500 hover:bg-gray-100 rounded-full z-10"
+          aria-label="Favorite meal"
+          title="Favorite (Not Implemented)"
+        >
+          {/* {isFavorited ? <StarIconSolid className="w-5 h-5" /> : <StarIconOutline className="w-5 h-5" />} */}
+          <StarIconOutline className="w-5 h-5" /> {/* Placeholder */}
+        </button>
+    )}
+    <h3 className="text-lg font-semibold text-gray-800 mt-4 pr-16">{title}</h3> {/* Added padding-right */}
+    {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+  </div>
+);
+
+const NutritionalBreakdown: React.FC<{
+  info: NutritionalInfo | undefined;
+  impact?: MealRecommendation["nutritionalImpact"];
+}> = ({ info, impact }) => {
+  if (!info) {
+    return (
+      <div className="p-4 text-sm text-gray-500">
+        Nutritional information not available.
+      </div>
+    );
+  }
+
+  const formatImpact = (value: number | undefined): string => {
+    if (value === undefined || value === 0) return "";
+    const prefix = value > 0 ? "+" : "";
+    return ` (${prefix}${value.toFixed(0)})`; // Show impact as integer
+  };
+
+  const formatValue = (
+    value: number | null | undefined,
+    unit: string = "",
+    precision: number = 0
+  ): string => {
+    if (value === null || value === undefined) return "N/A";
+    return `${value.toFixed(precision)}${unit}`;
+  };
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="pb-24">
-          <AnimatePresence mode="wait">
-            {meal ? (
-              // Meal Details View
-              <motion.div
-                key="meal-details"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                className="h-full"
+    <div className="p-4 border-b">
+      <h4 className="text-sm font-medium text-gray-700 mb-3">
+        Nutritional Information
+      </h4>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Calories:</span>{" "}
+          <span className="font-medium text-gray-800">
+            {formatValue(info.calories)}
+            {impact && (
+              <span
+                className={
+                  impact.calories > 0
+                    ? "text-green-600"
+                    : impact.calories < 0
+                    ? "text-red-600"
+                    : "text-gray-500"
+                }
               >
-                {/* Header */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  <div className="flex justify-between items-center p-4 border-b">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        {meal.name}
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        {meal.type.charAt(0).toUpperCase() + meal.type.slice(1)}{" "}
-                        - {meal.time}
-                      </p>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <svg
-                        className="w-6 h-6 text-gray-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Foods */}
-                <div className="p-6 space-y-8">
-                  {meal.foods.map((food) => (
-                    <div
-                      key={food.id}
-                      className="bg-gray-50 rounded-lg p-6 space-y-6"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-medium text-gray-800">
-                            {food.name}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {food.type.replace("_", " ")}
-                          </p>
-                        </div>
-                        {food.diabetesFriendly !== undefined && (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            {food.diabetesFriendly
-                              ? "Diabetes-Friendly"
-                              : "High GI"}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Ingredients */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">
-                          Ingredients
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {food.ingredients.map((ingredient) => (
-                            <div
-                              key={ingredient.id}
-                              className="flex items-center space-x-2 p-2 rounded-md"
-                              style={{
-                                backgroundColor: `${
-                                  COLOR_SCHEMES.ingredient[
-                                    ingredient.category as keyof typeof COLOR_SCHEMES.ingredient
-                                  ]
-                                }20`,
-                              }}
-                            >
-                              <span className="text-sm">
-                                {ingredient.name}
-                                <span className="text-gray-500 text-xs ml-1">
-                                  ({ingredient.amount} {ingredient.unit})
-                                </span>
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Instructions */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">
-                          Instructions
-                        </h4>
-                        <ol className="space-y-2">
-                          {food.instructions.map((instruction, index) => (
-                            <li
-                              key={index}
-                              className="text-sm text-gray-600 flex items-start"
-                            >
-                              <span className="font-medium mr-2">
-                                {index + 1}.
-                              </span>
-                              {instruction}
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-
-                      {/* Nutritional Information */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">
-                          Nutritional Values
-                        </h4>
-                        <div className="grid grid-cols-4 gap-3">
-                          {Object.entries(food.nutritionalInfo)
-                            .filter(([key]) => {
-                              // Filter out optional fields that are undefined
-                              const value =
-                                food.nutritionalInfo[
-                                  key as keyof typeof food.nutritionalInfo
-                                ];
-                              return (
-                                value !== undefined &&
-                                ![
-                                  "glycemicIndex",
-                                  "glycemicLoad",
-                                  "sugarContent",
-                                ].includes(key)
-                              );
-                            })
-                            .map(([key, value]) => (
-                              <div
-                                key={key}
-                                className="bg-white p-3 rounded-lg text-center"
-                              >
-                                <div className="text-lg font-semibold text-gray-800">
-                                  {value}
-                                  {key === "calories" ? " kcal" : "g"}
-                                </div>
-                                <div className="text-xs text-gray-500 capitalize">
-                                  {key.replace(/([A-Z])/g, " $1").trim()}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-
-                        {/* Optional Nutritional Values */}
-                        {(food.nutritionalInfo.glycemicIndex !== undefined ||
-                          food.nutritionalInfo.glycemicLoad !== undefined ||
-                          food.nutritionalInfo.sugarContent !== undefined) && (
-                          <div className="mt-4 grid grid-cols-3 gap-3">
-                            {food.nutritionalInfo.glycemicIndex !==
-                              undefined && (
-                              <div className="bg-white p-3 rounded-lg text-center">
-                                <div className="text-lg font-semibold text-gray-800">
-                                  {food.nutritionalInfo.glycemicIndex}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Glycemic Index
-                                </div>
-                              </div>
-                            )}
-                            {food.nutritionalInfo.glycemicLoad !==
-                              undefined && (
-                              <div className="bg-white p-3 rounded-lg text-center">
-                                <div className="text-lg font-semibold text-gray-800">
-                                  {food.nutritionalInfo.glycemicLoad}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Glycemic Load
-                                </div>
-                              </div>
-                            )}
-                            {food.nutritionalInfo.sugarContent !==
-                              undefined && (
-                              <div className="bg-white p-3 rounded-lg text-center">
-                                <div className="text-lg font-semibold text-gray-800">
-                                  {food.nutritionalInfo.sugarContent}g
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Sugars
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Additional Information */}
-                      <div className="flex flex-wrap gap-2">
-                        <div className="text-sm text-gray-600">
-                          Prep: {food.preparationTime}min
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Cook: {food.cookingTime}min
-                        </div>
-                        {food.allergens.length > 0 && (
-                          <div className="text-sm text-red-600">
-                            Contains: {food.allergens.join(", ")}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Footer Actions */}
-                <div className="flex-shrink-0 bg-white border-t p-4 flex justify-end space-x-3">
-                  <button className="px-4 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors">
-                    Add to Favorites
-                  </button>
-                  <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
-                    Add to Meal Plan
-                  </button>
-                </div>
-              </motion.div>
-            ) : recommendation ? (
-              // Recommendation details view
-              <motion.div
-                key="recommendation-details"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                className="h-full"
-              >
-                {/* Header */}
-                <div className="flex-shrink-0 bg-white z-10 shadow-sm">
-                  <div className="flex justify-between items-center p-4 border-b">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        Recommended Meal
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        {recommendation.meal.name}
-                      </p>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                    >
-                      <svg
-                        className="w-6 h-6 text-gray-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Recommendation Content */}
-                <div className="p-6 space-y-8">
-                  {/* Score and Time */}
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        Recommended for {recommendation.meal.time}
-                      </p>
-                      {recommendation.meal.diabetesFriendly && (
-                        <span className="inline-flex items-center px-2 py-1 mt-2 bg-green-100 text-green-800 text-xs rounded-full">
-                          Diabetes-Friendly
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className={`
-                          w-16 h-16 rounded-full flex items-center justify-center
-                          font-semibold text-lg border-2
-                          ${
-                            recommendation.score >= 80
-                              ? "border-green-500 text-green-700 bg-green-50"
-                              : "border-yellow-500 text-yellow-700 bg-yellow-50"
-                          }
-                        `}
-                      >
-                        {recommendation.score}
-                      </div>
-                      <span className="text-sm text-gray-500">Match Score</span>
-                    </div>
-                  </div>
-
-                  {/* Reasons */}
-                  {recommendation.reasons &&
-                    recommendation.reasons.length > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium text-gray-700">
-                          Why This Meal?
-                        </h3>
-                        <div className="space-y-2">
-                          {recommendation.reasons.map((reason, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center space-x-2 text-sm"
-                            >
-                              <svg
-                                className="w-5 h-5 text-green-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                              <span>{reason}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Nutritional Impact */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      Nutritional Impact
-                    </h3>
-                    <div className="grid grid-cols-4 gap-4">
-                      {Object.entries(recommendation.nutritionalImpact).map(
-                        ([key, value]) => (
-                          <div
-                            key={key}
-                            className="bg-gray-50 rounded-lg p-3 text-center"
-                          >
-                            <div className="text-lg font-semibold text-gray-700">
-                              {value > 0 ? "+" : ""}
-                              {value}
-                            </div>
-                            <div className="text-xs text-gray-500 capitalize">
-                              {key}
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Health Benefits */}
-                  {recommendation.healthBenefits &&
-                    recommendation.healthBenefits.length > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-medium text-gray-700">
-                          Health Benefits
-                        </h3>
-                        <div className="space-y-2">
-                          {recommendation.healthBenefits.map(
-                            (benefit, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center space-x-2 text-sm"
-                              >
-                                <svg
-                                  className="w-5 h-5 text-blue-500"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                                  />
-                                </svg>
-                                <span>{benefit}</span>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </motion.div>
-            ) : (
-              // Guide View
-              <motion.div
-                key="guide-view"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="h-full"
-              >
-                <div className="p-6 space-y-6">
-                  {/* Logo and Title */}
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-800">
-                      Meal Explorer
-                    </h2>
-                    <p className="text-gray-500 mt-2">
-                      Click on any meal to see detailed information
-                    </p>
-                  </div>
-
-                  {/* Quick Guide */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-800 mb-2">
-                      Getting Started
-                    </h3>
-                    <ul className="space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          1
-                        </span>
-                        Click on any meal card in the calendar
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          2
-                        </span>
-                        View detailed nutritional information
-                      </li>
-                      <li className="flex items-center">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mr-2">
-                          3
-                        </span>
-                        Explore ingredients and preparation steps
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Keyboard Shortcuts */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-800 mb-2">
-                      Keyboard Shortcuts
-                    </h3>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center justify-between">
-                        <span>Toggle Left Panel</span>
-                        <span className="flex space-x-1">
-                          <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                            [
-                          </kbd>
-                          <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                            ]
-                          </kbd>
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Close Meal Details</span>
-                        <kbd className="px-2 py-1 bg-white rounded shadow text-xs">
-                          Esc
-                        </kbd>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                {formatImpact(impact.calories)}
+              </span>
             )}
-          </AnimatePresence>
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Protein:</span>{" "}
+          <span className="font-medium text-gray-800">
+            {formatValue(info.protein, "g")}
+            {impact && (
+              <span
+                className={
+                  impact.protein > 0
+                    ? "text-green-600"
+                    : impact.protein < 0
+                    ? "text-red-600"
+                    : "text-gray-500"
+                }
+              >
+                {formatImpact(impact.protein)}g
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Carbs:</span>{" "}
+          <span className="font-medium text-gray-800">
+            {formatValue(info.carbs, "g")}
+            {impact && (
+              <span
+                className={
+                  impact.carbs > 0
+                    ? "text-green-600"
+                    : impact.carbs < 0
+                    ? "text-red-600"
+                    : "text-gray-500"
+                }
+              >
+                {formatImpact(impact.carbs)}g
+              </span>
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span>Fiber:</span>{" "}
+          <span className="font-medium text-gray-800">
+            {formatValue(info.fiber, "g")}
+            {impact && (
+              <span
+                className={
+                  impact.fiber > 0
+                    ? "text-green-600"
+                    : impact.fiber < 0
+                    ? "text-red-600"
+                    : "text-gray-500"
+                }
+              >
+                {formatImpact(impact.fiber)}g
+              </span>
+            )}
+          </span>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Nutritional Goals Progress */}
+const IngredientList: React.FC<{ ingredients: Ingredient[] | undefined }> = ({
+  ingredients,
+}) => {
+  if (!ingredients || ingredients.length === 0) {
+    return (
+      <div className="p-4 text-sm text-gray-500">
+        No ingredient details available.
+      </div>
+    );
+  }
+  return (
+    <div className="p-4 border-b">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Ingredients</h4>
+      <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-gray-600">
+        {ingredients.map((ing, index) => (
+          <li key={ing.id || `${ing.name}-${index}`}>
+            {ing.name} ({ing.amount} {ing.unit})
+            {/* TODO: Make ingredients clickable */}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const FoodList: React.FC<{ foods: Food[] | undefined }> = ({ foods }) => {
+  if (!foods || foods.length === 0) {
+    return (
+      <div className="p-4 text-sm text-gray-500">
+        No food items listed for this meal.
+      </div>
+    );
+  }
+  return (
+    <div className="p-4 border-b">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Foods Included</h4>
+      <div className="space-y-2">
+        {foods.map((food) => (
+          <div
+            key={food.id}
+            className="flex items-center justify-between bg-gray-50 p-2 rounded hover:bg-gray-100 cursor-pointer" // Make clickable
+            // onClick={() => console.warn("Food click to switch view not implemented")} // Placeholder
+            title={`View details for ${food.name} (Not Implemented)`}
+          >
+            <div className="flex items-center text-sm">
+              <FoodTypeIcon
+                type={food.type}
+                className="w-4 h-4 mr-2 text-gray-500"
+              />
+              <span className="font-medium text-gray-800">{food.name}</span>
+            </div>
+            <span className="text-xs text-gray-500 capitalize">
+              {food.type.replace("_", " ")}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const InstructionSteps: React.FC<{ instructions: string[] | undefined }> = ({
+  instructions,
+}) => {
+  if (!instructions || instructions.length === 0) return null;
+  return (
+    <div className="p-4 border-b">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions</h4>
+      <ol className="space-y-2 text-sm list-decimal list-inside text-gray-700">
+        {instructions.map((step, index) => (
+          <li key={index}>{step}</li>
+        ))}
+      </ol>
+    </div>
+  );
+};
+
+const GeneralInfo: React.FC<{
+  label: string;
+  value: string | number | undefined | null;
+  unit?: string;
+}> = ({ label, value, unit }) => {
+  const displayValue =
+    value === undefined || value === null || value === ""
+      ? "N/A"
+      : `${value}${unit || ""}`;
+  if (
+    displayValue === "N/A" ||
+    (typeof value === "number" &&
+      value === 0 &&
+      label.toLowerCase().includes("time"))
+  )
+    return null;
+
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-gray-600">{label}:</span>
+      <span className="font-medium text-gray-800">{displayValue}</span>
+    </div>
+  );
+};
+
+const TagsList: React.FC<{ label: string; tags: string[] | undefined }> = ({
+  label,
+  tags,
+}) => {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <div>
+      <h5 className="text-xs font-semibold text-gray-500 mb-1">{label}</h5>
+      <div className="flex flex-wrap gap-1">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs capitalize"
+          >
+            {tag.replace(/_/g, " ")}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RecommendationReasons: React.FC<{
+  reasons?: string[];
+  benefits?: string[];
+}> = ({ reasons, benefits }) => {
+  const hasReasons = reasons && reasons.length > 0;
+  const hasBenefits = benefits && benefits.length > 0;
+  if (!hasReasons && !hasBenefits) return null;
+
+  return (
+    <div className="p-4 border-b space-y-3">
+      {hasReasons && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">
+            Why Recommended?
+          </h4>
+          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-blue-700">
+            {reasons.map((reason, index) => (
+              <li key={`reason-${index}`}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {hasBenefits && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">
+            Health Benefits
+          </h4>
+          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-green-700">
+            {benefits.map((benefit, index) => (
+              <li key={`benefit-${index}`}>{benefit}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ScoreDisplay: React.FC<{
+    varietyScore?: number | null;
+    coverageScore?: number | null;
+    constraintScore?: number | null;
+    title?: string;
+}> = ({ varietyScore, coverageScore, constraintScore, title = "Recommendation Scores" }) => {
+    // Only render if at least one score is present
+    if (varietyScore === undefined && coverageScore === undefined && constraintScore === undefined) {
+        return null;
+    }
+
+    return (
+        <div className="p-4 border-b">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
+            <div className="flex justify-around text-center text-xs">
+                <div>
+                    <div className="font-semibold text-blue-600">{formatScore(varietyScore)}</div>
+                    <div className="text-gray-500">Variety</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-purple-600">{formatScore(coverageScore)}</div>
+                    <div className="text-gray-500">Coverage</div>
+                </div>
+                <div>
+                    <div className="font-semibold text-orange-600">{formatScore(constraintScore)}</div>
+                    <div className="text-gray-500">Nutrition</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Context for Trace items
+const ContextInfo: React.FC<{ text: string }> = ({ text }) => (
+    <div className="p-4 border-b bg-yellow-50 text-yellow-800 text-sm">
+        {text}
+        {/* Add clickable elements here if needed */}
+    </div>
+);
+
+// Context for Recommended items
+const RecommendationContext: React.FC<{
+    parentMealName?: string;
+    parentRecScores?: { v?: number | null; c?: number | null; n?: number | null };
+}> = ({ parentMealName, parentRecScores }) => {
+    if (!parentMealName) return null;
+    return (
+        <div className="p-4 border-b bg-green-50">
+            <h4 className="text-sm font-medium text-green-800 mb-2">
+                Part of Recommendation
+            </h4>
+            <p className="text-xs text-green-700 mb-1">
+                This item is part of the '
+                <span className="font-semibold">{parentMealName}</span>
+                ' recommendation.
+            </p>
+            {parentRecScores && (
+                 <p className="text-xs text-green-600">
+                    (Parent Scores - V: {formatScore(parentRecScores.v)}, C: {formatScore(parentRecScores.c)}, N: {formatScore(parentRecScores.n)})
+                 </p>
+            )}
+            <p className="text-xs text-green-700 mt-2">
+                Use the buttons on the main recommendation card in the calendar to accept or reject.
+            </p>
+        </div>
+    );
+};
+
+
+// Main Panel Component
+export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
+  meal,
+  food,
+  ingredient,
+  recommendation,
+  onClose,
+  nutritionalGoals, // Can be null
+  currentNutritionalValues, // Current day's totals (including simulated recommendation if selected)
+  selectedDate,
+  currentLevel,
+}) => {
+  // Determine what to display based on selection priority:
+  // If a specific food/ingredient is selected, prioritize it.
+  // If only a recommendation is selected, show the recommendation summary.
+  // If only a meal is selected, show the meal.
+  const displayItem = ingredient || food || recommendation || meal;
+  const displayType = ingredient
+    ? "ingredient"
+    : food
+    ? "food"
+    : recommendation
+    ? "recommendation"
+    : meal
+    ? "meal"
+    : "none";
+
+  // Determine if the primary selected item is a recommendation or part of one
+  // This is true if the top-level selection is a recommendation OR
+  // if a food/ingredient is selected AND it's part of the selected recommendation.
+  const isShowingRecommendationContext = recommendation !== null;
+
+  const renderContent = () => {
+    if (!displayItem) {
+      return (
+        <div className="p-6 text-center text-gray-500">
+          <p>Select an item from the calendar to see details.</p>
+          <p className="mt-2 text-sm">
+            Currently viewing:{" "}
+            <span className="font-medium capitalize">{currentLevel}</span> level
+            for{" "}
+            {isValid(selectedDate)
+              ? format(selectedDate, "MMM d, yyyy")
+              : "selected date"}
+          </p>
+          <p className="mt-4 text-xs text-gray-400">
+            Recommended meals are suggestions based on your goals and
+            preferences. Use the{" "}
+            <span className="font-semibold text-green-600">✓</span> and{" "}
+            <span className="font-semibold text-red-500">✕</span> buttons on the
+            cards to accept or reject them.
+          </p>
+        </div>
+      );
+    }
+
+    switch (displayType) {
+      // Level: Meal | Type: Recommended Meal
+      case "recommendation": {
+        const rec = displayItem as MealRecommendation;
+        const recDate = rec.meal?.date || selectedDate;
+        return (
+          <>
+            <DetailHeader
+              title={rec.meal?.name || "Recommended Meal"}
+              subtitle={`Recommended ${rec.meal?.type || "meal"} for ${
+                isValid(recDate) ? format(recDate, "MMM d, yyyy") : ""
+              }`}
+              isRecommendation // Badge
+              onClose={onClose}
+            />
+            <RecommendationReasons
+              reasons={rec.reasons}
+              benefits={rec.healthBenefits}
+            />
+            <ScoreDisplay
+                varietyScore={rec.varietyScore}
+                coverageScore={rec.coverageScore}
+                constraintScore={rec.constraintScore}
+                title="Recommendation Scores"
+            />
+            <NutritionalBreakdown
+              info={rec.meal?.nutritionalInfo}
+              impact={rec.nutritionalImpact} // Show impact
+            />
+            <FoodList foods={rec.meal?.foods} />
+            {/* TODO: Add other relevant sections if needed */}
+          </>
+        );
+      }
+      // Level: Meal | Type: Trace (Logged/Historical Meal)
+      case "meal": {
+        const m = displayItem as Meal;
+        const mealDate = m.date || selectedDate;
+        return (
+          <>
+            <DetailHeader
+              title={m.name}
+              subtitle={`${
+                m.type.charAt(0).toUpperCase() + m.type.slice(1)
+              } on ${
+                isValid(mealDate) ? format(mealDate, "MMM d, yyyy") : ""
+              } (Saved)`}
+              isTraceMeal // For favorite button
+              onClose={onClose}
+            />
+             <ScoreDisplay
+                varietyScore={m.varietyScore}
+                coverageScore={m.coverageScore}
+                constraintScore={m.constraintScore}
+                title="Meal Scores"
+            />
+            <NutritionalBreakdown info={m.nutritionalInfo} />
+            <FoodList foods={m?.foods} />
+            <div className="p-4 border-b space-y-2">
+              <TagsList label="Cultural Tips" tags={m.culturalTips} />
+              {/* TODO: Add other relevant sections if needed */}
+              {/* <TagsList label="Health Benefits" tags={m.healthBenefits} /> */}
+            </div>
+          </>
+        );
+      }
+      // Level: Food | Type: Recommended Food OR Trace Food
+      case "food": {
+        const f = displayItem as Food;
+        // Check if this food is part of the currently selected recommendation
+        const isRecommendedFood =
+          isShowingRecommendationContext && // A recommendation must be selected
+          recommendation && // Ensure recommendation is not null (redundant but safe)
+          recommendation.meal.foods.some((recFood) => recFood.id === f.id);
+
+        // Get parent recommendation meal if applicable
+        const parentRecMeal = isRecommendedFood ? recommendation?.meal : null;
+        // Get parent trace meal if applicable (only if food is trace AND meal is selected)
+        const parentTraceMeal = !isRecommendedFood ? meal : null;
+
+        return (
+          <>
+            <DetailHeader
+              title={f.name}
+              subtitle={`${f.type.replace("_", " ")} ${isRecommendedFood ? '(Recommended)' : '(Saved)'}`}
+              isRecommendation={isRecommendedFood} // Controls badge visibility
+              onClose={onClose}
+            />
+            {/* Recommendation Context */}
+            {isRecommendedFood && recommendation && ( // Ensure recommendation exists
+                <RecommendationContext
+                    parentMealName={parentRecMeal?.name}
+                    parentRecScores={{
+                        // Use scores from the top-level recommendation object
+                        v: recommendation.varietyScore,
+                        c: recommendation.coverageScore,
+                        n: recommendation.constraintScore
+                    }}
+                />
+            )}
+            {/* Trace Context */}
+            {!isRecommendedFood && parentTraceMeal && ( // Show context if it's a trace food AND a parent meal is selected
+                 <ContextInfo text={`Part of '${parentTraceMeal.name}' on ${isValid(parentTraceMeal.date || selectedDate) ? format(parentTraceMeal.date || selectedDate, "MMM d") : ""}`} />
+            )}
+
+            {/* Standard Food Details */}
+            <NutritionalBreakdown info={f.nutritionalInfo} />
+            <IngredientList ingredients={f.ingredients} />
+            <InstructionSteps instructions={f.instructions} />
+            <div className="p-4 border-b space-y-2">
+              <GeneralInfo
+                label="Prep Time"
+                value={f.preparationTime}
+                unit=" min"
+              />
+              <GeneralInfo
+                label="Cook Time"
+                value={f.cookingTime}
+                unit=" min"
+              />
+              <TagsList label="Cultural Origin" tags={f.culturalOrigin} />
+              <TagsList label="Allergens" tags={f.allergens} />
+              <TagsList label="Tips" tags={f.tips} />
+            </div>
+          </>
+        );
+      }
+      // Level: Ingredient | Type: Recommended Ingredient OR Trace Ingredient
+      case "ingredient": {
+        const i = displayItem as Ingredient;
+        // Check if this ingredient is part of the currently selected recommendation
+        const isRecommendedIngredient =
+          isShowingRecommendationContext &&
+          recommendation && // Ensure recommendation is not null
+          recommendation.meal.foods.some((recFood) =>
+            recFood.ingredients.some(
+              (ing) =>
+                (ing.id && ing.id === i.id) || // Match by ID first
+                (!ing.id && !i.id && ing.name === i.name) // Fallback to name if IDs missing
+            )
+          );
+
+        // Find the parent food and meal for context
+        let parentFoodName: string | undefined;
+        let parentMealName: string | undefined;
+        let parentMealDate: Date | undefined;
+        let parentRecScores: { v?: number | null; c?: number | null; n?: number | null } | undefined;
+
+        if (isRecommendedIngredient && recommendation) {
+            parentMealName = recommendation.meal.name;
+            parentRecScores = {
+                v: recommendation.varietyScore,
+                c: recommendation.coverageScore,
+                n: recommendation.constraintScore
+            };
+            const parentFood = recommendation.meal.foods.find(recFood =>
+                recFood.ingredients.some(ing => (ing.id && ing.id === i.id) || (!ing.id && !i.id && ing.name === i.name))
+            );
+            parentFoodName = parentFood?.name;
+        } else if (food) { // If a trace ingredient is selected, the parent 'food' should be selected too
+            parentFoodName = food.name;
+            if (meal) { // If the parent 'meal' is also selected
+                parentMealName = meal.name;
+                parentMealDate = meal.date;
+            }
+        }
+
+        const categoryColor =
+          COLOR_SCHEMES.ingredient[
+            i.category as keyof typeof COLOR_SCHEMES.ingredient
+          ] || "#cccccc";
+
+        return (
+          <>
+            <DetailHeader
+              title={i.name}
+              subtitle={`Ingredient (${i.amount} ${i.unit}) ${isRecommendedIngredient ? '(Recommended)' : '(Saved)'}`}
+              isRecommendation={isRecommendedIngredient} // Controls badge
+              onClose={onClose}
+            />
+            {/* Recommendation Context */}
+            {isRecommendedIngredient && (
+                 <RecommendationContext
+                    parentMealName={parentMealName}
+                    parentRecScores={parentRecScores}
+                 />
+            )}
+            {/* Trace Context */}
+            {!isRecommendedIngredient && parentFoodName && (
+                 <ContextInfo text={`Used in '${parentFoodName}'${parentMealName ? ` (Part of '${parentMealName}' on ${isValid(parentMealDate || selectedDate) ? format(parentMealDate || selectedDate, "MMM d") : ""})` : ''}`} />
+            )}
+
+            {/* Standard Ingredient Details */}
+            <div className="p-4 border-b flex items-center space-x-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: categoryColor }}
+              ></div>
+              <span className="text-sm font-medium text-gray-700 capitalize">
+                Category: {i.category}
+              </span>
+            </div>
+            <NutritionalBreakdown info={i.nutritionalInfo} />
+            <div className="p-4 border-b space-y-2">
+              <TagsList label="Cultural Origin" tags={i.culturalOrigin} />
+              <TagsList label="Allergens" tags={i.allergens} />
+              <TagsList label="Substitutes" tags={i.substitutes} />
+            </div>
+            {/* TODO: Add other relevant sections if needed */}
+          </>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  // Nutritional Goals Progress Section
+  const renderGoalsProgress = () => {
+    if (!nutritionalGoals) {
+      return (
+        <div className="flex-shrink-0 border-t bg-gradient-to-br from-white to-gray-50 p-6 text-center text-gray-500">
+          Loading nutritional goals...
+        </div>
+      );
+    }
+
+    // Use currentNutritionalValues which includes simulation if a recommendation is selected
+    const displayValues = currentNutritionalValues;
+    const { dailyCalories, carbohydrates, protein, fiber } = nutritionalGoals;
+
+    const calcProgress = (current: number, target: number) => {
+      if (target <= 0) return 0;
+      return Math.min(Math.max((current / target) * 100, 0), 100); // Ensure 0-100 range
+    };
+
+    return (
       <div className="flex-shrink-0 border-t bg-gradient-to-br from-white to-gray-50 p-6">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-800">
-              Daily Nutrition Goals
+              Daily Nutrition Goals Progress
             </h3>
             <span className="text-xs text-gray-500">
-              {new Date().toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "short",
-                day: "numeric",
-              })}
+              {isValid(selectedDate) ? format(selectedDate, "MMM d, yyyy") : ""}
             </span>
           </div>
 
@@ -565,8 +753,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Calories</span>
                 <span className="text-gray-500">
-                  {currentNutritionalValues.calories} /{" "}
-                  {nutritionalGoals.dailyCalories} kcal
+                  {displayValues.calories.toFixed(0)} / {dailyCalories.toFixed(0)} kcal
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -574,11 +761,9 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   className="h-full bg-gradient-to-r from-green-400 to-green-500"
                   initial={{ width: "0%" }}
                   animate={{
-                    width: `${Math.min(
-                      (currentNutritionalValues.calories /
-                        nutritionalGoals.dailyCalories) *
-                        100,
-                      100
+                    width: `${calcProgress(
+                      displayValues.calories,
+                      dailyCalories
                     )}%`,
                   }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
@@ -591,8 +776,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Carbohydrates</span>
                 <span className="text-gray-500">
-                  {currentNutritionalValues.carbs}
-                  {nutritionalGoals.carbohydrates.unit}
+                  {displayValues.carbs.toFixed(0)} / {carbohydrates.daily.toFixed(0)}
+                  {carbohydrates.unit}
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -600,11 +785,9 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   className="h-full bg-gradient-to-r from-blue-400 to-blue-500"
                   initial={{ width: "0%" }}
                   animate={{
-                    width: `${Math.min(
-                      (currentNutritionalValues.carbs /
-                        nutritionalGoals.carbohydrates.max) *
-                        100,
-                      100
+                    width: `${calcProgress(
+                      displayValues.carbs,
+                      carbohydrates.daily
                     )}%`,
                   }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
@@ -617,8 +800,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Protein</span>
                 <span className="text-gray-500">
-                  {currentNutritionalValues.protein}
-                  {nutritionalGoals.protein.unit}
+                  {displayValues.protein.toFixed(0)} / {protein.daily.toFixed(0)}
+                  {protein.unit}
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -626,11 +809,9 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   className="h-full bg-gradient-to-r from-purple-400 to-purple-500"
                   initial={{ width: "0%" }}
                   animate={{
-                    width: `${Math.min(
-                      (currentNutritionalValues.protein /
-                        nutritionalGoals.protein.max) *
-                        100,
-                      100
+                    width: `${calcProgress(
+                      displayValues.protein,
+                      protein.daily
                     )}%`,
                   }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
@@ -643,9 +824,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Fiber</span>
                 <span className="text-gray-500">
-                  {currentNutritionalValues.fiber} /{" "}
-                  {nutritionalGoals.fiber.daily}
-                  {nutritionalGoals.fiber.unit}
+                  {displayValues.fiber.toFixed(0)} / {fiber.daily.toFixed(0)}
+                  {fiber.unit}
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -653,12 +833,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                   className="h-full bg-gradient-to-r from-orange-400 to-orange-500"
                   initial={{ width: "0%" }}
                   animate={{
-                    width: `${Math.min(
-                      (currentNutritionalValues.fiber /
-                        nutritionalGoals.fiber.daily) *
-                        100,
-                      100
-                    )}%`,
+                    width: `${calcProgress(displayValues.fiber, fiber.daily)}%`,
                   }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
                 />
@@ -672,36 +847,28 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               {
                 label: "Calories",
                 value: `${Math.round(
-                  (currentNutritionalValues.calories /
-                    nutritionalGoals.dailyCalories) *
-                    100
+                  calcProgress(displayValues.calories, dailyCalories)
                 )}%`,
                 color: "text-green-500",
               },
               {
                 label: "Carbs",
                 value: `${Math.round(
-                  (currentNutritionalValues.carbs /
-                    nutritionalGoals.carbohydrates.max) *
-                    100
+                  calcProgress(displayValues.carbs, carbohydrates.daily)
                 )}%`,
                 color: "text-blue-500",
               },
               {
                 label: "Protein",
                 value: `${Math.round(
-                  (currentNutritionalValues.protein /
-                    nutritionalGoals.protein.max) *
-                    100
+                  calcProgress(displayValues.protein, protein.daily)
                 )}%`,
                 color: "text-purple-500",
               },
               {
                 label: "Fiber",
                 value: `${Math.round(
-                  (currentNutritionalValues.fiber /
-                    nutritionalGoals.fiber.daily) *
-                    100
+                  calcProgress(displayValues.fiber, fiber.daily)
                 )}%`,
                 color: "text-orange-500",
               },
@@ -716,6 +883,35 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           </div>
         </div>
       </div>
+    );
+  };
+
+  // Final Render
+  return (
+    <div className="h-full flex flex-col bg-white border-l border-gray-200">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            // Update key to include more factors for smoother transitions
+            key={
+              displayType +
+              (displayItem as any)?.id + // Use item's ID
+              (isShowingRecommendationContext ? recommendation?.meal.id : 'trace') + // Include rec ID if context
+              currentLevel
+            }
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Nutritional Goals Progress */}
+      {renderGoalsProgress()}
     </div>
   );
 };

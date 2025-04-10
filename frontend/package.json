@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@date-io/date-fns": "^3.0.0",
+    "@heroicons/react": "^2.2.0",
     "@mui/icons-material": "^6.1.6",
     "@mui/lab": "^6.0.0-beta.18",
     "@mui/material": "^6.1.6",

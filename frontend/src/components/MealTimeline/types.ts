@@ -1,12 +1,34 @@
+export const COLOR_SCHEMES = {
+  meal: {
+    breakfast: "#FF9F1C",
+    lunch: "#2EC4B6",
+    dinner: "#E71D36",
+    snack: "#7209B7",
+  },
+  food: {
+    main_course: "#3D5A80",
+    side_dish: "#98C1D9",
+    beverage: "#E0FBFC",
+    dessert: "#EE6C4D",
+    snack: "#293241",
+  },
+  ingredient: {
+    protein: "#FF595E",
+    carbs: "#FFCA3A",
+    vegetable: "#8AC926",
+    fruit: "#1982C4",
+    dairy: "#6A4C93",
+    fat: "#F15BB5",
+    spice: "#9B5DE5",
+    sauce: "#00BBF9",
+  },
+} as const;
+
 export interface NutritionalInfo {
   calories: number;
   protein: number;
   carbs: number;
-  fat: number;
   fiber: number;
-  glycemicIndex?: number;
-  glycemicLoad?: number;
-  sugarContent?: number;
 }
 
 export interface Ingredient {
@@ -38,26 +60,51 @@ export interface Food {
 }
 
 export interface Meal {
-  id: string;
-  name: string;
-  time: string;
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  foods: Food[];
-  nutritionalInfo: NutritionalInfo;
-  diabetesFriendly?: boolean;
-  culturalTips?: string[];
-  healthBenefits?: string[];
+  id: string; // Unique ID for this specific frontend instance (trace or recommendation meal)
+  originalBackendId?: string; // Original _id from backend (especially for recommendations)
+  name: string; // e.g., "Breakfast", "Lunch", "Snack"
+  time: string; // e.g., "08:00" (24-hour format internally)
+  type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; // Category of the meal
+  foods: Food[]; // List of foods included in the meal
+  nutritionalInfo: NutritionalInfo; // Combined nutrition for the whole meal
+  diabetesFriendly?: boolean; // Calculated based on combined nutrition/foods
+  culturalTips?: string[]; // Optional tips related to culture
+  healthBenefits?: string[]; // Optional health benefits summary
+  date?: Date; // Date associated with the meal instance
+  varietyScore?: number; // Score from 0 to 1
+  coverageScore?: number; // Score from 0 to 1 (item_coverage_score)
+  constraintScore?: number; // Score from 0 to 1 (nutritional_constraint_score)
+  isFavorited?: boolean;
 }
 
+// Represents meals consumed on a specific day (Trace Data)
 export interface DayMeals {
   date: Date;
-  meals: Meal[];
+  meals: Meal[]; // List of consumed meals for the day
 }
 
+// Represents recommended meals for a specific day
 export interface DayRecommendations {
   date: Date;
-  recommendations: MealRecommendation[];
+  recommendations: MealRecommendation[]; // List of recommendations for the day
 }
+
+// Represents a single meal recommendation
+export interface MealRecommendation {
+  meal: Meal; // The recommended Meal object (includes score internally now)
+  reasons?: string[]; // Text reasons why it's recommended
+  nutritionalImpact: { // Shows the meal's contribution
+    calories: number;
+    carbs: number;
+    protein: number;
+    fiber: number;
+  };
+  healthBenefits?: string[]; // Specific health benefits text
+  varietyScore?: number;
+  coverageScore?: number;
+  constraintScore?: number;
+}
+
 
 export interface UserPreferences {
   diabetesFriendly: boolean;
@@ -75,86 +122,42 @@ export interface UserPreferences {
     sweetLevel: number;
     preferredCuisines: string[];
   };
+  dairyPreference?: number; // e.g., -1 (avoid), 0 (neutral), 1 (prefer)
+  meatPreference?: number;
+  nutsPreference?: number;
 }
 
 export interface UserAnthropometrics {
   age: number;
-  weight: number;
-  height: number;
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'very_active';
-  healthConditions: string[];
-  bloodSugarLevels?: {
-    fasting: number;
-    postPrandial: number;
+  weight: number; // Consider units (e.g., kg or lbs)
+  height: number; // Consider units (e.g., cm or inches)
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'very_active' | 'extra_active';
+  healthConditions?: string[]; // e.g., ['diabetes_type_2', 'hypertension']
+  bloodSugarLevels?: { // Optional
+    fasting?: number; // mg/dL or mmol/L
+    postPrandial?: number; // mg/dL or mmol/L
   };
+  gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say'; // Add gender if used
 }
+
 
 export interface VisualizationLevel {
   type: 'meal' | 'food' | 'ingredient';
   view: 'calendar' | 'list' | 'comparison';
 }
 
-export interface FilterOptions {
-  dateRange: {
-    start: Date;
-    end: Date;
+export interface NutritionalGoals {
+  dailyCalories: number;
+  carbohydrates: {
+    daily: number;
+    unit: string;
   };
-  mealTypes: string[];
-  foodTypes: string[];
-  ingredients: string[];
-  nutritionalRange: {
-    calories?: { min: number; max: number };
-    carbs?: { min: number; max: number };
-    protein?: { min: number; max: number };
-    fat?: { min: number; max: number };
+  protein: {
+    daily: number;
+    unit: string;
   };
-  healthFilters: {
-    diabetesFriendly: boolean;
-    culturalPreference: string[];
-    allergenFree: string[];
-  };
-}
-
-export interface PatternAnalysis {
-  type: 'ingredient' | 'food' | 'meal';
-  frequency: number;
-  timePattern?: string;
-  dayPattern?: string[];
-  correlation?: {
-    with: string;
-    strength: number;
-    type: 'positive' | 'negative';
-  };
-}
-
-export interface MealPattern {
-  patterns: PatternAnalysis[];
-  recommendations: string[];
-  healthInsights: {
-    diabetesImpact: string;
-    culturalAlignment: string;
-    nutritionalBalance: string;
-  };
-}
-
-export interface ManagementTip {
-  mealType: string;
-  tips: string[];
-}
-
-export interface MealRecommendation {
-  meal: Meal;
-  score: number; // 0-100 score for how well it matches user preferences
-  reasons?: string[]; // Why this meal is recommended
-  nutritionalImpact: {
-    calories: number;
-    carbs: number;
-    protein: number;
-    fiber: number;
-  };
-  healthBenefits?: string[];
-  replacementFor?: {
-    mealId: string;
-    timeSlot: string;
+  fiber: {
+    daily: number;
+    unit: string;
   };
 }
