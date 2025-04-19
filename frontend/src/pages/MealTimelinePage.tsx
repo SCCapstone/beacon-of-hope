@@ -25,6 +25,8 @@ import {
   isSameDay,
   parseISO,
   isValid as isValidDate,
+  min as minDate,
+  max as maxDate,
 } from "date-fns";
 import { useSelector } from "react-redux";
 import { RootState } from "../app/store";
@@ -59,6 +61,7 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
 // Type for the callback payload from Viz for fetching
 type FetchRequestPayload = {
   datesToFetch: string[]; // Only the dates that need fetching
+  direction: "past" | "future" | "initial" | "specific"; // Add direction
 };
 
 type SaveMealPayload = {
@@ -72,12 +75,18 @@ export const MealTimelinePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true); // Combined loading state
   const [isLoadingGoals, setIsLoadingGoals] = useState(true); // Specific loading for goals
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isFetchingMorePast, setIsFetchingMorePast] = useState(false); // Specific loading state for past
+  const [isFetchingMoreFuture, setIsFetchingMoreFuture] = useState(false); // Specific loading state for future
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(
     normalizeDate(new Date())
   );
   const [nutritionalGoals, setNutritionalGoals] =
     useState<NutritionalGoals | null>(null); // State for goals
+
+  // Track the overall loaded range
+  const loadedStartDateRef = useRef<Date | null>(null);
+  const loadedEndDateRef = useRef<Date | null>(null);
 
   const initialLoadAttemptedRef = useRef(false);
   const fetchingDatesRef = useRef<Set<string>>(new Set());
@@ -182,7 +191,11 @@ export const MealTimelinePage: React.FC = () => {
 
   // Function to fetch meal data for a date range
   const fetchMealData = useCallback(
-    async (datesToFetchParam: string[]) => {
+    async (
+      datesToFetchParam: string[],
+      direction: FetchRequestPayload["direction"]
+    ) => {
+      // Add direction parameter
       // Filter out dates already being fetched
       const datesActuallyNeedingFetch = datesToFetchParam.filter(
         (dateStr) => !fetchingDatesRef.current.has(dateStr)
@@ -193,9 +206,11 @@ export const MealTimelinePage: React.FC = () => {
           "Page Fetch skipped: Dates already being fetched or empty list.",
           datesToFetchParam
         );
-        if (isLoading && fetchingDatesRef.current.size === 0) {
-          setIsLoading(false); // Stop loading if nothing is actually fetching
-        }
+        // Reset specific loading states if the trigger was for them but nothing fetched
+        if (direction === "past") setIsFetchingMorePast(false);
+        if (direction === "future") setIsFetchingMoreFuture(false);
+        if (direction === "initial" && fetchingDatesRef.current.size === 0)
+          setIsLoading(false);
         return;
       }
 
@@ -204,17 +219,23 @@ export const MealTimelinePage: React.FC = () => {
         fetchingDatesRef.current.add(date)
       );
       console.log(
-        "Page Fetching meal data for dates:",
+        `Page Fetching meal data for dates (${direction}):`,
         datesActuallyNeedingFetch
       );
-      if (!isLoading) setIsLoading(true); // Ensure loading is true
+
+      // Set appropriate loading state based on direction
+      if (direction === "initial") setIsLoading(true);
+      if (direction === "past") setIsFetchingMorePast(true);
+      if (direction === "future") setIsFetchingMoreFuture(true);
+      if (direction === "specific" && !isLoading) setIsLoading(true); // Use general loading for specific fetches if not already loading
+
       // setError(null); // Don't reset error prematurely
       initialLoadAttemptedRef.current = true;
 
       try {
         const response = await fetchMealDays(userId, datesActuallyNeedingFetch);
         console.log(
-          "Page API response received for:",
+          `Page API response received for (${direction}):`,
           datesActuallyNeedingFetch.join(", ")
         );
 
@@ -227,11 +248,69 @@ export const MealTimelinePage: React.FC = () => {
         ) {
           transformedData = await transformApiResponseToDayMeals(response);
           // console.log("Page Data transformed:", transformedData.length, "days");
+
+          // --- Update loaded range based on successfully transformed data ---
+          const fetchedDates = transformedData
+            .map((d) => normalizeDate(d.date))
+            .filter(isValidDate);
+          if (fetchedDates.length > 0) {
+            const minFetched = minDate(fetchedDates);
+            const maxFetched = maxDate(fetchedDates);
+            if (
+              !loadedStartDateRef.current ||
+              minFetched < loadedStartDateRef.current
+            ) {
+              loadedStartDateRef.current = minFetched;
+              console.log(
+                "Page Updated loadedStartDateRef:",
+                format(minFetched, "yyyy-MM-dd")
+              );
+            }
+            if (
+              !loadedEndDateRef.current ||
+              maxFetched > loadedEndDateRef.current
+            ) {
+              loadedEndDateRef.current = maxFetched;
+              console.log(
+                "Page Updated loadedEndDateRef:",
+                format(maxFetched, "yyyy-MM-dd")
+              );
+            }
+          }
+          // --- End Update loaded range ---
         } else {
           console.log(
-            "Page No meal history found in response for requested dates:",
+            `Page No meal history found in response for requested dates (${direction}):`,
             datesActuallyNeedingFetch.join(", ")
           );
+          // If no data found, still update the loaded range to prevent re-fetching these empty dates
+          const requestedDates = datesActuallyNeedingFetch
+            .map((d) => normalizeDate(d))
+            .filter(isValidDate);
+          if (requestedDates.length > 0) {
+            const minRequested = minDate(requestedDates);
+            const maxRequested = maxDate(requestedDates);
+            if (
+              !loadedStartDateRef.current ||
+              minRequested < loadedStartDateRef.current
+            ) {
+              loadedStartDateRef.current = minRequested;
+              console.log(
+                "Page Updated loadedStartDateRef (no data):",
+                format(minRequested, "yyyy-MM-dd")
+              );
+            }
+            if (
+              !loadedEndDateRef.current ||
+              maxRequested > loadedEndDateRef.current
+            ) {
+              loadedEndDateRef.current = maxRequested;
+              console.log(
+                "Page Updated loadedEndDateRef (no data):",
+                format(maxRequested, "yyyy-MM-dd")
+              );
+            }
+          }
         }
 
         // Ensure placeholders are added for any requested dates *not* in the response
@@ -396,16 +475,27 @@ export const MealTimelinePage: React.FC = () => {
         datesActuallyNeedingFetch.forEach((date) =>
           fetchingDatesRef.current.delete(date)
         );
-        if (fetchingDatesRef.current.size === 0) {
-          setIsLoading(false);
-          // console.log("Page All fetches complete. isLoading set to false.");
+        // Reset appropriate loading state
+        if (direction === "initial") setIsLoading(false);
+        if (direction === "past") setIsFetchingMorePast(false);
+        if (direction === "future") setIsFetchingMoreFuture(false);
+        if (direction === "specific" && fetchingDatesRef.current.size === 0)
+          setIsLoading(false); // Reset general loading only if nothing else is fetching
+
+        if (
+          fetchingDatesRef.current.size === 0 &&
+          !isFetchingMorePast &&
+          !isFetchingMoreFuture
+        ) {
+          setIsLoading(false); // Ensure main loading is off if nothing is fetching
+          console.log("Page All fetches complete. isLoading set to false.");
         }
         // else {
         // console.log("Page Fetch complete for:", datesActuallyNeedingFetch.join(', '), "Remaining fetches:", Array.from(fetchingDatesRef.current));
         // }
       }
     },
-    [userId, isLoading]
+    [userId, isLoading, isFetchingMorePast, isFetchingMoreFuture] // Include new loading states
   );
 
   // Handler for deleting a trace meal
@@ -701,7 +791,9 @@ export const MealTimelinePage: React.FC = () => {
           `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
         );
         // Optional: Show a success toast/message to the user
-        alert(`Meal marked as favorite! This will influence future recommendations.`);
+        alert(
+          `Meal marked as favorite! This will influence future recommendations.`
+        );
 
         // Optional: Optimistic UI update (if Meal type has isFavorited)
         // setWeekData(prevData => {
@@ -717,7 +809,6 @@ export const MealTimelinePage: React.FC = () => {
         //     return day;
         //   });
         // });
-
       } catch (err: any) {
         console.error(`Page: Error favoriting meal ${mealIdToFavorite}:`, err);
         if (err instanceof ApiError) {
@@ -726,7 +817,7 @@ export const MealTimelinePage: React.FC = () => {
           setError("An unexpected error occurred while favoriting the meal.");
         }
         // Optional: Show an error toast/message
-        alert(`Error: Could not mark meal as favorite. ${err.message || ''}`);
+        alert(`Error: Could not mark meal as favorite. ${err.message || ""}`);
       }
     },
     [userId] // Dependency on userId
@@ -735,10 +826,13 @@ export const MealTimelinePage: React.FC = () => {
   // Callback for Viz to request fetching specific dates
   const handleFetchRequest = useCallback(
     (payload: FetchRequestPayload) => {
-      const { datesToFetch } = payload;
-      // console.log("Page handleFetchRequest received from Viz. Dates:", datesToFetch.join(', ') || 'None');
+      const { datesToFetch, direction } = payload; // Destructure direction
+      console.log(
+        `Page handleFetchRequest received from Viz. Direction: ${direction}, Dates:`,
+        datesToFetch.join(", ") || "None"
+      );
       if (datesToFetch.length > 0) {
-        fetchMealData(datesToFetch);
+        fetchMealData(datesToFetch, direction); // Pass direction to fetch function
       }
     },
     [fetchMealData]
@@ -752,12 +846,36 @@ export const MealTimelinePage: React.FC = () => {
       if (!isSameDay(selectedDate, normalizedNewDate)) {
         // console.log("Page Updating selectedDate state to:", format(normalizedNewDate, "yyyy-MM-dd"));
         setSelectedDate(normalizedNewDate);
+        // Fetch data around the newly selected date if it's outside the currently loaded range
+        if (loadedStartDateRef.current && loadedEndDateRef.current) {
+          if (
+            normalizedNewDate < loadedStartDateRef.current ||
+            normalizedNewDate > loadedEndDateRef.current
+          ) {
+            console.log(
+              "Page Selected date outside loaded range. Fetching surrounding data."
+            );
+            const fetchStart = subDays(normalizedNewDate, 3); // Fetch a window around the new date
+            const fetchEnd = addDays(normalizedNewDate, 3);
+            const datesToFetch = generateDateRange(fetchStart, fetchEnd);
+            // Filter out dates already loaded
+            const datesTrulyNeeded = datesToFetch.filter((dStr) => {
+              const d = normalizeDate(dStr);
+              return (
+                d < loadedStartDateRef.current! || d > loadedEndDateRef.current!
+              );
+            });
+            if (datesTrulyNeeded.length > 0) {
+              fetchMealData(datesTrulyNeeded, "specific"); // Fetch as 'specific'
+            }
+          }
+        }
       }
       // else {
       // console.log("Page Date selected is the same as current. No state update.");
       // }
     },
-    [selectedDate]
+    [selectedDate, fetchMealData] // Add fetchMealData dependency
   );
 
   // Initial data load effect (runs once)
@@ -767,10 +885,13 @@ export const MealTimelinePage: React.FC = () => {
       console.log("Page Initial load effect running.");
       initialLoadAttemptedRef.current = true; // Mark attempt even before fetch starts
       // Use the initial selectedDate state (already normalized)
-      const initialStart = subDays(selectedDate, 3);
-      const initialEnd = addDays(selectedDate, 3);
+      // Fetch a wider initial range for infinite scroll
+      const initialStart = subDays(selectedDate, 7); // e.g., 7 days back
+      const initialEnd = addDays(selectedDate, 7); // e.g., 7 days forward
+      loadedStartDateRef.current = initialStart; // Initialize refs
+      loadedEndDateRef.current = initialEnd;
       const initialDatesToFetch = generateDateRange(initialStart, initialEnd);
-      fetchMealData(initialDatesToFetch);
+      fetchMealData(initialDatesToFetch, "initial"); // Pass 'initial' direction
     } else if (!userId) {
       // console.log("Page Initial load effect waiting for userId.");
       setIsLoading(false); // Stop loading if no user ID
@@ -784,11 +905,16 @@ export const MealTimelinePage: React.FC = () => {
   // Combined loading state check
   const showLoadingScreen =
     (isLoading || isLoadingGoals) && !initialLoadAttemptedRef.current;
-  // Use isRegenerating OR isLoading for the overlay
-  const showOverlayLoader =
-    (isLoading || isLoadingGoals || isRegenerating) &&
-    initialLoadAttemptedRef.current;
 
+  // Use specific loading states for the overlay when scrolling, otherwise use general loading/regenerating
+  const showOverlayLoader =
+    (isFetchingMorePast ||
+      isFetchingMoreFuture ||
+      isRegenerating ||
+      (isLoading && initialLoadAttemptedRef.current)) &&
+    !showLoadingScreen;
+
+  // Loading/Error/Main render logic remains largely the same, just uses the new loading states
   if (showLoadingScreen) {
     return (
       <MainLayout title="Meal Calendar" subtitle="Loading your data...">
@@ -825,10 +951,10 @@ export const MealTimelinePage: React.FC = () => {
               onClick={() => {
                 setError(null);
                 // Retry fetching data around the currently selected date
-                const retryStart = subDays(selectedDate, 3);
-                const retryEnd = addDays(selectedDate, 3);
+                const retryStart = subDays(selectedDate, 7); // Retry wider range
+                const retryEnd = addDays(selectedDate, 7);
                 const datesToFetch = generateDateRange(retryStart, retryEnd);
-                fetchMealData(datesToFetch); // Retry fetching meal data
+                fetchMealData(datesToFetch, "initial"); // Retry fetching meal data
                 // Optionally retry fetching goals if needed
                 if (!nutritionalGoals && userId) {
                   // loadGoals(); // Need to extract loadGoals or call fetchNutritionalGoals directly
@@ -890,7 +1016,7 @@ export const MealTimelinePage: React.FC = () => {
         userPreferences={userPreferences}
         nutritionalGoals={finalNutritionalGoals} // Pass final goals
         mealPlan={mealPlan} // Pass parsed meal plan
-        onRequestFetch={handleFetchRequest}
+        onRequestFetch={handleFetchRequest} // Pass fetch handler
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
         onRegeneratePartial={handleRegeneratePartial}
@@ -899,7 +1025,14 @@ export const MealTimelinePage: React.FC = () => {
         onDeleteMeal={handleDeleteMeal}
         onFavoriteMeal={handleFavoriteMeal}
         userId={userId}
+        // Pass loading states for infinite scroll indicators
+        isFetchingPast={isFetchingMorePast}
+        isFetchingFuture={isFetchingMoreFuture}
+        // Pass loaded date range boundaries
+        loadedStartDate={loadedStartDateRef.current}
+        loadedEndDate={loadedEndDateRef.current}
       />
+      {/* Overlay loader uses combined logic */}
       {showOverlayLoader && (
         <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 pointer-events-none">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>

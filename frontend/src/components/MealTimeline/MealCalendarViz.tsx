@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   DayMeals,
   DayRecommendations,
@@ -24,10 +18,7 @@ import { MealDetailsPanel } from "./components/MealDetailsPanel";
 import { calculateCurrentNutritionalValues } from "./utils";
 import { transformMealPlanToRecommendations } from "../../utils/mealPlanTransformer";
 import {
-  subDays,
-  addDays,
   format,
-  eachDayOfInterval,
   isSameDay,
   startOfDay,
   parseISO,
@@ -81,6 +72,7 @@ type SaveMealHandler = (payload: {
 // Define the type for the callback to parent for fetching
 type FetchRequestHandler = (payload: {
   datesToFetch: string[]; // Only the dates that _need_ fetching
+  direction: "past" | "future" | "initial" | "specific"; // Add direction
 }) => void;
 
 // Define the type for the callback to parent for date selection
@@ -108,6 +100,11 @@ interface MealCalendarVizProps {
   onDeleteMeal: DeleteMealHandler;
   onFavoriteMeal: FavoriteMealHandler;
   userId: string;
+  // New props for infinite scroll
+  isFetchingPast: boolean;
+  isFetchingFuture: boolean;
+  loadedStartDate: Date | null;
+  loadedEndDate: Date | null;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -123,6 +120,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   onFavoriteMeal,
   onDeleteMeal,
   userId,
+  // Destructure new props
+  isFetchingPast,
+  isFetchingFuture,
+  loadedStartDate,
+  loadedEndDate,
 }) => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -318,7 +320,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     setCurrentNutritionalValues(currentValues);
   }, [selectedDate, selectedRecommendation, calculateBaseNutrition, traceData]);
 
-  // --- Selection Handlers ---
+  // Selection Handlers
   const handleMealSelect = (meal: Meal | null) => {
     setSelectedMeal(meal); // Selects a TRACE meal
     setSelectedFood(null);
@@ -410,7 +412,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Nutritional values update via useEffect dependency
   };
 
-  // --- Accept Recommendation Handler ---
+  // Accept Recommendation Handler
   const handleAcceptRecommendation = useCallback(
     async (acceptedRec: MealRecommendation) => {
       const confirmAccept = window.confirm(
@@ -633,9 +635,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             "Viz: Requesting parent fetch to confirm acceptance for date:",
             mealDateStr
           );
-          onRequestFetch({ datesToFetch: [mealDateStr] });
+          onRequestFetch({
+            datesToFetch: [mealDateStr],
+            direction: "specific",
+          }); // Specify direction
         } else {
-          // --- Revert UI on Save Failure ---
+          // Revert UI on Save Failure
           console.error(
             `Viz: onSaveMeal failed for meal ${backendIdToSave}. Reverting UI.`
           );
@@ -878,7 +883,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         setSelectedIngredient(null);
       }
 
-      console.log("Viz: Recommendation rejection processing finished (Frontend Only).");
+      console.log(
+        "Viz: Recommendation rejection processing finished (Frontend Only)."
+      );
     },
     [
       selectedDate,
@@ -945,106 +952,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // }
   };
 
-  // Data Fetch Triggering Logic
-
-  const getRequiredRange = useCallback(
-    (level: VisualizationLevel["type"], date: Date) => {
-      const normalizedDate = normalizeDate(date); // Normalize input date
-      let requiredStartDate: Date;
-      let requiredEndDate: Date;
-      switch (level) {
-        case "meal":
-          requiredStartDate = subDays(normalizedDate, 3);
-          requiredEndDate = addDays(normalizedDate, 3);
-          break;
-        case "food":
-          requiredStartDate = subDays(normalizedDate, 1);
-          requiredEndDate = addDays(normalizedDate, 1);
-          break;
-        case "ingredient":
-        default:
-          requiredStartDate = normalizedDate;
-          requiredEndDate = normalizedDate;
-          break;
-      }
-      return { requiredStartDate, requiredEndDate };
-    },
-    []
-  );
-
-  // Effect to check for missing data when level or selectedDate prop changes
-  useEffect(() => {
-    const normalizedSelected = normalizeDate(selectedDate);
-    if (isNaN(normalizedSelected.getTime())) {
-      console.error(
-        "Viz Fetch Check: Invalid selectedDate, skipping fetch check."
-      );
-      return;
-    }
-
-    console.log(
-      `Viz Effect: Checking fetch for level=${currentLevel}, date=${format(
-        normalizedSelected, // Use normalized date
-        "yyyy-MM-dd"
-      )}`
-    );
-
-    const { requiredStartDate, requiredEndDate } = getRequiredRange(
-      currentLevel,
-      normalizedSelected // Use normalized date
-    );
-
-    // Ensure start/end dates are valid before creating interval
-    if (
-      !isValidDate(requiredStartDate) ||
-      !isValidDate(requiredEndDate) ||
-      requiredStartDate > requiredEndDate
-    ) {
-      console.error(
-        "Viz Fetch Check: Invalid date range calculated, skipping fetch check.",
-        { requiredStartDate, requiredEndDate }
-      );
-      return;
-    }
-
-    const requiredDates = eachDayOfInterval({
-      start: requiredStartDate,
-      end: requiredEndDate,
-    });
-
-    // Use the ref for the most current representation of loaded data
-    const currentLoadedData = traceDataRef.current;
-    const existingDates = new Set(
-      currentLoadedData
-        .map((day) => {
-          const normalizedDayDate = normalizeDate(day.date); // Normalize date from data
-          return isValidDate(normalizedDayDate)
-            ? format(normalizedDayDate, "yyyy-MM-dd")
-            : null;
-        })
-        .filter((dateStr): dateStr is string => dateStr !== null) // Type guard
-    );
-
-    const missingDateStrings = requiredDates
-      .map((date) => format(normalizeDate(date), "yyyy-MM-dd")) // Normalize required dates
-      .filter((dateStr) => !existingDates.has(dateStr));
-
-    if (missingDateStrings.length > 0) {
-      console.log(
-        "Viz Effect: Requesting fetch for missing dates:",
-        missingDateStrings
-      );
-      onRequestFetch({
-        datesToFetch: missingDateStrings,
-      });
-    } else {
-      console.log(
-        "Viz Effect: All required dates appear loaded according to traceDataRef. No fetch request needed."
-      );
-    }
-  }, [currentLevel, selectedDate, getRequiredRange, onRequestFetch]);
-
-  // --- Event Handlers for UI Controls ---
+  // Event Handlers for UI Controls
 
   // Handle date change from WeekSelector
   const handleDateChange = useCallback(
@@ -1061,7 +969,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedRecommendation(null);
       // Notify parent about the date change
       onDateSelect(newDate);
-      // The useEffect above will handle fetching based on the *new* selectedDate prop change
+      // The parent (MealTimelinePage) will handle fetching if the date is outside the loaded range
     },
     [onDateSelect] // Only depends on the callback prop
   );
@@ -1075,87 +983,16 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
-      // Trigger fetch check via the useEffect dependency change
     },
     []
   );
 
-  // --- Derived Data for Rendering ---
-
-  // Calculate dates to display based on level and selectedDate prop
-  const datesToDisplay = useMemo(() => {
-    const normalizedSelected = normalizeDate(selectedDate); // Use prop, normalize
-    let startDate: Date;
-    let endDate: Date;
-
-    switch (currentLevel) {
-      case "meal":
-        startDate = subDays(normalizedSelected, 2);
-        endDate = addDays(normalizedSelected, 2);
-        break;
-      case "food":
-        startDate = subDays(normalizedSelected, 1);
-        endDate = addDays(normalizedSelected, 1);
-        break;
-      case "ingredient":
-      default:
-        startDate = normalizedSelected;
-        endDate = normalizedSelected;
-        break;
-    }
-    if (startDate > endDate) startDate = endDate;
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error(
-        "Invalid start or end date for interval:",
-        startDate,
-        endDate
-      );
-      return [normalizeDate(new Date())]; // Fallback
-    }
-    try {
-      return eachDayOfInterval({ start: startDate, end: endDate });
-    } catch (rangeError) {
-      console.error("Error creating date interval:", rangeError, {
-        startDate,
-        endDate,
-      });
-      return [normalizeDate(selectedDate)]; // Fallback to selected date
-    }
-  }, [selectedDate, currentLevel]);
-
-  // Filter TRACE data for the visible range using the local traceData state
-  const visibleTraceData = useMemo(() => {
-    // Ensure datesToDisplay contains valid, normalized dates
-    const validDatesToDisplay = datesToDisplay
-      .map(normalizeDate)
-      .filter(isValidDate);
-
-    return validDatesToDisplay.map((date) => {
-      // Find data for the current date using normalized comparison
-      const existingDay = traceData.find(
-        (day) => isSameNormalizedDay(day.date, date) // Use robust comparison
-      );
-      return existingDay
-        ? { ...existingDay, date: date }
-        : { date: date, meals: [] };
-    });
-  }, [traceData, datesToDisplay]);
-
-  const hasRecommendationsInView = useMemo(() => {
-    const visibleDateStrings = new Set(
-      datesToDisplay.map((date) => format(normalizeDate(date), "yyyy-MM-dd"))
-    );
-    return recommendationData.some((dayRec) => {
-      const dayDateStr = format(normalizeDate(dayRec.date), "yyyy-MM-dd");
-      return (
-        visibleDateStrings.has(dayDateStr) && dayRec.recommendations.length > 0
-      );
-    });
-  }, [recommendationData, datesToDisplay]);
+  // hasRecommendationsInView needs to check ALL recommendationData, not just visible range
+  const hasRecommendationsInView = recommendationData.some(dayRec => dayRec.recommendations.length > 0);
 
   const handleRegenerateClick = useCallback(() => {
     if (isRegenerating || !hasRecommendationsInView) {
-      return; // Do nothing if already regenerating or no recommendations in view
+      return; // Do nothing if already regenerating or no recommendations at all
     }
 
     // 1. Create a Set of date strings (yyyy-MM-dd) that have recommendations
@@ -1169,23 +1006,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       }
     });
 
-    // 2. Filter the currently displayed dates to include only those with recommendations
-    const datesToRegenerate = datesToDisplay
-      .map((date) => {
-        const normalizedVisibleDate = normalizeDate(date);
-        return isValidDate(normalizedVisibleDate)
-          ? format(normalizedVisibleDate, "yyyy-MM-dd")
-          : null;
-      })
-      .filter(
-        (dateStr): dateStr is string =>
-          dateStr !== null && datesWithRecsSet.has(dateStr) // Check if the visible date has recommendations
-      );
+    const datesToRegenerate = Array.from(datesWithRecsSet);
 
     // 3. Check if any dates remain after filtering
     if (datesToRegenerate.length === 0) {
       console.log(
-        "Viz: No recommendations found in the current view to regenerate."
+        "Viz: No recommendations found to regenerate."
       );
       // Optionally show a user message/tooltip update here if needed
       return;
@@ -1198,7 +1024,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     );
     onRegeneratePartial(datesToRegenerate);
   }, [
-    datesToDisplay,
     recommendationData,
     onRegeneratePartial,
     isRegenerating,
@@ -1226,8 +1051,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const regenerateButtonTooltip = isRegenerating
     ? "Regenerating recommendations..."
     : !hasRecommendationsInView
-    ? "No recommendations in the current view to regenerate"
-    : "Regenerate recommendations for dates with plans in current view";
+    ? "No recommendations available to regenerate" // Updated tooltip
+    : "Regenerate all current recommendations"; // Updated tooltip
 
   return (
     <div
@@ -1286,9 +1111,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 {currentLevel === "meal" && (
                   <div className="meal-view-background h-full">
                     <MealView
-                      datesToDisplay={datesToDisplay}
-                      allData={traceData}
-                      recommendationData={recommendationData}
+                      allData={traceData} // Pass full trace data
+                      recommendationData={recommendationData} // Pass full rec data
                       selectedDate={selectedDate}
                       onMealSelect={handleMealSelect}
                       selectedMeal={selectedMeal}
@@ -1301,13 +1125,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       mealBinNames={mealBinNames}
                       onMealBinUpdate={handleMealBinNamesUpdate}
                       isLoading={loadingRecommendations}
+                      // Pass infinite scroll props
+                      onRequestFetch={onRequestFetch}
+                      isFetchingPast={isFetchingPast}
+                      isFetchingFuture={isFetchingFuture}
+                      loadedStartDate={loadedStartDate}
+                      loadedEndDate={loadedEndDate}
                     />
                   </div>
                 )}
                 {currentLevel === "food" && (
                   <div className="food-view-background h-full">
+                    {/* TODO: Implement infinite scroll for FoodView if needed */}
                     <FoodView
-                      datesToDisplay={visibleTraceData}
+                      datesToDisplay={traceData} // Pass full data for now
                       allData={traceData}
                       recommendationData={recommendationData}
                       onFoodSelect={handleFoodSelect}
@@ -1321,8 +1152,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 )}
                 {currentLevel === "ingredient" && (
                   <div className="ingredient-view-background h-full">
+                    {/* TODO: Implement infinite scroll for IngredientView if needed */}
                     <IngredientView
-                      selectedDateData={visibleTraceData.find((d) =>
+                      selectedDateData={traceData.find((d) => // Pass data for selected date
                         isSameNormalizedDay(d.date, selectedDate)
                       )}
                       recommendationData={recommendationData}
