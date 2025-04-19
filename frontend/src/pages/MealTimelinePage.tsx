@@ -110,7 +110,7 @@ export const MealTimelinePage: React.FC = () => {
       preferredCuisines: ["soul_food", "southern"],
     },
   });
-  const [userAnthropometrics] = useState<UserAnthropometrics>({
+  const [_] = useState<UserAnthropometrics>({
     age: 45,
     weight: 180,
     height: 68,

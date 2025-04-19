@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DayMeals,
@@ -6,9 +6,18 @@ import {
   MealRecommendation,
   NutritionalInfo,
   DayRecommendations,
-  COLOR_SCHEMES
+  COLOR_SCHEMES,
 } from "../types";
-import { format, isSameDay, startOfDay, isValid as isValidDate, parseISO } from "date-fns";
+import {
+  format,
+  isSameDay,
+  startOfDay,
+  isValid as isValidDate,
+  parseISO,
+  subDays,
+  addDays,
+} from "date-fns";
+import { generateDateRange } from "../../../services/recipeService";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -55,34 +64,38 @@ const getIngredientKey = (ingredient: Ingredient): string | null => {
   return null; // Cannot generate a reliable key
 };
 
-interface IngredientViewProps {
-  selectedDateData: DayMeals | undefined;
-  recommendationData: DayRecommendations[];
-  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
-  selectedIngredient: Ingredient | null;
-  mealBinNames: string[];
-  onMealBinUpdate: (newBinNames: string[]) => void;
-  selectedRecommendation: MealRecommendation | null; // Kept for highlighting/simulation
-  selectedDate: Date;
-}
+// Define the type for the callback to parent for fetching
+type FetchRequestHandler = (payload: {
+  datesToFetch: string[];
+  direction: "past" | "future" | "initial" | "specific";
+}) => void;
 
 interface IngredientViewProps {
-  selectedDateData: DayMeals | undefined; // Data for the *single* selected date
-  recommendationData: DayRecommendations[]; // All recommendation data
-  onIngredientSelect: (ingredient: Ingredient | null, isRecommended?: boolean) => void;
+  allData: DayMeals[];
+  recommendationData: DayRecommendations[];
+  onIngredientSelect: (
+    ingredient: Ingredient | null,
+    isRecommended?: boolean
+  ) => void;
   selectedIngredient: Ingredient | null;
   mealBinNames: string[]; // Keep prop for potential future use (though categories are used now)
   onMealBinUpdate: (newBinNames: string[]) => void; // Keep prop
   selectedRecommendation: MealRecommendation | null; // For context/highlighting
   selectedDate: Date; // The currently selected date from the parent
+  // Add infinite scroll props
+  onRequestFetch: FetchRequestHandler;
+  isFetchingPast: boolean;
+  isFetchingFuture: boolean;
+  loadedStartDate: Date | null;
+  loadedEndDate: Date | null;
 }
 
 const getPrimaryNutrient = (
-  nutritionalInfo: NutritionalInfo | undefined // Allow undefined
+  nutritionalInfo: NutritionalInfo | undefined
 ): string | null => {
-  if (!nutritionalInfo) return null; // Handle undefined case
-  const { protein = 0, carbs = 0, calories = 0, fiber = 0 } = nutritionalInfo; // Default values
-  if (fiber > 3) return "Fiber Source"; // Prioritize fiber
+  if (!nutritionalInfo) return null;
+  const { protein = 0, carbs = 0, fiber = 0 } = nutritionalInfo;
+  if (fiber > 3) return "Fiber Source";
   const macros = { protein, carbs };
   let primary: keyof typeof macros | null = null;
   let maxValue = 0;
@@ -94,13 +107,11 @@ const getPrimaryNutrient = (
     }
   }
   if (primary && maxValue > 5) {
-    // Only show if significant amount
     return `${primary.charAt(0).toUpperCase() + primary.slice(1)} Source`;
   }
   return null;
 };
 
-// Ingredient Card
 const IngredientCard: React.FC<{
   ingredient: Ingredient;
   isSelected: boolean;
@@ -111,7 +122,6 @@ const IngredientCard: React.FC<{
     COLOR_SCHEMES.ingredient[
       ingredient.category as keyof typeof COLOR_SCHEMES.ingredient
     ] || "#cccccc";
-
   const primaryNutrient = getPrimaryNutrient(ingredient.nutritionalInfo);
   // Defensive check for nutritionalInfo
   const calories = ingredient.nutritionalInfo?.calories ?? 0;
@@ -163,247 +173,431 @@ const IngredientCard: React.FC<{
   );
 };
 
+// Loading indicator component (reuse from FoodView or move to shared)
+const LoadingIndicator = ({
+  position = "center",
+}: {
+  position?: "center" | "top" | "bottom";
+}) => (
+  <div
+    className={`flex items-center justify-center p-4 ${
+      position === "top"
+        ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+        : position === "bottom"
+        ? "py-4"
+        : "h-full"
+    }`}
+  >
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 export const IngredientView: React.FC<IngredientViewProps> = ({
-  selectedDateData, // Data for the specific selected date
-  recommendationData, // All recommendations
+  allData,
+  recommendationData,
   onIngredientSelect,
   selectedIngredient,
-  // mealBinNames, // Not used for binning, but kept for props interface consistency
-  // onMealBinUpdate, // Keep prop
-  // selectedRecommendation, // Keep prop for context if needed later
-  selectedDate, // Use this prop for finding recommendations
+  selectedDate, // Keep for highlighting/context
+  onRequestFetch,
+  isFetchingPast,
+  isFetchingFuture,
+  loadedStartDate,
+  loadedEndDate,
 }) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const SCROLL_THRESHOLD = 300;
+  const FETCH_RANGE_DAYS = 7;
 
-  // Refined function to get combined ingredients using Map
-  const getCombinedIngredientsForDay = useCallback((): Array<Ingredient & { isRecommended: boolean }> => {
-    const normalizedTargetDate = normalizeDate(selectedDate); // Use the selectedDate prop
-    if (!isValidDate(normalizedTargetDate)) {
-        console.error("IngredientView: Invalid selectedDate prop received:", selectedDate);
-        return [];
-    }
-    console.log(`IngredientView: getCombinedIngredientsForDay for ${format(normalizedTargetDate, "yyyy-MM-dd")}`);
+  // Combine and sort all available dates
+  const allAvailableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    allData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    recommendationData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    if (loadedStartDate && isValidDate(loadedStartDate))
+      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+    if (loadedEndDate && isValidDate(loadedEndDate))
+      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
 
-    // 1. Get Trace Ingredients from selectedDateData prop
-    const traceIngredients: Ingredient[] = [];
-    if (selectedDateData && isSameNormalizedDay(selectedDateData.date, normalizedTargetDate)) {
-        (selectedDateData.meals || []).forEach((meal) => {
-            (meal.foods || []).forEach((food) => {
-                (food.ingredients || []).forEach((ingredient) => {
-                    const key = getIngredientKey(ingredient);
-                    if (key && !traceIngredients.some(t => getIngredientKey(t) === key)) {
-                        traceIngredients.push(ingredient);
-                    }
-                });
-            });
-        });
-    } else {
-        // This case might happen briefly during date transitions if props haven't fully updated.
-        // console.log("IngredientView: selectedDateData does not match selectedDate prop yet.");
-    }
-    console.log(` -> Found ${traceIngredients.length} unique trace ingredients from selectedDateData.`);
+    const sortedDates = Array.from(dateSet)
+      .map((dateStr) => normalizeDate(dateStr))
+      .filter(isValidDate)
+      .sort((a, b) => a.getTime() - b.getTime());
 
-    // 2. Get Recommended Ingredients for the target date from recommendationData
-    const dayRecommendations = recommendationData.find((dayRec) =>
-      isSameNormalizedDay(dayRec.date, normalizedTargetDate)
+    console.log(
+      `IngredientView: Calculated ${sortedDates.length} available dates to render.`
     );
-    const recommendedIngredients: Ingredient[] = [];
-    if (dayRecommendations) {
-        (dayRecommendations.recommendations || []).forEach((rec) => {
-            (rec.meal.foods || []).forEach((food) => {
-                (food.ingredients || []).forEach((ing) => {
-                    const key = getIngredientKey(ing);
-                    if (key && !recommendedIngredients.some(r => getIngredientKey(r) === key)) {
-                        recommendedIngredients.push(ing);
-                    }
-                });
+    return sortedDates;
+  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
+
+  // Get data for a specific date from allData
+  const getDataForDate = useCallback(
+    (targetDate: Date): DayMeals | undefined => {
+      const normalizedTarget = normalizeDate(targetDate);
+      return allData.find((day) => {
+        const normalizedDayDate = normalizeDate(day.date);
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          return false;
+        }
+        return isSameDay(normalizedDayDate, normalizedTarget);
+      });
+    },
+    [allData]
+  );
+
+  // Get combined ingredients for a specific date
+  const getCombinedIngredientsForDate = useCallback(
+    (targetDate: Date): Array<Ingredient & { isRecommended: boolean }> => {
+      const normalizedTargetDate = normalizeDate(targetDate);
+      if (!isValidDate(normalizedTargetDate)) return [];
+
+      // 1. Get Trace Ingredients from allData for the target date
+      const dayData = getDataForDate(normalizedTargetDate); // Use helper
+      const traceIngredients: Ingredient[] = [];
+      if (dayData) {
+        (dayData.meals || []).forEach((meal) => {
+          (meal.foods || []).forEach((food) => {
+            (food.ingredients || []).forEach((ingredient) => {
+              const key = getIngredientKey(ingredient);
+              if (
+                key &&
+                !traceIngredients.some((t) => getIngredientKey(t) === key)
+              ) {
+                traceIngredients.push(ingredient);
+              }
             });
+          });
         });
-    }
-    console.log(` -> Found ${recommendedIngredients.length} unique recommended ingredients from recommendationData.`);
-
-    // 3. Combine using a Map
-    const combinedIngredientMap = new Map<string, Ingredient & { isRecommended: boolean }>();
-
-    // Add trace ingredients first
-    traceIngredients.forEach(ing => {
-        const key = getIngredientKey(ing);
-        if (key) {
-            combinedIngredientMap.set(key, { ...ing, isRecommended: false });
-        }
-    });
-
-    // Add/update with recommended ingredients
-    recommendedIngredients.forEach(ing => {
-        const key = getIngredientKey(ing);
-        if (key) {
-            if (combinedIngredientMap.has(key)) {
-                const existing = combinedIngredientMap.get(key)!;
-                combinedIngredientMap.set(key, { ...existing, isRecommended: true });
-            } else {
-                combinedIngredientMap.set(key, { ...ing, isRecommended: true });
-            }
-        }
-    });
-
-    // 4. Convert map back to array and sort
-    const combinedIngredients = Array.from(combinedIngredientMap.values());
-    combinedIngredients.sort((a, b) => {
-      if (a.category !== b.category) return (a.category || "z").localeCompare(b.category || "z");
-      return a.name.localeCompare(b.name);
-    });
-
-    console.log(` -> Total combined ingredients for ${format(normalizedTargetDate, "yyyy-MM-dd")}: ${combinedIngredients.length}`);
-    return combinedIngredients;
-
-  }, [selectedDate, selectedDateData, recommendationData]); // Dependencies updated
-
-  const ingredients = getCombinedIngredientsForDay();
-
-  // Organize ingredients into bins based on category
-  const organizeIngredientsIntoBins = useCallback(() => {
-    const bins: Record<string, Array<Ingredient & { isRecommended: boolean }>> = {};
-    // Determine categories from the combined list
-    const categories = [
-      ...new Set(ingredients.map((ing) => ing.category || "other")),
-    ].sort();
-
-    // Create bin names (capitalized categories)
-    const displayBinNames = categories.map(
-      (cat) => cat.charAt(0).toUpperCase() + cat.slice(1)
-    );
-
-    // Initialize bins
-    displayBinNames.forEach((name) => (bins[name] = []));
-    // Ensure 'Other' bin exists if 'other' category is present but not explicitly named 'Other'
-    if (categories.includes("other") && !displayBinNames.includes("Other")) {
-        bins["Other"] = [];
-    }
-
-    // Distribute ingredients into bins
-    ingredients.forEach((ing) => {
-      const categoryName = (ing.category || "other").charAt(0).toUpperCase() + (ing.category || "other").slice(1);
-      // Handle cases where category might not perfectly match bin name (e.g., 'other' vs 'Other')
-      const binTarget = bins[categoryName] ? categoryName : "Other";
-      if (bins[binTarget]) {
-          bins[binTarget].push(ing);
-      } else {
-          // Fallback if even 'Other' bin wasn't initialized (shouldn't happen with above logic)
-          console.warn(`Could not find bin for category: ${categoryName}`);
       }
-    });
 
-    return { bins, displayBinNames };
-  }, [ingredients]); // Depends only on the calculated ingredients list
+      // 2. Get Recommended Ingredients for the target date
+      const dayRecommendations = recommendationData.find((dayRec) =>
+        isSameNormalizedDay(dayRec.date, normalizedTargetDate)
+      );
+      const recommendedIngredients: Ingredient[] = [];
+      if (dayRecommendations) {
+        (dayRecommendations.recommendations || []).forEach((rec) => {
+          (rec.meal.foods || []).forEach((food) => {
+            (food.ingredients || []).forEach((ing) => {
+              const key = getIngredientKey(ing);
+              if (
+                key &&
+                !recommendedIngredients.some((r) => getIngredientKey(r) === key)
+              ) {
+                recommendedIngredients.push(ing);
+              }
+            });
+          });
+        });
+      }
 
-  const { bins, displayBinNames } = organizeIngredientsIntoBins();
+      // 3. Combine using a Map
+      const combinedIngredientMap = new Map<
+        string,
+        Ingredient & { isRecommended: boolean }
+      >();
+      traceIngredients.forEach((ing) => {
+        const key = getIngredientKey(ing);
+        if (key)
+          combinedIngredientMap.set(key, { ...ing, isRecommended: false });
+      });
+      recommendedIngredients.forEach((ing) => {
+        const key = getIngredientKey(ing);
+        if (key) {
+          if (combinedIngredientMap.has(key)) {
+            const existing = combinedIngredientMap.get(key)!;
+            combinedIngredientMap.set(key, {
+              ...existing,
+              isRecommended: true,
+            });
+          } else {
+            combinedIngredientMap.set(key, { ...ing, isRecommended: true });
+          }
+        }
+      });
 
-  // --- Render Logic ---
+      // 4. Convert map back to array and sort
+      const combinedIngredients = Array.from(combinedIngredientMap.values());
+      combinedIngredients.sort((a, b) => {
+        if (a.category !== b.category)
+          return (a.category || "z").localeCompare(b.category || "z");
+        return a.name.localeCompare(b.name);
+      });
 
-  const normalizedCurrentDate = normalizeDate(selectedDate); // Normalize for display
+      return combinedIngredients;
+    },
+    [getDataForDate, recommendationData] // Depend on helper
+  );
 
-  // Handle loading/empty state based on selectedDateData prop
-  if (!selectedDateData || !isSameNormalizedDay(selectedDateData.date, normalizedCurrentDate)) {
-    // Show a loading or placeholder state if the data for the selected date isn't available *yet*
-    // This might flash briefly during date transitions.
-    return (
-      <div className="p-4 text-center text-gray-500 h-full flex items-center justify-center">
-        Loading ingredients for {format(normalizedCurrentDate, "MMM d, yyyy")}...
-      </div>
-    );
-  }
+  // Organize ingredients into bins based on category for a specific date
+  const organizeIngredientsIntoBins = useCallback(
+    (date: Date) => {
+      const ingredientsForDate = getCombinedIngredientsForDate(date);
+      const bins: Record<
+        string,
+        Array<Ingredient & { isRecommended: boolean }>
+      > = {};
+      const categories = [
+        ...new Set(ingredientsForDate.map((ing) => ing.category || "other")),
+      ].sort();
+      const displayBinNames = categories.map(
+        (cat) => cat.charAt(0).toUpperCase() + cat.slice(1)
+      );
 
-  // Add check for valid date object again before rendering (belt and suspenders)
-  if (!isValidDate(normalizedCurrentDate)) {
-    console.error("IngredientView: Invalid date object before render", normalizedCurrentDate);
-    return (
-      <div className="p-4 text-center text-red-500">
-        Error: Invalid date selected.
-      </div>
-    );
-  }
+      displayBinNames.forEach((name) => (bins[name] = []));
+      if (categories.includes("other") && !displayBinNames.includes("Other")) {
+        bins["Other"] = [];
+      }
+
+      ingredientsForDate.forEach((ing) => {
+        const categoryName =
+          (ing.category || "other").charAt(0).toUpperCase() +
+          (ing.category || "other").slice(1);
+        const binTarget = bins[categoryName] ? categoryName : "Other";
+        if (bins[binTarget]) {
+          bins[binTarget].push(ing);
+        }
+      });
+
+      return {
+        bins,
+        displayBinNames,
+        totalIngredients: ingredientsForDate.length,
+      };
+    },
+    [getCombinedIngredientsForDate]
+  );
+
+  // Scroll handler for VERTICAL infinite loading
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !loadedStartDate || !loadedEndDate) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearTop = scrollTop < SCROLL_THRESHOLD;
+    const isNearBottom =
+      scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
+
+    if (isNearTop && !isFetchingPast) {
+      console.log("IngredientView: Near top, requesting past data...");
+      const fetchEndDate = subDays(loadedStartDate, 1);
+      const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        onRequestFetch({ datesToFetch, direction: "past" });
+      }
+    }
+
+    if (isNearBottom && !isFetchingFuture) {
+      console.log("IngredientView: Near bottom, requesting future data...");
+      const fetchStartDate = addDays(loadedEndDate, 1);
+      const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        onRequestFetch({ datesToFetch, direction: "future" });
+      }
+    }
+  }, [
+    onRequestFetch,
+    isFetchingPast,
+    isFetchingFuture,
+    loadedStartDate,
+    loadedEndDate,
+  ]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll]);
 
   console.log(
-    `IngredientView: Rendering component. Date: ${format(normalizedCurrentDate, "yyyy-MM-dd")}. Bins to display: ${displayBinNames.length}`
+    `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
   );
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      {/* Fixed header for bins (categories) */}
-      <div className="flex border-b bg-white z-10 sticky top-0">
-        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
-          {format(normalizedCurrentDate, "MMM d, yyyy")}
-        </div>
-        {displayBinNames.map((binName, index) => (
-          <div
-            key={binName}
-            className={`flex-1 p-4 text-center font-medium text-gray-700 capitalize ${
-              index > 0 ? "border-l" : ""
-            }`}
-          >
-            {binName}
-          </div>
-        ))}
-      </div>
+    <div className="w-full h-full flex flex-col overflow-hidden box-border">
+      {/* Fixed header for bins (categories) - This needs rethinking for vertical scroll */}
+      {/* We will render headers within each date row instead */}
 
-      {/* Content area */}
-      <div className="flex-1 flex overflow-hidden bg-gray-50">
-        {/* Optional: Sidebar */}
-        <div className="w-32 flex-shrink-0 p-4 border-r bg-white">
-          <h4 className="font-medium text-sm mb-2">Day Summary</h4>
-          <p className="text-xs text-gray-600">
-            Unique Ingredients: {ingredients.length}
-          </p>
-          {/* Add more summary info */}
-        </div>
+      {/* Scrollable container for DATES (Vertical Scroll) */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto bg-gray-50 relative"
+      >
+        {/* Past Loading Indicator */}
+        {isFetchingPast && <LoadingIndicator position="top" />}
 
-        {/* Ingredient Bins */}
-        <div className="flex flex-1 overflow-x-auto">
-          {displayBinNames.map((binName, index) => {
-            const binContent = bins[binName];
-            // console.log(` -> Rendering Bin '${binName}'. Items: ${binContent?.length ?? 0}`);
+        {/* Render Date Rows */}
+        <div className="min-w-full divide-y divide-gray-200">
+          {allAvailableDates.map((currentDate) => {
+            if (!isValidDate(currentDate)) {
+              console.error(
+                "IngredientView: Invalid date object encountered in allAvailableDates",
+                currentDate
+              );
+              return null;
+            }
+            const isSelectedHighlight = isSameDay(
+              normalizeDate(currentDate),
+              normalizeDate(selectedDate)
+            );
+            const { bins, displayBinNames, totalIngredients } =
+              organizeIngredientsIntoBins(currentDate);
 
             return (
               <div
-                key={`${normalizedCurrentDate.toISOString()}-${binName}`}
-                className={`flex-1 p-1.5 overflow-y-auto min-w-[150px] ${
-                  index > 0 ? "border-l" : ""
+                key={currentDate.toISOString()}
+                className={`flex flex-col min-h-[180px] ${
+                  isSelectedHighlight ? "bg-orange-50" : "bg-white"
                 }`}
               >
-                <AnimatePresence>
-                  {binContent?.map((ingredient) => {
-                    const ingredientKey = getIngredientKey(ingredient);
-                    const selectedKey = selectedIngredient ? getIngredientKey(selectedIngredient) : null;
-                    const isCurrentlySelected = ingredientKey !== null && ingredientKey === selectedKey;
-
-                    return (
-                      <IngredientCard
-                        // Use a robust key combining unique ID/name and recommendation status
-                        key={`${ingredientKey}-${ingredient.isRecommended}`}
-                        ingredient={ingredient}
-                        isSelected={isCurrentlySelected}
-                        isRecommended={ingredient.isRecommended}
-                        onClick={() => {
-                          // console.log(`IngredientView: Clicked on ${ingredient.name} (Recommended: ${ingredient.isRecommended}). Current selected key: ${selectedKey}. Calling onIngredientSelect.`);
-                          onIngredientSelect(
-                            isCurrentlySelected ? null : ingredient,
-                            ingredient.isRecommended
-                          );
-                        }}
-                      />
-                    );
-                  })}
-                </AnimatePresence>
-
-                {/* Empty State */}
-                {(!binContent || binContent.length === 0) && (
-                  <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                    -
+                {/* Row Header (Date + Categories) */}
+                <div
+                  className={`flex border-b sticky top-0 z-[5] ${
+                    isSelectedHighlight
+                      ? "bg-orange-100 border-orange-200"
+                      : "bg-gray-100 border-gray-200"
+                  }`}
+                >
+                  {/* Date Cell */}
+                  <div
+                    className={`w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start ${
+                      isSelectedHighlight
+                        ? "border-orange-200"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <div
+                      className={`font-semibold ${
+                        isSelectedHighlight
+                          ? "text-orange-800"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      {format(currentDate, "EEE")}
+                    </div>
+                    <div
+                      className={`text-sm ${
+                        isSelectedHighlight
+                          ? "text-orange-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {format(currentDate, "MMM d")}
+                    </div>
+                    <div
+                      className={`text-xs ${
+                        isSelectedHighlight
+                          ? "text-orange-500"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {format(currentDate, "yyyy")} ({totalIngredients})
+                    </div>
                   </div>
-                )}
+                  {/* Category Headers */}
+                  <div className="flex flex-1 overflow-x-auto">
+                    {displayBinNames.map((binName, index) => (
+                      <div
+                        key={`${currentDate.toISOString()}-header-${binName}`}
+                        className={`flex-1 p-4 text-center font-medium capitalize text-xs ${
+                          isSelectedHighlight
+                            ? "text-orange-700"
+                            : "text-gray-700"
+                        } ${index > 0 ? "border-l" : ""} ${
+                          isSelectedHighlight
+                            ? "border-orange-200"
+                            : "border-gray-200"
+                        }`}
+                        style={{ minWidth: "150px" }} // Ensure min-width for headers
+                      >
+                        {binName} ({bins[binName]?.length ?? 0})
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Row Content (Ingredient Bins) */}
+                <div className="flex flex-1">
+                  {/* Sidebar (Optional) */}
+                  <div
+                    className={`w-32 flex-shrink-0 p-4 border-r ${
+                      isSelectedHighlight
+                        ? "border-orange-200"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    {/* Add summary info if needed */}
+                  </div>
+                  {/* Ingredient Bins */}
+                  <div className="flex flex-1 overflow-x-auto">
+                    {displayBinNames.map((binName, index) => {
+                      const binContent = bins[binName];
+                      return (
+                        <div
+                          key={`${currentDate.toISOString()}-content-${binName}`}
+                          className={`flex-1 p-1.5 overflow-y-auto min-w-[150px] ${
+                            index > 0 ? "border-l" : ""
+                          } ${
+                            isSelectedHighlight
+                              ? "border-orange-200"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          <AnimatePresence>
+                            {binContent?.map((ingredient) => {
+                              const ingredientKey =
+                                getIngredientKey(ingredient);
+                              const selectedKey = selectedIngredient
+                                ? getIngredientKey(selectedIngredient)
+                                : null;
+                              const isCurrentlySelected =
+                                ingredientKey !== null &&
+                                ingredientKey === selectedKey;
+                              return (
+                                <IngredientCard
+                                  key={`${ingredientKey}-${ingredient.isRecommended}`}
+                                  ingredient={ingredient}
+                                  isSelected={isCurrentlySelected}
+                                  isRecommended={ingredient.isRecommended}
+                                  onClick={() => {
+                                    onIngredientSelect(
+                                      isCurrentlySelected ? null : ingredient,
+                                      ingredient.isRecommended
+                                    );
+                                  }}
+                                />
+                              );
+                            })}
+                          </AnimatePresence>
+                          {(!binContent || binContent.length === 0) && (
+                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                              -
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
+        {/* Future Loading Indicator */}
+        {isFetchingFuture && <LoadingIndicator position="bottom" />}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DayMeals,
@@ -12,8 +12,11 @@ import {
   startOfDay,
   parseISO,
   isValid as isValidDate,
+  subDays,
+  addDays,
 } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
+import { generateDateRange } from "../../../services/recipeService";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -52,16 +55,25 @@ const isSameNormalizedDay = (
   return isSameDay(d1, d2);
 };
 
+type FetchRequestHandler = (payload: {
+  datesToFetch: string[];
+  direction: "past" | "future" | "initial" | "specific";
+}) => void;
+
 interface FoodViewProps {
-  datesToDisplay: DayMeals[];
-  allData: DayMeals[];
+  allData: DayMeals[]; // Changed from datesToDisplay
   recommendationData: DayRecommendations[];
   onFoodSelect: (food: Food | null, isRecommended?: boolean) => void;
   selectedFood: Food | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
-  selectedRecommendation: MealRecommendation | null; // Kept for highlighting/simulation
+  selectedRecommendation: MealRecommendation | null;
   selectedDate: Date;
+  onRequestFetch: FetchRequestHandler;
+  isFetchingPast: boolean;
+  isFetchingFuture: boolean;
+  loadedStartDate: Date | null;
+  loadedEndDate: Date | null;
 }
 
 // Food Card Component
@@ -92,10 +104,10 @@ const FoodCard: React.FC<{
       className={`food-card-item relative p-2.5 mb-2 rounded-lg cursor-pointer text-xs
         ${
           isRecommended
-            ? "bg-green-50/60 border border-dashed border-green-300" // Rec style
-            : "bg-white shadow-sm border border-gray-200" // Trace style
+            ? "bg-green-50/60 border border-dashed border-green-300"
+            : "bg-white shadow-sm border border-gray-200"
         }
-        ${isSelected ? "ring-2 ring-purple-500" : ""} // Selection style
+        ${isSelected ? "ring-2 ring-purple-500" : ""}
         hover:shadow-md transition-all duration-200
         flex items-center space-x-2`}
       onClick={onClick}
@@ -140,49 +152,111 @@ const FoodCard: React.FC<{
   );
 };
 
+// Loading indicator component
+const LoadingIndicator = ({
+  position = "center",
+}: {
+  position?: "center" | "top" | "bottom";
+}) => (
+  <div
+    className={`flex items-center justify-center p-4 ${
+      position === "top"
+        ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+        : position === "bottom"
+        ? "py-4"
+        : "h-full"
+    }`}
+  >
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+  </div>
+);
+
 export const FoodView: React.FC<FoodViewProps> = ({
-  datesToDisplay,
+  allData, // Use allData
   recommendationData,
   onFoodSelect,
   selectedFood,
   mealBinNames,
   onMealBinUpdate,
+  selectedDate,
+  onRequestFetch,
+  isFetchingPast,
+  isFetchingFuture,
+  loadedStartDate,
+  loadedEndDate,
 }) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const SCROLL_THRESHOLD = 300;
+  const FETCH_RANGE_DAYS = 7;
+
+  // Combine and sort all available dates from trace and recommendation data
+  const allAvailableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    allData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    recommendationData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    if (loadedStartDate && isValidDate(loadedStartDate))
+      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+    if (loadedEndDate && isValidDate(loadedEndDate))
+      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
+
+    const sortedDates = Array.from(dateSet)
+      .map((dateStr) => normalizeDate(dateStr))
+      .filter(isValidDate)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    console.log(
+      `FoodView: Calculated ${sortedDates.length} available dates to render.`
+    );
+    return sortedDates;
+  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
+
+  // Get data for a specific date from allData
+  const getDataForDate = useCallback(
+    (targetDate: Date): DayMeals | undefined => {
+      const normalizedTarget = normalizeDate(targetDate);
+      return allData.find((day) => {
+        const normalizedDayDate = normalizeDate(day.date);
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          return false;
+        }
+        return isSameDay(normalizedDayDate, normalizedTarget);
+      });
+    },
+    [allData]
+  );
+
   const getCombinedFoodsForDate = useCallback(
     (targetDate: Date): Array<Food & { isRecommended: boolean }> => {
       const normalizedTargetDate = normalizeDate(targetDate);
       if (!isValidDate(normalizedTargetDate)) return [];
 
-      console.log(
-        `FoodView: getCombinedFoodsForDate for ${format(
-          normalizedTargetDate,
-          "yyyy-MM-dd"
-        )}`
-      );
-
-      // 1. Get Trace Foods for the specific date from datesToDisplay
-      const dayData = datesToDisplay.find((day) =>
-        isSameNormalizedDay(day.date, normalizedTargetDate)
-      );
+      // 1. Get Trace Foods for the specific date using getDataForDate
+      const dayData = getDataForDate(normalizedTargetDate); // Use helper
       const traceFoods: Food[] = [];
       if (dayData) {
         (dayData.meals || []).forEach((meal) => {
           (meal.foods || []).forEach((food) => {
-            if (food && food.id) {
-              // Ensure food and food.id exist
-              // Avoid adding duplicates within the trace itself for this view
-              if (!traceFoods.some((tf) => tf.id === food.id)) {
-                traceFoods.push(food);
-              }
+            if (
+              food &&
+              food.id &&
+              !traceFoods.some((tf) => tf.id === food.id)
+            ) {
+              traceFoods.push(food);
             }
           });
         });
       }
-      console.log(
-        ` -> Found ${traceFoods.length} unique trace foods from datesToDisplay.`
-      );
 
-      // 2. Get Recommended Foods for this date from recommendationData
+      // 2. Get Recommended Foods for this date
       const dayRecommendations = recommendationData.find((dayRec) =>
         isSameNormalizedDay(dayRec.date, normalizedTargetDate)
       );
@@ -190,39 +264,30 @@ export const FoodView: React.FC<FoodViewProps> = ({
       if (dayRecommendations) {
         (dayRecommendations.recommendations || []).forEach((rec) => {
           (rec.meal.foods || []).forEach((food) => {
-            if (food && food.id) {
-              // Ensure food and food.id exist
-              // Avoid adding duplicates within recommendations for this view
-              if (!recommendedFoods.some((rf) => rf.id === food.id)) {
-                recommendedFoods.push(food);
-              }
+            if (
+              food &&
+              food.id &&
+              !recommendedFoods.some((rf) => rf.id === food.id)
+            ) {
+              recommendedFoods.push(food);
             }
           });
         });
       }
-      console.log(
-        ` -> Found ${recommendedFoods.length} unique recommended foods from recommendationData.`
-      );
 
-      // 3. Combine using a Map to handle overlaps and set isRecommended flag
+      // 3. Combine using a Map
       const combinedFoodMap = new Map<
         string,
         Food & { isRecommended: boolean }
       >();
-
-      // Add trace foods first
-      traceFoods.forEach((food) => {
-        combinedFoodMap.set(food.id, { ...food, isRecommended: false });
-      });
-
-      // Add/update with recommended foods
+      traceFoods.forEach((food) =>
+        combinedFoodMap.set(food.id, { ...food, isRecommended: false })
+      );
       recommendedFoods.forEach((food) => {
         if (combinedFoodMap.has(food.id)) {
-          // If already present from trace, just update the flag
           const existing = combinedFoodMap.get(food.id)!;
           combinedFoodMap.set(food.id, { ...existing, isRecommended: true });
         } else {
-          // If not present, add it as recommended
           combinedFoodMap.set(food.id, { ...food, isRecommended: true });
         }
       });
@@ -234,76 +299,96 @@ export const FoodView: React.FC<FoodViewProps> = ({
         return a.name.localeCompare(b.name);
       });
 
-      console.log(
-        ` -> Total combined foods for ${format(
-          normalizedTargetDate,
-          "yyyy-MM-dd"
-        )}: ${combinedFoods.length}`
-      );
       return combinedFoods;
     },
-    [datesToDisplay, recommendationData]
+    [getDataForDate, recommendationData] // Depend on getDataForDate helper
   );
 
-  // organizeFoodsIntoBins remains largely the same, but uses the result of the updated getCombinedFoodsForDate
   const organizeFoodsIntoBins = useCallback(
     (date: Date) => {
-      const foods = getCombinedFoodsForDate(date); // Use the combined list
+      const foods = getCombinedFoodsForDate(date);
       const bins: Record<string, Array<Food & { isRecommended: boolean }>> = {};
-
       mealBinNames.forEach((name) => {
         bins[name] = [];
       });
 
-      // Simple distribution: put all foods in the first bin for now
-      // TODO: Implement better binning if needed
+      // Simple distribution: put all foods in the first bin
       if (mealBinNames.length > 0 && foods.length > 0) {
         bins[mealBinNames[0]] = foods;
-        console.log(
-          `FoodView: Distributed ${foods.length} foods into bin '${
-            mealBinNames[0]
-          }' for ${format(date, "yyyy-MM-dd")}`
-        );
-      } else if (foods.length > 0) {
-        console.warn(
-          `FoodView: No meal bins available to distribute ${
-            foods.length
-          } foods for ${format(date, "yyyy-MM-dd")}`
-        );
       }
 
-      // TODO: Auto-adjust bin count (simplified)
+      // Auto-adjust bin count (simplified)
       if (foods.length > mealBinNames.length * 5 && mealBinNames.length > 0) {
-        // Example: 5 foods per bin max
         const requiredBins = Math.ceil(foods.length / 5);
         if (requiredBins > mealBinNames.length) {
           const newNames = [...mealBinNames];
           while (newNames.length < requiredBins) {
             newNames.push(`Bin ${newNames.length + 1}`);
           }
-          // Defer update to avoid state change during render
           setTimeout(() => onMealBinUpdate(newNames), 0);
         }
       }
-
       return bins;
     },
     [getCombinedFoodsForDate, mealBinNames, onMealBinUpdate]
   );
 
+  // Scroll handler for VERTICAL infinite loading
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !loadedStartDate || !loadedEndDate) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearTop = scrollTop < SCROLL_THRESHOLD;
+    const isNearBottom =
+      scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
+
+    if (isNearTop && !isFetchingPast) {
+      console.log("FoodView: Near top, requesting past data...");
+      const fetchEndDate = subDays(loadedStartDate, 1);
+      const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        onRequestFetch({ datesToFetch, direction: "past" });
+      }
+    }
+
+    if (isNearBottom && !isFetchingFuture) {
+      console.log("FoodView: Near bottom, requesting future data...");
+      const fetchStartDate = addDays(loadedEndDate, 1);
+      const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        onRequestFetch({ datesToFetch, direction: "future" });
+      }
+    }
+  }, [
+    onRequestFetch,
+    isFetchingPast,
+    isFetchingFuture,
+    loadedStartDate,
+    loadedEndDate,
+  ]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll]);
+
   console.log(
-    `FoodView: Rendering component. Dates to display: ${
-      datesToDisplay.length
+    `FoodView: Rendering component. Dates to render: ${
+      allAvailableDates.length
     }, Bins: ${mealBinNames.join(", ")}`
   );
-  if (!datesToDisplay || datesToDisplay.length === 0) {
-    console.warn("FoodView: No datesToDisplay provided.");
-  }
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header for bins */}
-      <div className="flex border-b bg-white z-10 sticky top-0">
+      {/* Fixed header */}
+      <div className="flex border-b bg-white z-10 sticky top-0 flex-shrink-0">
         <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
           Date
         </div>
@@ -313,6 +398,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
             className={`flex-1 p-4 text-center font-medium text-gray-700 ${
               index > 0 ? "border-l" : ""
             }`}
+            style={{ minWidth: "150px" }}
           >
             {binName}
           </div>
@@ -320,45 +406,64 @@ export const FoodView: React.FC<FoodViewProps> = ({
       </div>
 
       {/* Scrollable container */}
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="min-h-full flex flex-col">
-          {datesToDisplay.map((currentDateData) => {
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto bg-gray-50 relative"
+      >
+        {/* Past Loading Indicator */}
+        {isFetchingPast && <LoadingIndicator position="top" />}
+
+        {/* Render Date Rows */}
+        <div className="min-w-full divide-y divide-gray-200">
+          {allAvailableDates.map((currentDate) => {
             // Defensive check for valid date object
-            if (
-              !currentDateData ||
-              !(currentDateData.date instanceof Date) ||
-              isNaN(currentDateData.date.getTime())
-            ) {
+            if (!isValidDate(currentDate)) {
               console.error(
-                "FoodView: Invalid date object encountered in datesToDisplay",
-                currentDateData
+                "FoodView: Invalid date object encountered in allAvailableDates",
+                currentDate
               );
               return null; // Skip rendering for invalid date
             }
-            const currentDate = currentDateData.date;
-            const bins = organizeFoodsIntoBins(currentDate);
-            console.log(
-              `FoodView: Rendering row for date ${format(
-                currentDate,
-                "yyyy-MM-dd"
-              )}. Bins object keys:`,
-              Object.keys(bins)
+            const isSelectedHighlight = isSameDay(
+              normalizeDate(currentDate),
+              normalizeDate(selectedDate)
             );
+            const bins = organizeFoodsIntoBins(currentDate);
 
             return (
               <div
                 key={currentDate.toISOString()}
-                className="flex flex-1 min-h-[150px] border-b last:border-b-0 bg-white"
+                className={`flex min-h-[150px] ${
+                  isSelectedHighlight ? "bg-purple-50" : "bg-white"
+                }`}
               >
                 {/* Date Cell */}
-                <div className="w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start">
-                  <div className="font-semibold text-gray-800">
+                <div
+                  className={`w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start ${
+                    isSelectedHighlight
+                      ? "border-purple-200"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <div
+                    className={`font-semibold ${
+                      isSelectedHighlight ? "text-purple-800" : "text-gray-800"
+                    }`}
+                  >
                     {format(currentDate, "EEE")}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div
+                    className={`text-sm ${
+                      isSelectedHighlight ? "text-purple-600" : "text-gray-500"
+                    }`}
+                  >
                     {format(currentDate, "MMM d")}
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div
+                    className={`text-xs ${
+                      isSelectedHighlight ? "text-purple-500" : "text-gray-400"
+                    }`}
+                  >
                     {format(currentDate, "yyyy")}
                   </div>
                 </div>
@@ -366,61 +471,38 @@ export const FoodView: React.FC<FoodViewProps> = ({
                 {/* Food Bins */}
                 <div className="flex flex-1">
                   {mealBinNames.map((binName, index) => {
-                    // Log the content of the specific bin being rendered
                     const binContent = bins[binName];
-                    console.log(
-                      ` -> Rendering Bin '${binName}' for ${format(
-                        currentDate,
-                        "yyyy-MM-dd"
-                      )}. Items: ${binContent?.length ?? 0}`
-                    );
-                    if (binContent && binContent.length > 0) {
-                      console.log(
-                        "   -> Bin Content:",
-                        binContent.map((f) => ({
-                          name: f.name,
-                          id: f.id,
-                          isRec: f.isRecommended,
-                        }))
-                      );
-                    }
-
                     return (
                       <div
-                      key={`${currentDate.toISOString()}-${binName}`}
-                      className={`flex-1 p-2 w-full flex flex-col items-stretch justify-center overflow-y-auto ${
-                        index > 0 ? "border-l" : ""
-                      }`}
+                        key={`${currentDate.toISOString()}-${binName}`}
+                        className={`flex-1 p-2 w-full flex flex-col items-stretch justify-center overflow-y-auto ${
+                          index > 0 ? "border-l" : ""
+                        } ${
+                          isSelectedHighlight
+                            ? "border-purple-200"
+                            : "border-gray-200"
+                        }`}
+                        style={{ minWidth: "150px" }}
                       >
                         <AnimatePresence>
-                          {binContent?.map(
-                            (
-                              food // food here includes isRecommended
-                            ) => (
-                              <FoodCard
-                                key={`${food.id}-${food.isRecommended}`}
-                                food={food}
-                                isSelected={selectedFood?.id === food.id}
-                                isRecommended={food.isRecommended} // Pass isRecommended status
-                                onClick={() => {
-                                  console.log(
-                                    `FoodView: Clicked on ${food.name} (Recommended: ${food.isRecommended}). Current selected: ${selectedFood?.id}. Calling onFoodSelect.`
-                                  );
-                                  // Toggle selection: if already selected, pass null, otherwise pass the food and its recommended status
-                                  onFoodSelect(
-                                    selectedFood?.id === food.id ? null : food,
-                                    food.isRecommended // Pass the flag here
-                                  );
-                                }}
-                              />
-                            )
-                          )}
+                          {binContent?.map((food) => (
+                            <FoodCard
+                              key={`${food.id}-${food.isRecommended}`}
+                              food={food}
+                              isSelected={selectedFood?.id === food.id}
+                              isRecommended={food.isRecommended}
+                              onClick={() => {
+                                onFoodSelect(
+                                  selectedFood?.id === food.id ? null : food,
+                                  food.isRecommended
+                                );
+                              }}
+                            />
+                          ))}
                         </AnimatePresence>
-
-                        {/* Empty State */}
                         {(!binContent || binContent.length === 0) && (
                           <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                            No foods
+                            -
                           </div>
                         )}
                       </div>
@@ -431,6 +513,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
             );
           })}
         </div>
+        {/* Future Loading Indicator */}
+        {isFetchingFuture && <LoadingIndicator position="bottom" />}
       </div>
     </div>
   );
