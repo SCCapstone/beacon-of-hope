@@ -210,6 +210,11 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   const SCROLL_THRESHOLD = 300;
   const FETCH_RANGE_DAYS = 7;
 
+  // Refs for scroll adjustment
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevLoadedStartDateRef = useRef<Date | null>(null);
+  const isAdjustingScrollRef = useRef(false); // Prevent race conditions
+
   // Combine and sort all available dates
   const allAvailableDates = useMemo(() => {
     const dateSet = new Set<string>();
@@ -381,7 +386,13 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   // Scroll handler for VERTICAL infinite loading
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
-    if (!container || !loadedStartDate || !loadedEndDate) return;
+    if (
+      !container ||
+      !loadedStartDate ||
+      !loadedEndDate ||
+      isAdjustingScrollRef.current
+    )
+      return; // Prevent scroll handling during adjustment
 
     const { scrollTop, scrollHeight, clientHeight } = container;
     const isNearTop = scrollTop < SCROLL_THRESHOLD;
@@ -394,6 +405,8 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
       if (datesToFetch.length > 0) {
+        // Store scroll height *before* fetch request that will cause prepend
+        prevScrollHeightRef.current = container.scrollHeight;
         onRequestFetch({ datesToFetch, direction: "past" });
       }
     }
@@ -423,6 +436,44 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       return () => container.removeEventListener("scroll", handleScroll);
     }
   }, [handleScroll]);
+
+  // Effect to adjust scroll after past data loads and renders
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !loadedStartDate) return;
+
+    const startDateChanged =
+      prevLoadedStartDateRef.current?.getTime() !== loadedStartDate.getTime();
+
+    // Check if start date changed, fetch is complete, and it's different from initial null state
+    if (
+      startDateChanged &&
+      !isFetchingPast &&
+      prevLoadedStartDateRef.current !== null
+    ) {
+      const currentScrollHeight = container.scrollHeight;
+      const previousScrollHeight = prevScrollHeightRef.current;
+
+      if (currentScrollHeight > previousScrollHeight) {
+        const scrollOffset = currentScrollHeight - previousScrollHeight;
+        // Use requestAnimationFrame to ensure adjustment happens after paint
+        isAdjustingScrollRef.current = true; // Set flag before adjustment
+        requestAnimationFrame(() => {
+          container.scrollTop += scrollOffset;
+          console.log(
+            `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          );
+          // Reset flag slightly after adjustment to allow scroll events again
+          setTimeout(() => {
+            isAdjustingScrollRef.current = false;
+          }, 50); // Small delay
+        });
+      }
+    }
+
+    // Update the previous start date ref for the next check
+    prevLoadedStartDateRef.current = loadedStartDate;
+  }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
     if (

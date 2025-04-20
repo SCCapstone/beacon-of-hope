@@ -321,11 +321,15 @@ export const MealView: React.FC<MealViewProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
-  // scrollToDate,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the VERTICAL scroll container
   const SCROLL_THRESHOLD = 300; // Pixels from top/bottom edge to trigger fetch
   const FETCH_RANGE_DAYS = 7; // Number of days to fetch in each direction
+
+  // Refs for scroll adjustment
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevLoadedStartDateRef = useRef<Date | null>(null);
+  const isAdjustingScrollRef = useRef(false); // Prevent race conditions
 
   // Combine and sort all available dates from trace and recommendation data
   const allAvailableDates = useMemo(() => {
@@ -519,7 +523,13 @@ export const MealView: React.FC<MealViewProps> = ({
   // Scroll handler for VERTICAL infinite loading
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
-    if (!container || !loadedStartDate || !loadedEndDate) return;
+    if (
+      !container ||
+      !loadedStartDate ||
+      !loadedEndDate ||
+      isAdjustingScrollRef.current
+    )
+      return; // Prevent scroll handling during adjustment
 
     const { scrollTop, scrollHeight, clientHeight } = container;
     const isNearTop = scrollTop < SCROLL_THRESHOLD;
@@ -533,6 +543,8 @@ export const MealView: React.FC<MealViewProps> = ({
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
       if (datesToFetch.length > 0) {
+        // Store scroll height *before* fetch request that will cause prepend
+        prevScrollHeightRef.current = container.scrollHeight;
         onRequestFetch({ datesToFetch, direction: "past" });
       }
     }
@@ -555,7 +567,7 @@ export const MealView: React.FC<MealViewProps> = ({
     loadedEndDate,
   ]);
 
-  // Attach scroll listener to the vertical scroll container
+  // Attach scroll listener
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
@@ -563,6 +575,44 @@ export const MealView: React.FC<MealViewProps> = ({
       return () => container.removeEventListener("scroll", handleScroll);
     }
   }, [handleScroll]);
+
+  // Effect to adjust scroll after past data loads and renders
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !loadedStartDate) return;
+
+    const startDateChanged =
+      prevLoadedStartDateRef.current?.getTime() !== loadedStartDate.getTime();
+
+    // Check if start date changed, fetch is complete, and it's different from initial null state
+    if (
+      startDateChanged &&
+      !isFetchingPast &&
+      prevLoadedStartDateRef.current !== null
+    ) {
+      const currentScrollHeight = container.scrollHeight;
+      const previousScrollHeight = prevScrollHeightRef.current;
+
+      if (currentScrollHeight > previousScrollHeight) {
+        const scrollOffset = currentScrollHeight - previousScrollHeight;
+        // Use requestAnimationFrame to ensure adjustment happens after paint
+        isAdjustingScrollRef.current = true; // Set flag before adjustment
+        requestAnimationFrame(() => {
+          container.scrollTop += scrollOffset;
+          console.log(
+            `MealView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          );
+          // Reset flag slightly after adjustment to allow scroll events again
+          setTimeout(() => {
+            isAdjustingScrollRef.current = false;
+          }, 50); // Small delay
+        });
+      }
+    }
+
+    // Update the previous start date ref for the next check
+    prevLoadedStartDateRef.current = loadedStartDate;
+  }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
     if (
@@ -595,7 +645,6 @@ export const MealView: React.FC<MealViewProps> = ({
     return selectedMeal?.id === meal.id;
   };
 
-  // renderMealCard function remains the same...
   const renderMealCard = (meal: Meal, date: Date) => {
     // Ensure meal.date is valid or fallback to the date passed in
     const validMealDate =
@@ -768,6 +817,7 @@ export const MealView: React.FC<MealViewProps> = ({
                           } ${
                             isSelected ? "border-blue-200" : "border-gray-200"
                           }`}
+                          style={{ minWidth: "150px" }}
                         ></div>
                       );
                     }
@@ -778,11 +828,11 @@ export const MealView: React.FC<MealViewProps> = ({
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
-                          flex-1 p-2 overflow-hidden flex flex-col items-stretch justify-center space-y-1.5 // Use space-y for gaps
+                          flex-1 p-2 overflow-hidden flex flex-col items-stretch justify-center space-y-1.5
                           ${index > 0 ? "border-l" : ""}
                           ${isSelected ? "border-blue-200" : "border-gray-200"}
                         `}
-                        style={{ minWidth: "150px" }} // Match header min-width
+                        style={{ minWidth: "150px" }}
                       >
                         <AnimatePresence>
                           {mealsInBin.map((meal) =>
@@ -827,12 +877,10 @@ export const MealView: React.FC<MealViewProps> = ({
               </div>
             );
           })}
-        </div>{" "}
-        {/* End of date rows container */}
+        </div>
         {/* Future Loading Indicator */}
         {isFetchingFuture && <LoadingIndicator position="bottom" />}
-      </div>{" "}
-      {/* End of vertical scroll container */}
-    </div> // End of main component div
+      </div>
+    </div>
   );
 };
