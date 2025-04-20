@@ -88,6 +88,7 @@ interface IngredientViewProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
+  scrollToDate: Date | null;
 }
 
 const getPrimaryNutrient = (
@@ -203,6 +204,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
+  // scrollToDate,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const SCROLL_THRESHOLD = 300;
@@ -422,6 +424,32 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
     }
   }, [handleScroll]);
 
+  useEffect(() => {
+    if (
+      scrollContainerRef.current &&
+      selectedDate &&
+      isValidDate(selectedDate)
+    ) {
+      const dateId = `date-row-${format(selectedDate, "yyyy-MM-dd")}`;
+      // Use requestAnimationFrame to ensure the element is painted before scrolling
+      requestAnimationFrame(() => {
+        const element = scrollContainerRef.current?.querySelector(
+          `#${CSS.escape(dateId)}`
+        );
+        if (element) {
+          // console.log(`IngredientView: Scrolling to ${dateId}`);
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        } else {
+          // console.log(`IngredientView: Element ${dateId} not found for scrolling.`);
+        }
+      });
+    }
+  }, [selectedDate]);
+
   console.log(
     `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
   );
@@ -442,6 +470,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         {/* Render Date Rows */}
         <div className="min-w-full divide-y divide-gray-200">
           {allAvailableDates.map((currentDate) => {
+            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             if (!isValidDate(currentDate)) {
               console.error(
                 "IngredientView: Invalid date object encountered in allAvailableDates",
@@ -459,6 +488,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
+                id={dateId}
                 className={`flex flex-col min-h-[180px] ${
                   isSelectedHighlight ? "bg-orange-50" : "bg-white"
                 }`}

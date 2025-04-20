@@ -74,6 +74,7 @@ interface FoodViewProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
+  scrollToDate: Date | null;
 }
 
 // Food Card Component
@@ -184,6 +185,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
+  // scrollToDate,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const SCROLL_THRESHOLD = 300;
@@ -379,6 +381,32 @@ export const FoodView: React.FC<FoodViewProps> = ({
     }
   }, [handleScroll]);
 
+  useEffect(() => {
+    if (
+      scrollContainerRef.current &&
+      selectedDate &&
+      isValidDate(selectedDate)
+    ) {
+      const dateId = `date-row-${format(selectedDate, "yyyy-MM-dd")}`;
+      // Use requestAnimationFrame to ensure the element is painted before scrolling
+      requestAnimationFrame(() => {
+        const element = scrollContainerRef.current?.querySelector(
+          `#${CSS.escape(dateId)}`
+        );
+        if (element) {
+          // console.log(`FoodView: Scrolling to ${dateId}`);
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        } else {
+          // console.log(`FoodView: Element ${dateId} not found for scrolling.`);
+        }
+      });
+    }
+  }, [selectedDate]);
+
   console.log(
     `FoodView: Rendering component. Dates to render: ${
       allAvailableDates.length
@@ -416,6 +444,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
         {/* Render Date Rows */}
         <div className="min-w-full divide-y divide-gray-200">
           {allAvailableDates.map((currentDate) => {
+            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             // Defensive check for valid date object
             if (!isValidDate(currentDate)) {
               console.error(
@@ -433,6 +462,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
+                id={dateId}
                 className={`flex min-h-[150px] ${
                   isSelectedHighlight ? "bg-purple-50" : "bg-white"
                 }`}

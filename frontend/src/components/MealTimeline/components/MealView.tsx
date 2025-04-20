@@ -56,6 +56,7 @@ interface MealViewProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
+  scrollToDate: Date | null;
 }
 
 // Helper function
@@ -320,6 +321,7 @@ export const MealView: React.FC<MealViewProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
+  // scrollToDate,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the VERTICAL scroll container
   const SCROLL_THRESHOLD = 300; // Pixels from top/bottom edge to trigger fetch
@@ -562,6 +564,33 @@ export const MealView: React.FC<MealViewProps> = ({
     }
   }, [handleScroll]);
 
+  useEffect(() => {
+    if (
+      scrollContainerRef.current &&
+      selectedDate &&
+      isValidDate(selectedDate)
+    ) {
+      const dateId = `date-row-${format(selectedDate, "yyyy-MM-dd")}`;
+      // Use requestAnimationFrame to ensure the element is painted before scrolling
+      requestAnimationFrame(() => {
+        const element = scrollContainerRef.current?.querySelector(
+          `#${CSS.escape(dateId)}`
+        );
+        if (element) {
+          // console.log(`MealView: Scrolling to ${dateId}`);
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center", // Centers the element vertically
+            inline: "nearest", // Adjusts horizontal scrolling minimally
+          });
+        } else {
+          // console.log(`MealView: Element ${dateId} not found for scrolling.`);
+          // Element might not be rendered yet if data is loading or date is out of range
+        }
+      });
+    }
+  }, [selectedDate]);
+
   const isMealSelected = (meal: Meal) => {
     return selectedMeal?.id === meal.id;
   };
@@ -679,6 +708,7 @@ export const MealView: React.FC<MealViewProps> = ({
           {" "}
           {/* Use divide for row separators */}
           {allAvailableDates.map((currentDate) => {
+            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             const isSelected = isSameDay(
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
@@ -688,6 +718,7 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
+                id={dateId}
                 className={`flex min-h-[180px] ${
                   // Each row is a flex container
                   isSelected ? "bg-blue-50" : "bg-white"

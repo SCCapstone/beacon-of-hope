@@ -23,8 +23,9 @@ import {
   startOfDay,
   parseISO,
   isValid as isValidDate,
+  // isToday,
 } from "date-fns";
-import { ArrowPathIcon } from "@heroicons/react/20/solid";
+import { ArrowPathIcon, CalendarDaysIcon } from "@heroicons/react/20/solid";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -711,7 +712,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         if (
           !(event.target as HTMLElement).closest(
             ".meal-details-panel-container"
-          )
+          ) &&
+          // Prevent closing when clicking MUI DatePicker elements
+          !(event.target as HTMLElement).closest(".MuiPopover-root") &&
+          !(event.target as HTMLElement).closest(".MuiDialog-root")
         ) {
           setSelectedRecommendation(null);
           setSelectedMeal(null);
@@ -732,7 +736,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       target.classList.contains("ingredient-view-background") ||
       target.classList.contains("viz-main-area");
     const isInteractiveElementClick = target.closest(
-      ".meal-card, .recommendation-card, .level-selector, button, .food-card-item, .ingredient-card-item, .week-selector-container, input[type='date'], .meal-details-panel-container"
+      ".meal-card, .recommendation-card, .level-selector, button, .food-card-item, .ingredient-card-item, .week-selector-container, input[type='date'], .meal-details-panel-container, .MuiInputBase-root, .MuiButtonBase-root"
     );
     if (isBackgroundClick || !isInteractiveElementClick) {
       setSelectedRecommendation(null);
@@ -746,14 +750,17 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const handleDateChange = useCallback(
     (newDateInput: Date) => {
       const newDate = normalizeDate(newDateInput);
-      setSelectedMeal(null);
-      setSelectedFood(null);
-      setSelectedIngredient(null);
-      setSelectedRecommendation(null);
-      onDateSelect(newDate);
+      onDateSelect(newDate); // Propagate date change to parent
     },
     [onDateSelect]
   );
+
+  // --- New handler for "Today" button ---
+  const handleGoToToday = useCallback(() => {
+    const today = normalizeDate(new Date());
+    handleDateChange(today); // Reuse existing logic to update date and trigger scroll
+  }, [handleDateChange]);
+  // --- End new handler ---
 
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
@@ -762,8 +769,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
+      onDateSelect(normalizeDate(new Date()));
     },
-    []
+    [onDateSelect]
   );
 
   const hasRecommendationsInView = recommendationData.some(
@@ -851,12 +859,24 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
               </button>
             </div>
-            <div className="week-selector-container">
-              <WeekSelector
-                selectedDate={selectedDate}
-                onDateChange={handleDateChange}
-              />
+            {/* --- Week Selector and Today Button --- */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleGoToToday}
+                className="px-3 py-1.5 rounded-md text-sm flex items-center bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-200"
+                title="Go to Today"
+              >
+                <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
+                Today
+              </button>
+              <div className="week-selector-container">
+                <WeekSelector
+                  selectedDate={selectedDate}
+                  onDateChange={handleDateChange}
+                />
+              </div>
             </div>
+            {/* --- End Week Selector and Today Button --- */}
           </div>
           {/* Main Visualization Area */}
           <div className="flex-1 flex overflow-hidden">
@@ -890,6 +910,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
+                      scrollToDate={selectedDate}
                     />
                   </div>
                 )}
@@ -911,6 +932,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
+                      scrollToDate={selectedDate}
                     />
                   </div>
                 )}
@@ -932,6 +954,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
+                      scrollToDate={selectedDate}
                     />
                   </div>
                 )}
