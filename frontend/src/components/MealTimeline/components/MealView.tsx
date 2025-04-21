@@ -1,17 +1,42 @@
-import React, { useCallback, useState } from "react";
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DayMeals, Meal } from "../types";
-import { format, isSameDay } from "date-fns";
+import {
+  DayMeals,
+  Meal,
+  MealRecommendation,
+  DayRecommendations,
+} from "../types";
+import {
+  format,
+  isSameDay,
+  addDays,
+  subDays,
+  isValid as isValidDate,
+  parseISO,
+} from "date-fns";
 import { RecommendedMealCard } from "./RecommendedMealCard";
-import { MealRecommendation, DayRecommendations } from "../types";
 import { FoodTypeIcon } from "./FoodTypeIcon";
-import { XMarkIcon, StarIcon as StarIconSolid } from "@heroicons/react/20/solid"; // Use Solid Star
+import {
+  XMarkIcon,
+  StarIcon as StarIconSolid,
+} from "@heroicons/react/20/solid";
 import { formatScore } from "../utils";
-import { isValid as isValidDate } from "date-fns";
-import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline"; // Use Outline Star
+import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
+import { generateDateRange } from "../../../services/recipeService";
+
+// Define the type for the callback to parent for fetching (matching MealCalendarViz)
+type FetchRequestHandler = (payload: {
+  datesToFetch: string[];
+  direction: "past" | "future" | "initial" | "specific";
+}) => void;
 
 interface MealViewProps {
-  datesToDisplay: Date[];
   allData: DayMeals[];
   recommendationData: DayRecommendations[];
   selectedDate: Date;
@@ -25,12 +50,28 @@ interface MealViewProps {
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
-  isLoading?: boolean;
+  isLoading?: boolean; // General loading state (e.g., for recommendations)
+  onRequestFetch: FetchRequestHandler;
+  isFetchingPast: boolean;
+  isFetchingFuture: boolean;
+  loadedStartDate: Date | null;
+  loadedEndDate: Date | null;
+  scrollToTodayTrigger: number;
 }
 
 // Helper function
-const normalizeDate = (date: Date): Date => {
-  const normalized = new Date(date);
+const normalizeDate = (date: Date | string): Date => {
+  const dateObj = typeof date === "string" ? parseISO(date) : date;
+  if (!isValidDate(dateObj)) {
+    console.warn(
+      "MealView normalizeDate received invalid date, returning current date:",
+      date
+    );
+    const fallbackDate = new Date();
+    fallbackDate.setHours(0, 0, 0, 0);
+    return fallbackDate;
+  }
+  const normalized = new Date(dateObj);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
 };
@@ -51,7 +92,15 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   onFavoriteClick,
 }) => {
   const [isFavoriting, setIsFavoriting] = useState(false);
-  const [optimisticFavorite, setOptimisticFavorite] = useState(meal.isFavorited || false);
+  // Use meal.isFavorited directly if available, otherwise default to false
+  const [optimisticFavorite, setOptimisticFavorite] = useState(
+    meal.isFavorited ?? false
+  );
+
+  // Update optimistic state if the prop changes (e.g., after successful favorite)
+  useEffect(() => {
+    setOptimisticFavorite(meal.isFavorited ?? false);
+  }, [meal.isFavorited]);
 
   // Destructure scores from meal object
   const {
@@ -113,7 +162,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
   return (
     <motion.div
-      key={`meal-${meal.id}`}
+      key={`meal-${meal.id}`} // Use meal.id as key
+      layout // Enable smooth layout changes
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -121,8 +171,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       className={`meal-card relative p-2 rounded-lg cursor-pointer
         bg-white shadow-sm hover:shadow transition-all duration-300
         ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
-        ${optimisticFavorite ? 'border-yellow-400' : ''} // Add visual cue for favorite
-        flex flex-col min-h-[100px]`}
+        ${
+          optimisticFavorite ? "border-yellow-400 ring-1 ring-yellow-300" : ""
+        } // Add visual cue for favorite
+        flex flex-col min-h-[100px]`} // Ensure minimum height
       onClick={onClick}
     >
       <motion.button
@@ -141,21 +193,43 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       <motion.button
         whileHover={{
           scale: 1.1, // Slightly larger hover effect
-          backgroundColor: isFavoriting ? "rgba(200, 150, 10, 0.9)" : "rgba(245, 158, 11, 0.9)", // Yellow hover
+          backgroundColor: isFavoriting
+            ? "rgba(200, 150, 10, 0.9)"
+            : "rgba(245, 158, 11, 0.9)", // Yellow hover
         }}
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteButtonClick}
         disabled={isFavoriting} // Disable while processing
         className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
-                    ${isFavoriting ? 'bg-yellow-600 animate-pulse' : 'bg-yellow-500 hover:bg-yellow-600'}
+                    ${
+                      isFavoriting
+                        ? "bg-yellow-600 animate-pulse"
+                        : "bg-yellow-500 hover:bg-yellow-600"
+                    }
                   `}
         title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
       >
         {isFavoriting ? (
-           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-           </svg>
+          <svg
+            className="animate-spin h-4 w-4 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
         ) : optimisticFavorite ? (
           <StarIconSolid className="w-4 h-4" /> // Show solid star if favorited
         ) : (
@@ -227,7 +301,6 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 };
 
 export const MealView: React.FC<MealViewProps> = ({
-  datesToDisplay,
   allData,
   recommendationData,
   selectedDate,
@@ -242,48 +315,69 @@ export const MealView: React.FC<MealViewProps> = ({
   mealBinNames,
   onMealBinUpdate,
   isLoading = false,
+  // Destructure infinite scroll props
+  onRequestFetch,
+  isFetchingPast,
+  isFetchingFuture,
+  loadedStartDate,
+  loadedEndDate,
+  scrollToTodayTrigger,
 }) => {
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
-          <p className="text-gray-500">Loading your meal data...</p>
-        </div>
-      </div>
+  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the VERTICAL scroll container
+  const SCROLL_THRESHOLD = 300; // Pixels from top/bottom edge to trigger fetch
+  const FETCH_RANGE_DAYS = 7; // Number of days to fetch in each direction
+
+  // Refs for scroll adjustment
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevLoadedStartDateRef = useRef<Date | null>(null);
+  const isAdjustingScrollRef = useRef(false); // Prevent race conditions
+
+  // Combine and sort all available dates from trace and recommendation data
+  const allAvailableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    allData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    recommendationData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    // Add loaded boundaries if they exist and are not already included
+    if (loadedStartDate && isValidDate(loadedStartDate))
+      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+    if (loadedEndDate && isValidDate(loadedEndDate))
+      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
+
+    const sortedDates = Array.from(dateSet)
+      .map((dateStr) => normalizeDate(dateStr))
+      .filter(isValidDate) // Ensure only valid dates proceed
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    console.log(
+      `MealView: Calculated ${sortedDates.length} available dates to render.`
     );
-  }
+    return sortedDates;
+  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
   // Get data for a specific date from allData
   const getDataForDate = useCallback(
     (targetDate: Date): DayMeals | undefined => {
-      // Ensure targetDate is normalized
       const normalizedTarget = normalizeDate(targetDate);
       return allData.find((day) => {
-        // Ensure day.date is treated as a Date object and normalized
         const normalizedDayDate = normalizeDate(day.date);
-
-        // Defensive check if normalization failed (though normalizeDate has fallbacks)
         if (
           isNaN(normalizedDayDate.getTime()) ||
           isNaN(normalizedTarget.getTime())
         ) {
-          console.warn(
-            "Invalid date encountered during comparison in getDataForDate",
-            day.date,
-            targetDate
-          );
           return false;
         }
-
-        // Perform the comparison using isSameDay
         return isSameDay(normalizedDayDate, normalizedTarget);
       });
     },
-    [allData] // Dependency is correct
+    [allData]
   );
 
-  // Get meals for a specific date using getDataForDate
   const getMealsForDate = useCallback(
     (targetDate: Date): Meal[] => {
       const dayData = getDataForDate(targetDate);
@@ -292,11 +386,10 @@ export const MealView: React.FC<MealViewProps> = ({
     [getDataForDate]
   );
 
-  // Keep getRecommendationsForDate (adapt if needed based on recommendationData structure)
   const getRecommendationsForDate = useCallback(
     (targetDate: Date): MealRecommendation[] => {
       const dayRecs = recommendationData.find((day) =>
-        isSameDay(normalizeDate(new Date(day.date)), normalizeDate(targetDate))
+        isSameDay(normalizeDate(day.date), normalizeDate(targetDate))
       );
       return dayRecs?.recommendations || [];
     },
@@ -428,46 +521,223 @@ export const MealView: React.FC<MealViewProps> = ({
     [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
   );
 
+  // Scroll handler for VERTICAL infinite loading
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (
+      !container ||
+      !loadedStartDate ||
+      !loadedEndDate ||
+      isAdjustingScrollRef.current
+    )
+      return; // Prevent scroll handling during adjustment
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearTop = scrollTop < SCROLL_THRESHOLD;
+    const isNearBottom =
+      scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
+
+    // Fetch past data
+    if (isNearTop && !isFetchingPast) {
+      console.log("MealView: Near top, requesting past data...");
+      const fetchEndDate = subDays(loadedStartDate, 1);
+      const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        // Store scroll height *before* fetch request that will cause prepend
+        prevScrollHeightRef.current = container.scrollHeight;
+        onRequestFetch({ datesToFetch, direction: "past" });
+      }
+    }
+
+    // Fetch future data
+    if (isNearBottom && !isFetchingFuture) {
+      console.log("MealView: Near bottom, requesting future data...");
+      const fetchStartDate = addDays(loadedEndDate, 1);
+      const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
+      const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
+      if (datesToFetch.length > 0) {
+        onRequestFetch({ datesToFetch, direction: "future" });
+      }
+    }
+  }, [
+    onRequestFetch,
+    isFetchingPast,
+    isFetchingFuture,
+    loadedStartDate,
+    loadedEndDate,
+  ]);
+
+  // Attach scroll listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll]);
+
+  // Effect to adjust scroll after past data loads and renders
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !loadedStartDate) return;
+
+    const startDateChanged =
+      prevLoadedStartDateRef.current?.getTime() !== loadedStartDate.getTime();
+
+    // Check if start date changed, fetch is complete, and it's different from initial null state
+    if (
+      startDateChanged &&
+      !isFetchingPast &&
+      prevLoadedStartDateRef.current !== null
+    ) {
+      const currentScrollHeight = container.scrollHeight;
+      const previousScrollHeight = prevScrollHeightRef.current;
+
+      if (currentScrollHeight > previousScrollHeight) {
+        const scrollOffset = currentScrollHeight - previousScrollHeight;
+        // Use requestAnimationFrame to ensure adjustment happens after paint
+        isAdjustingScrollRef.current = true; // Set flag before adjustment
+        requestAnimationFrame(() => {
+          container.scrollTop += scrollOffset;
+          console.log(
+            `MealView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          );
+          // Reset flag slightly after adjustment to allow scroll events again
+          setTimeout(() => {
+            isAdjustingScrollRef.current = false;
+          }, 50); // Small delay
+        });
+      }
+    }
+
+    // Update the previous start date ref for the next check
+    prevLoadedStartDateRef.current = loadedStartDate;
+  }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
+
+  useEffect(() => {
+    const viewName = "MealView"; // For logging
+    const container = scrollContainerRef.current;
+
+    if (container && selectedDate && isValidDate(selectedDate)) {
+      const dateId = `date-row-${format(selectedDate, "yyyy-MM-dd")}`;
+      const scrollTarget = CSS.escape(dateId);
+
+      const attemptScroll = (attempt = 1) => {
+        // Use rAF for each attempt to ensure it runs after paint
+        requestAnimationFrame(() => {
+          const element = container.querySelector(`#${scrollTarget}`);
+          if (element) {
+            console.log(
+              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            );
+            element.scrollIntoView({
+              behavior: "instant",
+              block: "center",
+              inline: "nearest",
+            });
+          } else {
+            console.log(
+              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            );
+            if (attempt < 3) {
+              // Retry up to 3 times
+              const delay = 100 * attempt; // Increase delay slightly each time
+              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+              setTimeout(() => attemptScroll(attempt + 1), delay);
+            } else {
+              console.log(
+                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
+              );
+            }
+          }
+        });
+      };
+
+      // Initial attempt
+      attemptScroll();
+    } else if (!container) {
+      console.log(
+        `${viewName}: Scroll effect skipped, container ref not available.`
+      );
+    } else if (!selectedDate || !isValidDate(selectedDate)) {
+      console.log(
+        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      );
+    }
+  }, [selectedDate, scrollToTodayTrigger]);
+
   const isMealSelected = (meal: Meal) => {
     return selectedMeal?.id === meal.id;
   };
 
-  // Function to render a meal card
   const renderMealCard = (meal: Meal, date: Date) => {
     // Ensure meal.date is valid or fallback to the date passed in
-    const validMealDate = meal.date instanceof Date && isValidDate(meal.date) ? meal.date : date;
+    const validMealDate =
+      meal.date instanceof Date && isValidDate(meal.date) ? meal.date : date;
 
     return (
       <TraceMealCard
-        key={`meal-${meal.id}-${date.toISOString()}`}
+        key={`meal-${meal.id}-${date.toISOString()}`} // Ensure key includes date for potential duplicates across days
         meal={meal}
         isSelected={isMealSelected(meal)}
         onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
         onDeleteClick={() => {
-            if (meal.id && validMealDate) {
-                 const confirmDelete = window.confirm(`Are you sure you want to remove "${meal.name}" from your history for ${format(validMealDate, "MMM d")}?`);
-                 if (confirmDelete) {
-                    onDeleteMealClick(meal.id, validMealDate);
-                 }
-            } else {
-                console.error("Cannot delete meal: Missing ID or valid date.", meal);
-                alert("Error: Cannot delete this meal due to missing information.");
+          if (meal.id && validMealDate) {
+            const confirmDelete = window.confirm(
+              `Are you sure you want to remove "${
+                meal.name
+              }" from your history for ${format(validMealDate, "MMM d")}?`
+            );
+            if (confirmDelete) {
+              onDeleteMealClick(meal.id, validMealDate);
             }
+          } else {
+            console.error(
+              "Cannot delete meal: Missing ID or valid date.",
+              meal
+            );
+            alert("Error: Cannot delete this meal due to missing information.");
+          }
         }}
-        onFavoriteClick={() => { // <-- Call the main handler with ID and Date
-            if (meal.id && validMealDate) {
-                onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
-            } else {
-                console.error("Cannot favorite meal: Missing ID or valid date.", meal);
-                alert("Error: Cannot favorite this meal due to missing information.");
-            }
+        onFavoriteClick={() => {
+          // <-- Call the main handler with ID and Date
+          if (meal.id && validMealDate) {
+            onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
+          } else {
+            console.error(
+              "Cannot favorite meal: Missing ID or valid date.",
+              meal
+            );
+            alert(
+              "Error: Cannot favorite this meal due to missing information."
+            );
+          }
         }}
       />
     );
   };
 
-  if (isLoading) {
-    // Loading indicator remains the same
+  // Loading indicator component
+  const LoadingIndicator = ({
+    position = "center",
+  }: {
+    position?: "center" | "top" | "bottom";
+  }) => (
+    <div
+      className={`flex items-center justify-center p-4 ${
+        position === "top"
+          ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+          : position === "bottom"
+          ? "py-4"
+          : "h-full" // Center takes full height if needed
+      }`}
+    >
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+    </div>
+  );
+
+  if (isLoading && allAvailableDates.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center">
@@ -481,12 +751,13 @@ export const MealView: React.FC<MealViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header for meal bins */}
-      <div className="flex border-b bg-white z-20 sticky top-0">
+      <div className="flex border-b bg-white z-10 sticky top-0 flex-shrink-0">
+        {" "}
+        {/* Ensure header doesn't scroll */}
         {/* Date column header */}
         <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
           Date
         </div>
-
         {/* Meal bin headers */}
         {mealBinNames.map((binName, index) => (
           <div
@@ -494,33 +765,41 @@ export const MealView: React.FC<MealViewProps> = ({
             className={`flex-1 p-4 text-center font-medium text-gray-700 ${
               index > 0 ? "border-l" : ""
             }`}
+            style={{ minWidth: "150px" }} // Give bins a min-width
           >
             {binName}
           </div>
         ))}
       </div>
-
-      {/* Scrollable container for all displayed days */}
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="min-h-full flex flex-col">
-          {/*  Iterate over datesToDisplay  */}
-          {datesToDisplay.map((currentDate) => {
+      {/* Scrollable container for DATES (Vertical Scroll) */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto bg-gray-50 relative" // Vertical scroll here
+      >
+        {/* Past Loading Indicator */}
+        {isFetchingPast && <LoadingIndicator position="top" />}
+        {/* Render Date Rows */}
+        <div className="min-w-full divide-y divide-gray-200">
+          {" "}
+          {/* Use divide for row separators */}
+          {allAvailableDates.map((currentDate) => {
+            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             const isSelected = isSameDay(
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
             );
-            // Get the bins object for the current date
             const binsForDate = organizeMealsIntoBins(currentDate);
 
             return (
               <div
                 key={currentDate.toISOString()}
-                className={`flex flex-1 min-h-[180px] border-b last:border-b-0  ${
-                  // Adjusted min-height
+                id={dateId}
+                className={`flex min-h-[180px] ${
+                  // Each row is a flex container
                   isSelected ? "bg-blue-50" : "bg-white"
                 }`}
               >
-                {/* Date Cell */}
+                {/* Date Cell (Fixed Width) */}
                 <div
                   className={`
                     w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start
@@ -550,58 +829,49 @@ export const MealView: React.FC<MealViewProps> = ({
                   </div>
                 </div>
 
-                {/* Meal Bins for this date */}
+                {/* Meal Bins for this date (Flex container for columns) */}
                 <div className="flex flex-1">
                   {mealBinNames.map((binName, index) => {
-                    // Get the specific bin content using the name
                     const binContent = binsForDate[binName];
-
-                    // Add a check to ensure binContent exists and has the expected structure
-                    if (!binContent || !Array.isArray(binContent.meals) || !Array.isArray(binContent.recommendations)) {
-                        // Handle the case where the bin might be missing or malformed (shouldn't happen with current logic, but safe)
-                        console.warn(`MealView: Invalid or missing bin content for bin '${binName}' on date ${format(currentDate, 'yyyy-MM-dd')}`);
-                        return (
-                            <div
-                                key={`${currentDate.toISOString()}-${binName}-error`}
-                                className={`flex-1 p-2 ${index > 0 ? "border-l" : ""} ${isSelected ? "border-blue-200" : "border-gray-200"}`}
-                            >
-                                <div className="h-full flex items-center justify-center text-center text-red-500 text-xs p-2">
-                                    Error
-                                </div>
-                            </div>
-                        );
+                    if (!binContent) {
+                      // Should not happen with current logic, but safe fallback
+                      return (
+                        <div
+                          key={`${currentDate.toISOString()}-${binName}-empty`}
+                          className={`flex-1 p-2 ${
+                            index > 0 ? "border-l" : ""
+                          } ${
+                            isSelected ? "border-blue-200" : "border-gray-200"
+                          }`}
+                          style={{ minWidth: "150px" }}
+                        ></div>
+                      );
                     }
-
-                    // Explicitly get the arrays
                     const mealsInBin = binContent.meals;
                     const recommendationsInBin = binContent.recommendations;
-                    // --- END FIX ---
 
                     return (
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
                         className={`
-                          flex-1 p-2 overflow-y-auto flex flex-col justify-center
+                          flex-1 p-2 overflow-hidden flex flex-col items-stretch justify-center space-y-1.5
                           ${index > 0 ? "border-l" : ""}
                           ${isSelected ? "border-blue-200" : "border-gray-200"}
                         `}
+                        style={{ minWidth: "150px" }}
                       >
-                        {/* Meals */}
                         <AnimatePresence>
-                          {/* Use the explicitly defined array */}
                           {mealsInBin.map((meal) =>
                             renderMealCard(meal, currentDate)
                           )}
                         </AnimatePresence>
-                        {/* Recommendations */}
                         <AnimatePresence>
-                          {/* Use the explicitly defined array */}
                           {recommendationsInBin.map((recommendation) => (
                             <RecommendedMealCard
                               key={`rec-${
                                 recommendation.meal.id
                               }-${currentDate.toISOString()}`}
-                              className="my-1.5 flex-shrink-0"
+                              className="flex-shrink-0" // Prevent card shrinking
                               recommendation={recommendation}
                               onAccept={() =>
                                 onAcceptRecommendationClick(recommendation)
@@ -619,12 +889,11 @@ export const MealView: React.FC<MealViewProps> = ({
                             />
                           ))}
                         </AnimatePresence>
-                        {/* Empty State */}
-                        {/* Use the explicitly defined arrays */}
+                        {/* Empty State for the bin */}
                         {mealsInBin.length === 0 &&
                           recommendationsInBin.length === 0 && (
                             <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                              No items
+                              -
                             </div>
                           )}
                       </div>
@@ -635,6 +904,8 @@ export const MealView: React.FC<MealViewProps> = ({
             );
           })}
         </div>
+        {/* Future Loading Indicator */}
+        {isFetchingFuture && <LoadingIndicator position="bottom" />}
       </div>
     </div>
   );
