@@ -74,7 +74,7 @@ interface FoodViewProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
-  scrollToDate: Date | null;
+  scrollToTodayTrigger: number;
 }
 
 // Food Card Component
@@ -185,7 +185,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
-  // scrollToDate,
+  scrollToTodayTrigger,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const SCROLL_THRESHOLD = 300;
@@ -433,30 +433,56 @@ export const FoodView: React.FC<FoodViewProps> = ({
   }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
-    if (
-      scrollContainerRef.current &&
-      selectedDate &&
-      isValidDate(selectedDate)
-    ) {
+    const viewName = "FoodView"; // For logging
+    const container = scrollContainerRef.current;
+
+    if (container && selectedDate && isValidDate(selectedDate)) {
       const dateId = `date-row-${format(selectedDate, "yyyy-MM-dd")}`;
-      // Use requestAnimationFrame to ensure the element is painted before scrolling
-      requestAnimationFrame(() => {
-        const element = scrollContainerRef.current?.querySelector(
-          `#${CSS.escape(dateId)}`
-        );
-        if (element) {
-          // console.log(`FoodView: Scrolling to ${dateId}`);
-          element.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "nearest",
-          });
-        } else {
-          // console.log(`FoodView: Element ${dateId} not found for scrolling.`);
-        }
-      });
+      const scrollTarget = CSS.escape(dateId);
+
+      const attemptScroll = (attempt = 1) => {
+        // Use rAF for each attempt to ensure it runs after paint
+        requestAnimationFrame(() => {
+          const element = container.querySelector(`#${scrollTarget}`);
+          if (element) {
+            console.log(
+              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            );
+            element.scrollIntoView({
+              behavior: "instant",
+              block: "center",
+              inline: "nearest",
+            });
+          } else {
+            console.log(
+              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            );
+            if (attempt < 3) {
+              // Retry up to 3 times
+              const delay = 100 * attempt; // Increase delay slightly each time
+              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+              setTimeout(() => attemptScroll(attempt + 1), delay);
+            } else {
+              console.log(
+                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
+              );
+            }
+          }
+        });
+      };
+
+      // Initial attempt
+      attemptScroll();
+    } else if (!container) {
+      console.log(
+        `${viewName}: Scroll effect skipped, container ref not available.`
+      );
+    } else if (!selectedDate || !isValidDate(selectedDate)) {
+      console.log(
+        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      );
     }
-  }, [selectedDate]);
+  }, [selectedDate, scrollToTodayTrigger]);
 
   console.log(
     `FoodView: Rendering component. Dates to render: ${

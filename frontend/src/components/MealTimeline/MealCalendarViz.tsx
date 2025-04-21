@@ -23,7 +23,6 @@ import {
   startOfDay,
   parseISO,
   isValid as isValidDate,
-  // isToday,
 } from "date-fns";
 import { ArrowPathIcon, CalendarDaysIcon } from "@heroicons/react/20/solid";
 
@@ -151,6 +150,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     return savedNames ? JSON.parse(savedNames) : ["Meal 1", "Meal 2", "Meal 3"];
   });
   const traceDataRef = useRef<DayMeals[]>(initialTraceData);
+  const [scrollToTodayTrigger, setScrollToTodayTrigger] = useState<number>(0);
 
   // State Synchronization and Data Handling
 
@@ -755,12 +755,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     [onDateSelect]
   );
 
-  // --- New handler for "Today" button ---
+  // handleGoToToday
   const handleGoToToday = useCallback(() => {
     const today = normalizeDate(new Date());
-    handleDateChange(today); // Reuse existing logic to update date and trigger scroll
-  }, [handleDateChange]);
-  // --- End new handler ---
+    // Always update the date state via the parent first
+    handleDateChange(today);
+    // *** Increment the trigger to force scroll effect execution ***
+    setScrollToTodayTrigger(prev => prev + 1);
+    console.log("Viz: Today button clicked, triggering scroll.");
+  }, [handleDateChange]); // Keep handleDateChange dependency
 
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
@@ -769,7 +772,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
-      onDateSelect(normalizeDate(new Date()));
+      // When changing level, also set date to today and trigger scroll
+      const today = normalizeDate(new Date());
+      onDateSelect(today);
+      setScrollToTodayTrigger(prev => prev + 1); // Trigger scroll for the new level view
     },
     [onDateSelect]
   );
@@ -910,7 +916,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
-                      scrollToDate={selectedDate}
+                      scrollToTodayTrigger={scrollToTodayTrigger}
                     />
                   </div>
                 )}
@@ -932,7 +938,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
-                      scrollToDate={selectedDate}
+                      scrollToTodayTrigger={scrollToTodayTrigger}
                     />
                   </div>
                 )}
@@ -954,7 +960,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
-                      scrollToDate={selectedDate}
+                      scrollToTodayTrigger={scrollToTodayTrigger}
                     />
                   </div>
                 )}
