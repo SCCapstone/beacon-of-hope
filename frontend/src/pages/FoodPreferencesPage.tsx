@@ -145,6 +145,10 @@ const FoodPreferencesPage: React.FC = () => {
     setMealPlanName(persona.mealPlanConfig.mealPlanName);
     setMealPlanStartDate(persona.mealPlanConfig.mealPlanStartDate);
     setMealConfigs(persona.mealSpecificOptions);
+    
+    // Ensure current meal index is valid for the new number of meals
+    setCurrentMealIndex(0); // Reset to first meal to avoid out-of-bounds errors
+    
     setSelectedPersona(personaKey);
   };
 
