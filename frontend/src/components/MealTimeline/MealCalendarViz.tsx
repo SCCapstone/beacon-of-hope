@@ -851,7 +851,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   ${
                     isRegenerating || !hasRecommendationsInView
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-500 text-white hover:bg-blue-600"
+                      : "bg-gradient-to-r from-orange-200 to-pink-900 text-white hover:bg-blue-600"
                   }
                 `}
                 disabled={isRegenerating || !hasRecommendationsInView}

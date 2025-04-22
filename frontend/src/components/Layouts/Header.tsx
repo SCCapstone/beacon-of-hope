@@ -82,10 +82,10 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
           <div className="flex items-center space-x-8">
             <div>
-              <h1 className="text-2xl font-bold text-[#FF9F1C]">{title}</h1>
-              <p className="text-sm font-medium text-[#1A1A1A]/70">{subtitle}</p>
+              <h1 className="text-[1.75vw] font-bold bg-gradient-to-r from-pink-900 to-orange-400 bg-clip-text text-transparent">{title}</h1>
+              <p className="text-[.8vw] font-medium text-[#1A1A1A]/70">{subtitle}</p>
             </div>
-            <div className="text-xl font-medium text-[#1A1A1A]">
+            <div className="text-[1vw] font-medium text-[#1A1A1A]">
               {!isGuest
                 ? `Welcome, ${userData?.first_name}!`
                 : "You are currently in Guest Mode. Log In to access more"}
@@ -101,11 +101,11 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300
+                className={`px-6 py-3 rounded-xl text-[.8vw] font-medium transition-all duration-300
                   ${
                     location.pathname === item.path
-                      ? "bg-[#FFE6C9]/80 text-[#FF9F1C]"
-                      : "hover:bg-[#FFE6C9]/50 text-[#1A1A1A]"
+                      ? "bg-gradient-to-r from-orange-200 to-pink-900 text-[#FFFFFF] transition duration-200 ease-in-out transform hover:-translate-y-1 relative overflow-hidden"
+                      : "hover:bg-gradient-to-r from-orange-200 to-pink-900 hover:text-white text-[#1A1A1A] transition duration-200 ease-in-out transform hover:-translate-y-1 relative overflow-hidden"
                   }`}
               >
                 {item.title}
@@ -117,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="relative rounded-xl p-1.5 hover:bg-[#FFE6C9]/50 transition-colors"
+              className="relative rounded-xl p-1 hover:bg-gradient-to-r from-pink-100 to-orange-100 hover:text-white transition-colors"
             >
               <div className="w-10 h-10 rounded-lg overflow-hidden">
                 <img
@@ -134,12 +134,12 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 mt-2 w-48 py-2 bg-white/90 backdrop-blur-lg rounded-xl shadow-lg"
+                  className="absolute right-0 mt-2 w-48 py-2 bg-white/90 rounded-xl shadow-lg"
                 >
                   {!isGuest && (
                     <Link
                       to="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gradient-to-r from-orange-200 to-pink-900 hover:text-white transition-colors"
                     >
                       Settings
                     </Link>
@@ -178,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                         window.location.href = "/";
                       }
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#FFE6C9]/50"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
                   >
                     {isGuest ? "Exit Guest Mode" : "Logout"}
                   </button>

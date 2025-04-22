@@ -4,6 +4,7 @@ import "../App.css";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser, setGuestUser } from "../features/userSlice";
 import { AppStore, RootState } from "../app/store";
+import '../styles/Login.css';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -33,16 +34,13 @@ const LoginPage: React.FC = () => {
 
   return (
     <div id="login--page">
-      <div id="login--left">
-        <img src="../../login-img.png" alt="Login" />
-      </div>
+      <img id="login--left" src="../../login-img.png" alt="Login" />
       <div id="login--right">
         <div id="login--header">
           <h1
             style={{
               fontWeight: "700",
-              fontSize: "36px",
-              lineHeight: "49px",
+              fontSize: "2.1vw",
               margin: "0px",
               color: "#525252",
             }}
@@ -52,8 +50,8 @@ const LoginPage: React.FC = () => {
           <p
             style={{
               fontWeight: "400",
-              fontSize: "16px",
-              lineHeight: "22px",
+              fontSize: ".8vw",
+              lineHeight: "1.1vw",
               color: "#525252",
             }}
           >
@@ -74,7 +72,7 @@ const LoginPage: React.FC = () => {
             <p
               style={{
                 fontWeight: "700",
-                fontSize: "14px",
+                fontSize: ".9vw",
                 color: "#828282",
                 fontFamily: "Nunito Sans",
               }}
@@ -105,13 +103,11 @@ const LoginPage: React.FC = () => {
             id="sign--in"
             style={{
               width: "100%",
-              height: "16px",
+              height: "1vh",
               fontWeight: "600",
-              fontSize: "12px",
+              fontSize: ".8vw",
               color: "#DDDDDD",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "18px",
+              marginTop: "1.1%",
             }}
           >
             ------------or Sign in with Email------------
@@ -125,7 +121,7 @@ const LoginPage: React.FC = () => {
                 htmlFor="email"
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".82vw",
                   color: "#828282",
                 }}
               >
@@ -139,12 +135,12 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="login--input" style={{ marginTop: "3%" }}>
               <label
                 htmlFor="password"
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".82vw",
                   color: "#828282",
                 }}
               >
@@ -165,14 +161,14 @@ const LoginPage: React.FC = () => {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginTop: "16px",
-                marginBottom: "24px",
+                marginTop: "2%",
+                marginBottom: "2.5%",
               }}
             >
               <label
                 style={{
                   fontWeight: "400",
-                  fontSize: "12px",
+                  fontSize: ".55vw",
                   color: "#a1a1a1",
                   display: "flex",
                   alignItems: "center",
@@ -196,7 +192,7 @@ const LoginPage: React.FC = () => {
                 href=""
                 style={{
                   fontWeight: "600",
-                  fontSize: "12px",
+                  fontSize: ".55vw",
                   color: "#7f265b",
                   textDecoration: "none",
                 }}
@@ -205,13 +201,13 @@ const LoginPage: React.FC = () => {
               </a>
             </div>
 
-            <button type="submit" id="login--submit" name='home-page'>
+            <button className="bg-gradient-to-r from-orange-100 to-pink-900" type="submit" id="login--submit" name='home-page'>
               Login
             </button>
           </form>
           <div 
           style={{
-            marginTop: "24px",
+            marginTop: "2.5%",
             textAlign: "center",
             display: "flex",
             flexDirection: "column",
@@ -219,7 +215,7 @@ const LoginPage: React.FC = () => {
           }}>
           <p
             id="create--account"
-            style={{ fontWeight: "400", fontSize: "16px", color: "#828282" }}
+            style={{ fontWeight: "400", fontSize: ".7vw", color: "#828282" }}
           >
             Not registered yet?{" "}
             <a
@@ -238,7 +234,7 @@ const LoginPage: React.FC = () => {
             style={{
               fontStyle: "italic",
               fontWeight: "400",
-              fontSize: "16px",
+              fontSize: ".7vw",
               color: "#828282",
             }}
           >

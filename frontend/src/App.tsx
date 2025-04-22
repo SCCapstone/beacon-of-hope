@@ -1,4 +1,4 @@
-import './App.css';
+import './styles/Common.css';
 
 import UseRoutes from "./components/UseRoutes";
 
