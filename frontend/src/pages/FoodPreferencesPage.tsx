@@ -599,8 +599,8 @@ const FoodPreferencesPage: React.FC = () => {
                   onClick={() => applyPersona("earlJones")}
                   className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
                     selectedPersona === "earlJones"
-                      ? "bg-blue-50 border-2 border-blue-500"
-                      : "bg-gray-50 border-2 border-transparent hover:border-blue-300"
+                      ? "bg-orange-50 border-2 border-orange-300"
+                      : "bg-gray-50 border-2 border-transparent hover:border-orange-300"
                   }`}
                 >
                   <img
@@ -623,8 +623,8 @@ const FoodPreferencesPage: React.FC = () => {
                   onClick={() => applyPersona("jessicaSmith")}
                   className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
                     selectedPersona === "jessicaSmith"
-                      ? "bg-green-50 border-2 border-green-500"
-                      : "bg-gray-50 border-2 border-transparent hover:border-green-300"
+                      ? "bg-pink-50 border-2 border-pink-900"
+                      : "bg-gray-50 border-2 border-transparent hover:border-pink-900"
                   }`}
                 >
                   <img
@@ -648,7 +648,7 @@ const FoodPreferencesPage: React.FC = () => {
         </div>
 
         {/* Generate Button */}
-        <div className="mt-6 mb-20 flex justify-center px-6">
+        <div className="h-20 mt-10 mb-40 flex justify-center px-6">
           <motion.button
             onClick={handleSubmit}
             disabled={isLoading}
@@ -657,9 +657,9 @@ const FoodPreferencesPage: React.FC = () => {
             className={`px-12 ${
               isLoading
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-orange-400 hover:bg-orange-500"
+                : "bg-gradient-to-r from-orange-200 to-pink-900 hover:bg-pink-950"
             }
-                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out
+                      text-white font-semibold py-3 rounded-3xl transition duration-200 ease-in-out
                       transform hover:-translate-y-1 relative overflow-hidden`}
           >
             {isLoading ? (

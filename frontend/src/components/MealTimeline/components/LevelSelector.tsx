@@ -27,7 +27,7 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
           whileTap={{ scale: 0.98 }}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             currentLevel === level
-              ? "bg-blue-500 text-white"
+              ? "bg-gradient-to-r from-orange-200 to-pink-900 text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
           onClick={handleClick(level)}

@@ -4,7 +4,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFnsV3";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import AuthService from "../services/auth.service";
-import "../App.css";
+import "../styles/SignUp.css";
 import Modal from "../pages/SettingsPages/Modal";
 import TermsAndConditionsModal from "./SignUpPages/TermsAndConditionsModal";
 import { useDispatch } from "react-redux";
@@ -102,17 +102,14 @@ const SignUpPage: React.FC = () => {
   };
 
   return (
-    <div id="login--page">
-      <div id="login--left">
-        <img src="../../login-img.png"></img>
-      </div>
-      <div id="login--right">
-        <div id="login--header">
+    <div id="signup--page">
+      <img id="signup--left" src="../../login-img.png"></img>
+      <div id="signup--right">
+        <div id="signup--header">
           <h1
             style={{
               fontWeight: "700",
-              fontSize: "36px",
-              lineHeight: "49px",
+              fontSize: "1.85vw",
               margin: "0px",
               color: "#525252",
             }}
@@ -122,8 +119,8 @@ const SignUpPage: React.FC = () => {
           <p
             style={{
               fontWeight: "400",
-              fontSize: "16px",
-              lineHeight: "22px",
+              fontSize: ".8vw",
+              lineHeight: "1.1vw",
               color: "#525252",
             }}
           >
@@ -144,7 +141,7 @@ const SignUpPage: React.FC = () => {
             <p
               style={{
                 fontWeight: "700",
-                fontSize: "14px",
+                fontSize: ".9vw",
                 color: "#828282",
                 fontFamily: "Nunito Sans",
               }}
@@ -176,25 +173,25 @@ const SignUpPage: React.FC = () => {
               width: "100%",
               height: "16px",
               fontWeight: "600",
-              fontSize: "12px",
+              fontSize: ".8vw",
               color: "#DDDDDD",
               justifyContent: "center",
               alignItems: "center",
-              marginTop: "18px",
+              marginTop: "1.1%",
             }}
           >
             ------------or Sign up with Email------------
           </p>
         </div>
 
-        <div id="login--content">
+        <div id="signup--content">
           <form onSubmit={handleSubmit}>
             {error && <div className="error-message">{error}</div>}{" "}
-            <div className="login--input">
+            <div className="signup--input">
               <label
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".75vw",
                   color: "#828282",
                 }}
               >
@@ -207,11 +204,11 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setFullName(e.target.value)}
               />
             </div>
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="signup--input" style={{ marginTop: "3%" }}>
               <label
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".75vw",
                   color: "#828282",
                 }}
               >
@@ -225,11 +222,11 @@ const SignUpPage: React.FC = () => {
               />
             </div>
 
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="login--input" style={{ marginTop: "3%" }}>
               <label
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".75vw",
                   color: "#828282",
                 }}
               >
@@ -260,11 +257,11 @@ const SignUpPage: React.FC = () => {
               </LocalizationProvider>
             </div>
 
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="login--input" style={{ marginTop: "3%" }}>
               <label
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".75vw",
                   color: "#828282",
                 }}
               >
@@ -277,11 +274,11 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="login--input" style={{ marginTop: "3%" }}>
               <label
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".75vw",
                   color: "#828282",
                 }}
               >
@@ -294,15 +291,15 @@ const SignUpPage: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </div>
-            <div style={{ marginTop: "24px" }}>
+            <div style={{ marginTop: "3%" }}>
               <label
               style={{
                 fontWeight: "400",
-                fontSize: "15px",
+                fontSize: ".55vw",
                 color: "#a1a1a1",
                 display: "flex",
                 alignItems: "center",
-                gap: "5px",
+                gap: "2.5px",
               }}>
                 <input
                   type="checkbox"
@@ -315,7 +312,7 @@ const SignUpPage: React.FC = () => {
                 href="javascript:;"
                 style={{
                   fontWeight: "600",
-                  fontSize: "15px",
+                  fontSize: ".55vw",
                   color: "#7f265b",
                   textDecoration: "none",
                 }}>
@@ -325,8 +322,9 @@ const SignUpPage: React.FC = () => {
             </div>
             <button
               type="submit"
-              id="login--submit"
-              style={{ marginTop: "32px" }}
+              id="signup--submit"
+              className="bg-gradient-to-r from-orange-100 to-pink-900"
+              style={{ marginTop: "40px"}}
             >
               Create Account
             </button>
@@ -334,17 +332,17 @@ const SignUpPage: React.FC = () => {
 
           <div
             style={{
-              marginTop: "24px",
+              marginTop: "2.5%",
               textAlign: "center",
               display: "flex",
               flexDirection: "column",
-              gap: "12px",
+              gap: "4px",
             }}
           >
             <p
               style={{
                 fontWeight: "400",
-                fontSize: "16px",
+                fontSize: ".8vw",
                 color: "#525252",
                 margin: 0,
               }}
@@ -367,7 +365,7 @@ const SignUpPage: React.FC = () => {
               style={{
                 fontStyle: "italic",
                 fontWeight: "400",
-                fontSize: "16px",
+                fontSize: ".8vw",
                 color: "#525252",
                 margin: 0,
               }}

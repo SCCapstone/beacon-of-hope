@@ -1,0 +1,75 @@
+#welcome--page {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+#welcome--left {
+  flex: 0.55;
+  overflow: hidden;
+  position: relative;
+}
+
+#welcome--left img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+#welcome--right {
+  flex: 0.45;
+  width: 40vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2vh;
+  gap: 1.5vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+#welcome--header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0px;
+  gap: 0.5vh;
+  margin-bottom: 2vh;
+}
+
+.welcome--button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-shadow: 10px 2px 32px rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  border: 0px;
+  width: 50%;
+  height: 14.5%;
+  max-width: 400px;
+  padding: 2vh;
+  margin-bottom: 1.5vh;
+}
+
+.welcome--button:hover {
+  cursor: pointer;
+}
+
+#button--one {
+  background-color: #FFE6C9;
+}
+
+#button--two {
+  background-color: #e8e8e8;
+}
+
+#button--three {
+  background-color: #9a4678;
+} 

@@ -29,8 +29,8 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({ id, header, desc, to, onClick
             id={id}
             data-testid={dataTestId}
         >
-            <h2 style={{fontFamily: "Arima", fontWeight: "500", fontSize: "33px"}}>{header}</h2>
-            <p>{desc}</p>
+            <h2 style={{fontFamily: "Arima", fontWeight: "500", fontSize: "1.8vw"}}>{header}</h2>
+            <p style={{fontSize: ".7vw"}}>{desc}</p>
         </button>
     );
 };
