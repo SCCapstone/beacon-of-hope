@@ -495,6 +495,63 @@ const FoodPreferencesPage: React.FC = () => {
         {/* Content Section with Grid Layout */}
         <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            {/* Persona Selection Section */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+                Select Our Recommended Personas
+              </h2>
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => applyPersona("earlJones")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "earlJones"
+                      ? "bg-orange-50 border-2 border-orange-300"
+                      : "bg-gray-50 border-2 border-transparent hover:border-orange-300"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Earl"
+                    alt="Earl"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">Earl Jones</h3>
+                      <p className="text-xs text-gray-500">Forklift Operator</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Prefers culturally relevant meals, especially soul food, with focus on hearty, satisfying dishes.
+                    </p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => applyPersona("jessicaSmith")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "jessicaSmith"
+                      ? "bg-pink-50 border-2 border-pink-900"
+                      : "bg-gray-50 border-2 border-transparent hover:border-pink-900"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica"
+                    alt="Jessica"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">Jessica Smith</h3>
+                      <p className="text-xs text-gray-500">College Student</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Type 1 diabetes-focused meal plan with low-glycemic foods and balanced nutrition.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* User Information Card */}
             <UserInformation
               height={height}
@@ -589,61 +646,6 @@ const FoodPreferencesPage: React.FC = () => {
               onPreviousMeal={handlePreviousMeal}
               onNextMeal={handleNextMeal}
             />
-            {/* Persona Selection Section */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-                Select Our Recommended Personas
-              </h2>
-              <div className="flex flex-col gap-4">
-                <button
-                  onClick={() => applyPersona("earlJones")}
-                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
-                    selectedPersona === "earlJones"
-                      ? "bg-orange-50 border-2 border-orange-300"
-                      : "bg-gray-50 border-2 border-transparent hover:border-orange-300"
-                  }`}
-                >
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Earl"
-                    alt="Earl"
-                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
-                  />
-                  <div className="ml-4">
-                    <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Earl Jones</h3>
-                      <p className="text-xs text-gray-500">Forklift Operator</p>
-                    </div>
-                    <p className="text-sm text-gray-600 text-left mt-2">
-                      Prefers culturally relevant meals, especially soul food, with focus on hearty, satisfying dishes.
-                    </p>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => applyPersona("jessicaSmith")}
-                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
-                    selectedPersona === "jessicaSmith"
-                      ? "bg-pink-50 border-2 border-pink-900"
-                      : "bg-gray-50 border-2 border-transparent hover:border-pink-900"
-                  }`}
-                >
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica"
-                    alt="Jessica"
-                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
-                  />
-                  <div className="ml-4">
-                    <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Jessica Smith</h3>
-                      <p className="text-xs text-gray-500">College Student</p>
-                    </div>
-                    <p className="text-sm text-gray-600 text-left mt-2">
-                      Type 1 diabetes-focused meal plan with low-glycemic foods and balanced nutrition.
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
