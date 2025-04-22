@@ -24,10 +24,10 @@ const LandingCard: React.FC<LandingCardProps> = ({ id, header, desc, to, onClick
     return (
         <button 
             onClick={handleClick}
-            className="landing--button" 
+            className="bg-gradient-to-r from-orange-200 to-pink-800 rounded-2xl" 
             id={id}
         >
-            <h2 style={{fontFamily: "Arima", fontWeight: "500", fontSize: "33px"}}>{header}</h2>
+            <h2 className="text-white">{header}</h2>
             <p>{desc}</p>
         </button>
     );
