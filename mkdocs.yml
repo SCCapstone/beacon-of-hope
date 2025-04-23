@@ -1,0 +1,4 @@
+site_name: Beacon of Hope
+nav:
+  - Home: index.md
+  - About: about.md
