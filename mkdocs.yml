@@ -8,8 +8,8 @@ theme:
   font:
     text: Roboto
     code: Roboto Mono
-  logo: https://via.placeholder.com/48x48.png?text=B
-  favicon: https://via.placeholder.com/16.png?text=B
+  logo: beacon-logo.png
+  favicon: favicon-16x16.png
   features:
     - navigation.expand
     - navigation.sections
