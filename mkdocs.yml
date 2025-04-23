@@ -1,0 +1,21 @@
+site_name: Beacon of Hope
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep orange
+    accent: light blue
+  font:
+    text: Roboto
+    code: Roboto Mono
+  logo: https://via.placeholder.com/48x48.png?text=B
+  favicon: https://via.placeholder.com/16.png?text=B
+  features:
+    - navigation.expand
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.share
+nav:
+  - Home: index.md
+  - About: about.md
