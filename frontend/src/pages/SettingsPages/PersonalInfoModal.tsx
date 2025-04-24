@@ -12,6 +12,7 @@ interface PersonalInfo {
   allowPersonalization: boolean;
   demographicsInfo: {
     ethnicity: string;
+    race: string;
     height: string;
     weight: string;
     age: number;
@@ -44,7 +45,8 @@ const PersonalInfoModal: React.FC = () => {
     email: userData?.email || "guest@example.com",
     allowPersonalization: userData?.allowPersonalization ?? false,
     demographicsInfo: userData?.demographicsInfo || {
-      ethnicity: "",
+      ethnicity: userData?.demographicsInfo.ethnicity || "",
+      race: userData?.demographicsInfo.ethnicity || "",
       height: "",
       weight: "",
       age: 0,
@@ -103,6 +105,28 @@ const PersonalInfoModal: React.FC = () => {
         return updatedUser;
       });
       setEditing(null);
+    }
+  };
+
+  const handleDemographicsChange = (field: 'ethnicity' | 'race', value: string) => {
+
+    console.log(value);
+    if (!isGuest) {
+      setInfo((prev) => ({
+        ...prev,
+        demographicsInfo: {
+          ...prev.demographicsInfo,
+          [field]: value
+        }
+      }));
+      
+      // Update the backend
+      dispatch(updateUser({
+        demographicsInfo: {
+          ...info.demographicsInfo,
+          [field]: value
+        }
+      }));
     }
   };
 
@@ -193,12 +217,7 @@ const PersonalInfoModal: React.FC = () => {
           <label className="form-label">Ethnicity</label>
           <select
             value={info.demographicsInfo.ethnicity}
-            onChange={(e) =>
-              !isGuest && setInfo((prev) => ({
-                ...prev,
-                demographicsInfo: { ...prev.demographicsInfo, ethnicity: e.target.value }
-              }))
-            }
+            onChange={(e) => handleDemographicsChange('ethnicity', e.target.value)}
             className={`form-select ${isGuest ? 'disabled' : ''}`}
             disabled={isGuest}
           >
@@ -211,13 +230,8 @@ const PersonalInfoModal: React.FC = () => {
         <div className="form-group">
           <label className="form-label">Race</label>
           <select
-            value={info.demographicsInfo.ethnicity}
-            onChange={(e) =>
-              !isGuest && setInfo((prev) => ({
-                ...prev,
-                demographicsInfo: { ...prev.demographicsInfo, ethnicity: e.target.value }
-              }))
-            }
+            value={info.demographicsInfo.race}
+            onChange={(e) => handleDemographicsChange('race', e.target.value)}
             className={`form-select ${isGuest ? 'disabled' : ''}`}
             disabled={isGuest}
           >
