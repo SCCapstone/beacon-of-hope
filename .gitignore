@@ -71,3 +71,6 @@ pnpm-debug.log*
 *.sw?
 
 items_data
+
+site/
+.docs-venv/
