@@ -2,8 +2,8 @@ Changes to make to recommendation algorithm
 
 
 For Gluten-Free, Vegetarian, Vegan, and Diabetes
-Tag each recipe in R3 with boolean tags for each: gluten-free, veg., vegan, and low-sugar
-
+Tag each recipe in R3 with boolean tags for each: gluten-free, vegan, and low-sugar
+Something is vegetarian if hasMeat is false
 
 
 If Gluten-Free --> check for bread/wheat/flour in ingredients --> get a list of all ingredients in R3
