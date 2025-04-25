@@ -29,6 +29,7 @@ import {
 import { formatScore } from "../utils";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { generateDateRange } from "../../../services/recipeService";
+import { CustomModal, ModalProps } from "../../CustomModal";
 
 // Define the type for the callback to parent for fetching (matching MealCalendarViz)
 type FetchRequestHandler = (payload: {
@@ -135,17 +136,13 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
   const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isFavoriting) return;
+    // Optimistic UI update happens here
+    setOptimisticFavorite(true); // Example: Assume success initially
     setIsFavoriting(true);
-    setOptimisticFavorite(true);
-    try {
-      await onFavoriteClick();
-    } catch (error) {
-      console.error("Error during favorite click:", error);
-      setOptimisticFavorite(false);
-    } finally {
-      setTimeout(() => setIsFavoriting(false), 500);
-    }
+    // Trigger the handler passed from MealView, which will call the API
+    onFavoriteClick();
+    // Reset loading state after a delay or based on parent feedback (if implemented)
+    setTimeout(() => setIsFavoriting(false), 1000); // Simple timeout for now
   };
 
   // Get unique food types from the meal
@@ -365,6 +362,56 @@ export const MealView: React.FC<MealViewProps> = ({
     );
     return sortedDates;
   }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
+
+  const [modalConfig, setModalConfig] = useState<ModalProps | null>(null); // State for modal
+
+  const showModal = useCallback(
+    (config: Omit<ModalProps, "isOpen" | "onClose">) => {
+      setModalConfig({
+        ...config,
+        isOpen: true,
+        onClose: () => setModalConfig(null), // Default close action
+      });
+    },
+    []
+  );
+
+  const showConfirmModal = useCallback(
+    (
+      title: string,
+      message: string,
+      onConfirm: () => void,
+      onCancel?: () => void
+    ) => {
+      showModal({
+        title,
+        message,
+        type: "confirm",
+        confirmText:
+          title.toLowerCase().includes("delete") ||
+          title.toLowerCase().includes("remove")
+            ? "Delete"
+            : "Confirm", // Adjust confirm text
+        onConfirm: () => {
+          onConfirm();
+          setModalConfig(null); // Close after confirm
+        },
+        onCancel: () => {
+          // Also close on cancel
+          onCancel?.();
+          setModalConfig(null);
+        },
+      });
+    },
+    [showModal]
+  );
+
+  const showErrorModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "error" });
+    },
+    [showModal]
+  );
 
   // Get data for a specific date from allData
   const getDataForDate = useCallback(
@@ -673,53 +720,55 @@ export const MealView: React.FC<MealViewProps> = ({
     }
   }, [selectedDate, scrollToTodayTrigger]);
 
-  const isMealSelected = (meal: Meal) => {
-    return selectedMeal?.id === meal.id;
-  };
-
   const renderMealCard = (meal: Meal, date: Date) => {
     // Ensure meal.date is valid or fallback to the date passed in
     const validMealDate =
       meal.date instanceof Date && isValidDate(meal.date) ? meal.date : date;
 
+    const handleDelete = () => {
+      if (meal.id && validMealDate) {
+        // Show confirmation modal *before* calling the parent's delete handler
+        showConfirmModal(
+          "Confirm Deletion",
+          `Are you sure you want to remove "${
+            meal.name
+          }" from your history for ${format(validMealDate, "MMM d")}?`,
+          () => {
+            // Only call the actual delete function if confirmed
+            onDeleteMealClick(meal.id!, validMealDate);
+          }
+        );
+      } else {
+        console.error("Cannot delete meal: Missing ID or valid date.", meal);
+        showErrorModal(
+          "Deletion Error",
+          "Cannot delete this meal due to missing information."
+        );
+      }
+    };
+
+    const handleFavorite = () => {
+      if (meal.id && validMealDate) {
+        // Call the parent's favorite handler directly
+        // Feedback (success/error) should be handled in MealTimelinePage
+        onFavoriteMealClick(meal.id, validMealDate);
+      } else {
+        console.error("Cannot favorite meal: Missing ID or valid date.", meal);
+        showErrorModal(
+          "Favorite Error",
+          "Cannot favorite this meal due to missing information."
+        );
+      }
+    };
+
     return (
       <TraceMealCard
-        key={`meal-${meal.id}-${date.toISOString()}`} // Ensure key includes date for potential duplicates across days
+        key={`meal-${meal.id}-${date.toISOString()}`}
         meal={meal}
-        isSelected={isMealSelected(meal)}
-        onClick={() => onMealSelect(isMealSelected(meal) ? null : meal)}
-        onDeleteClick={() => {
-          if (meal.id && validMealDate) {
-            const confirmDelete = window.confirm(
-              `Are you sure you want to remove "${
-                meal.name
-              }" from your history for ${format(validMealDate, "MMM d")}?`
-            );
-            if (confirmDelete) {
-              onDeleteMealClick(meal.id, validMealDate);
-            }
-          } else {
-            console.error(
-              "Cannot delete meal: Missing ID or valid date.",
-              meal
-            );
-            alert("Error: Cannot delete this meal due to missing information.");
-          }
-        }}
-        onFavoriteClick={() => {
-          // <-- Call the main handler with ID and Date
-          if (meal.id && validMealDate) {
-            onFavoriteMealClick(meal.id, validMealDate); // Pass ID and Date
-          } else {
-            console.error(
-              "Cannot favorite meal: Missing ID or valid date.",
-              meal
-            );
-            alert(
-              "Error: Cannot favorite this meal due to missing information."
-            );
-          }
-        }}
+        isSelected={selectedMeal?.id === meal.id}
+        onClick={() => onMealSelect(selectedMeal?.id === meal.id ? null : meal)}
+        onDeleteClick={handleDelete}
+        onFavoriteClick={handleFavorite}
       />
     );
   };
@@ -738,7 +787,7 @@ export const MealView: React.FC<MealViewProps> = ({
           : "h-full"
       }`}
     >
-      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>{" "}
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>
       {/* Primary color */}
     </div>
   );
@@ -758,10 +807,8 @@ export const MealView: React.FC<MealViewProps> = ({
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
       <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-        {" "}
         {/* Darker cream header, darker border */}
         <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
-          {" "}
           {/* Darker brown text, adjusted padding */}
           Date
         </div>
@@ -774,7 +821,6 @@ export const MealView: React.FC<MealViewProps> = ({
             }`}
             style={{ minWidth: "150px" }}
           >
-            {" "}
             {/* Darker brown text, darker border */}
             {binName}
           </div>
@@ -785,14 +831,11 @@ export const MealView: React.FC<MealViewProps> = ({
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-[#FFFBF5] relative"
       >
-        {" "}
         {/* Base cream background */}
         {isFetchingPast && <LoadingIndicator position="top" />}
         <div className="min-w-full divide-y divide-[#E0E0E0]">
-          {" "}
           {/* Lighter neutral divider */}
           {allAvailableDates.map((currentDate) => {
-            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             const isSelected = isSameDay(
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
@@ -802,7 +845,7 @@ export const MealView: React.FC<MealViewProps> = ({
             return (
               <div
                 key={currentDate.toISOString()}
-                id={dateId}
+                id={`date-row-${format(currentDate, "yyyy-MM-dd")}`}
                 className={`flex min-h-[180px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
                   isSelected ? "bg-[#8B4513]/5" : "bg-white"
                 }`}
@@ -922,6 +965,8 @@ export const MealView: React.FC<MealViewProps> = ({
         {/* Future Loading Indicator */}
         {isFetchingFuture && <LoadingIndicator position="bottom" />}
       </div>
+      {/* Render the Modal */}
+      {modalConfig && <CustomModal {...modalConfig} />}
     </div>
   );
 };

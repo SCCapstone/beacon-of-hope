@@ -31,6 +31,7 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "../app/store";
 import { ApiError } from "../utils/errorHandling";
+import { CustomModal, ModalProps } from "../components/CustomModal";
 
 const normalizeDate = (date: Date | string | null | undefined): Date => {
   if (date === null || date === undefined) {
@@ -83,7 +84,7 @@ export const MealTimelinePage: React.FC = () => {
   );
   const [nutritionalGoals, setNutritionalGoals] =
     useState<NutritionalGoals | null>(null); // State for goals
-
+  const [modalConfig, setModalConfig] = useState<ModalProps | null>(null);
   // Track the overall loaded range
   const loadedStartDateRef = useRef<Date | null>(null);
   const loadedEndDateRef = useRef<Date | null>(null);
@@ -122,44 +123,69 @@ export const MealTimelinePage: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      try {
-        const rawMealPlanString = localStorage.getItem("mealPlan");
-        if (rawMealPlanString) {
-          const mealPlan = JSON.parse(rawMealPlanString);
-          // Check if there are any days with meals in the plan
-          if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
-            const hasUnsavedMeals = Object.values(mealPlan.days).some(
-              (day: any) =>
-                day && Array.isArray(day.meals) && day.meals.length > 0
-            );
-            if (hasUnsavedMeals) {
-              console.log(
-                "Unsaved recommendations detected in localStorage. Prompting user."
-              );
-              event.preventDefault(); // Standard practice
-              event.returnValue =
-                "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For older browsers
-              return "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For modern browsers
-            }
-          }
-        }
-      } catch (e) {
-        console.error(
-          "Error checking localStorage for unsaved recommendations:",
-          e
-        );
-        // Don't block navigation if there's an error reading localStorage
-      }
-    };
+  const showModal = useCallback(
+    (config: Omit<ModalProps, "isOpen" | "onClose">) => {
+      setModalConfig({
+        ...config,
+        isOpen: true,
+        onClose: () => setModalConfig(null), // Default close action
+      });
+    },
+    []
+  );
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+  const showErrorModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "error" });
+    },
+    [showModal]
+  );
 
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+  const showSuccessModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "success" });
+    },
+    [showModal]
+  );
+
+  // useEffect(() => {
+  //   const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  //     try {
+  //       const rawMealPlanString = localStorage.getItem("mealPlan");
+  //       if (rawMealPlanString) {
+  //         const mealPlan = JSON.parse(rawMealPlanString);
+  //         // Check if there are any days with meals in the plan
+  //         if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
+  //           const hasUnsavedMeals = Object.values(mealPlan.days).some(
+  //             (day: any) =>
+  //               day && Array.isArray(day.meals) && day.meals.length > 0
+  //           );
+  //           if (hasUnsavedMeals) {
+  //             console.log(
+  //               "Unsaved recommendations detected in localStorage. Prompting user."
+  //             );
+  //             event.preventDefault(); // Standard practice
+  //             event.returnValue =
+  //               "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For older browsers
+  //             return "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For modern browsers
+  //           }
+  //         }
+  //       }
+  //     } catch (e) {
+  //       console.error(
+  //         "Error checking localStorage for unsaved recommendations:",
+  //         e
+  //       );
+  //       // Don't block navigation if there's an error reading localStorage
+  //     }
+  //   };
+
+  //   window.addEventListener("beforeunload", handleBeforeUnload);
+
+  //   return () => {
+  //     window.removeEventListener("beforeunload", handleBeforeUnload);
+  //   };
+  // }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
 
   // Fetch Nutritional Goals
   useEffect(() => {
@@ -502,11 +528,17 @@ export const MealTimelinePage: React.FC = () => {
   const handleDeleteMeal = useCallback(
     async (mealIdToDelete: string, mealDate: Date) => {
       if (!userId) {
-        setError("Cannot delete meal: User not logged in.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot delete meal: User not logged in."
+        );
         return;
       }
       if (!mealIdToDelete || !mealDate) {
-        setError("Cannot delete meal: Missing meal ID or date.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot delete meal: Missing meal ID or date."
+        );
         console.error("handleDeleteMeal missing data:", {
           mealIdToDelete,
           mealDate,
@@ -516,15 +548,12 @@ export const MealTimelinePage: React.FC = () => {
 
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
-
       console.log(
         `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
       );
+      const originalWeekData = [...weekData];
 
-      // Store original data for potential rollback
-      const originalWeekData = [...weekData]; // Shallow copy is enough here
-
-      // --- Optimistic UI Update ---
+      // Optimistic UI Update
       setWeekData((prevData) => {
         const newData = prevData.map((day) => {
           // Find the correct day
@@ -548,7 +577,7 @@ export const MealTimelinePage: React.FC = () => {
       );
       setError(null); // Clear previous errors
 
-      // --- Call Backend API ---
+      // Call Backend API
       try {
         await deleteMealFromTrace(userId, dateStr, mealIdToDelete);
         console.log(
@@ -557,16 +586,16 @@ export const MealTimelinePage: React.FC = () => {
         // UI is already updated, no further action needed on success
       } catch (err: any) {
         console.error(`Page: Error deleting meal ${mealIdToDelete}:`, err);
-        // --- Rollback UI on Failure ---
-        setWeekData(originalWeekData); // Restore previous state
-        if (err instanceof ApiError) {
-          setError(`Delete failed: ${err.message}`);
-        } else {
-          setError("An unexpected error occurred while deleting the meal.");
-        }
+        setWeekData(originalWeekData); // Rollback
+        const errorMsg =
+          err instanceof ApiError
+            ? `Delete failed: ${err.message}`
+            : "An unexpected error occurred while deleting the meal.";
+        showErrorModal("Deletion Error", errorMsg); // Use modal for error feedback
+        setError(errorMsg); // Also set state error if needed elsewhere
       }
     },
-    [userId, weekData] // Add weekData dependency for rollback
+    [userId, weekData, showErrorModal]
   );
 
   const handleRegeneratePartial = useCallback(
@@ -764,11 +793,17 @@ export const MealTimelinePage: React.FC = () => {
   const handleFavoriteMeal = useCallback(
     async (mealIdToFavorite: string, mealDate: Date) => {
       if (!userId) {
-        setError("Cannot favorite meal: User not logged in.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: User not logged in."
+        ); // Use modal
         return;
       }
       if (!mealIdToFavorite || !mealDate) {
-        setError("Cannot favorite meal: Missing meal ID or date.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: Missing meal ID or date."
+        ); // Use modal
         console.error("handleFavoriteMeal missing data:", {
           mealIdToFavorite,
           mealDate,
@@ -784,15 +819,16 @@ export const MealTimelinePage: React.FC = () => {
       );
       setError(null); // Clear previous errors
 
-      // --- Call Backend API ---
+      // Call Backend API
       try {
         await favoriteMealInTrace(userId, dateStr, mealIdToFavorite);
         console.log(
           `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
         );
-        // Optional: Show a success toast/message to the user
-        alert(
-          `Meal marked as favorite! This will influence future recommendations.`
+        // Show success feedback using the modal
+        showSuccessModal(
+          "Meal Favorited",
+          "This meal has been marked as a favorite and will influence future recommendations."
         );
 
         // Optional: Optimistic UI update (if Meal type has isFavorited)
@@ -811,16 +847,18 @@ export const MealTimelinePage: React.FC = () => {
         // });
       } catch (err: any) {
         console.error(`Page: Error favoriting meal ${mealIdToFavorite}:`, err);
-        if (err instanceof ApiError) {
-          setError(`Favorite failed: ${err.message}`);
-        } else {
-          setError("An unexpected error occurred while favoriting the meal.");
-        }
-        // Optional: Show an error toast/message
-        alert(`Error: Could not mark meal as favorite. ${err.message || ""}`);
+        const errorMsg =
+          err instanceof ApiError
+            ? `Favorite failed: ${err.message}`
+            : "An unexpected error occurred while favoriting the meal.";
+        showErrorModal(
+          "Favorite Error",
+          `Could not mark meal as favorite. ${errorMsg}`
+        ); // Use modal for error
+        setError(errorMsg); // Set state error if needed
       }
     },
-    [userId] // Dependency on userId
+    [userId, showErrorModal, showSuccessModal]
   );
 
   // Callback for Viz to request fetching specific dates
@@ -1044,6 +1082,7 @@ export const MealTimelinePage: React.FC = () => {
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B4513]"></div>
         </div>
       )}
+      {modalConfig && <CustomModal {...modalConfig} />}
     </MainLayout>
   );
 };

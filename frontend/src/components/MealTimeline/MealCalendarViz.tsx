@@ -25,6 +25,7 @@ import {
   isValid as isValidDate,
 } from "date-fns";
 import { ArrowPathIcon, CalendarDaysIcon } from "@heroicons/react/20/solid";
+import { CustomModal, ModalProps } from "../CustomModal";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -139,7 +140,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   const [selectedIngredient, setSelectedIngredient] =
     useState<Ingredient | null>(null);
-
   const [selectedRecommendation, setSelectedRecommendation] =
     useState<MealRecommendation | null>(null); // Refers to a selected RECOMMENDED meal
   const vizRef = useRef<HTMLDivElement>(null);
@@ -150,6 +150,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   });
   const traceDataRef = useRef<DayMeals[]>(initialTraceData);
   const [scrollToTodayTrigger, setScrollToTodayTrigger] = useState<number>(0);
+  const [modalConfig, setModalConfig] = useState<ModalProps | null>(null); // State for modal
 
   // State Synchronization and Data Handling
 
@@ -320,6 +321,49 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     setCurrentNutritionalValues(currentValues);
   }, [selectedDate, selectedRecommendation, calculateBaseNutrition, traceData]);
 
+  const showModal = useCallback(
+    (config: Omit<ModalProps, "isOpen" | "onClose">) => {
+      setModalConfig({
+        ...config,
+        isOpen: true,
+        onClose: () => setModalConfig(null), // Default close action
+      });
+    },
+    []
+  );
+
+  const showConfirmModal = useCallback(
+    (
+      title: string,
+      message: string,
+      onConfirm: () => void,
+      onCancel?: () => void
+    ) => {
+      showModal({
+        title,
+        message,
+        type: "confirm",
+        onConfirm: () => {
+          onConfirm();
+          setModalConfig(null); // Close after confirm
+        },
+        onCancel: () => {
+          // Also close on cancel
+          onCancel?.();
+          setModalConfig(null);
+        },
+      });
+    },
+    [showModal]
+  );
+
+  const showErrorModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "error" });
+    },
+    [showModal]
+  );
+
   // Selection Handlers
   const handleMealSelect = (meal: Meal | null) => {
     setSelectedMeal(meal); // Selects a TRACE meal
@@ -402,92 +446,278 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   // Accept Recommendation Handler
   const handleAcceptRecommendation = useCallback(
     async (acceptedRec: MealRecommendation) => {
-      const confirmAccept = window.confirm(
-        `Add "${acceptedRec.meal.name}" to your meal history for ${format(
-          acceptedRec.meal.date || selectedDate,
-          "MMM d"
-        )}? This action saves the meal.`
-      );
-      if (!confirmAccept) return;
-
       const acceptedMeal = acceptedRec.meal;
       const backendIdToSave = acceptedMeal.originalBackendId;
       const mealDate = normalizeDate(acceptedMeal.date || selectedDate);
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
       if (!backendIdToSave || !userId) {
-        alert(
-          "Error: Cannot accept recommendation due to missing internal ID or user info."
+        showErrorModal(
+          "Action Failed",
+          "Cannot accept recommendation due to missing internal ID or user info."
         );
         return;
       }
 
-      // 1. Optimistic UI Update (Trace Data)
-      const traceMealToAdd: Meal = {
-        ...acceptedMeal,
-        id: `trace-optimistic-${acceptedMeal.id}-${Date.now()}`,
-        date: mealDate,
-      };
-      delete traceMealToAdd.originalBackendId;
-
-      setTraceData((prevTraceData) => {
-        const newData = [...prevTraceData];
-        const dayIndex = newData.findIndex((day) =>
-          isSameNormalizedDay(day.date, mealDate)
-        );
-        if (dayIndex > -1) {
-          newData[dayIndex] = {
-            ...newData[dayIndex],
+      // Use modal for confirmation
+      showConfirmModal(
+        "Confirm Action",
+        `Add "${acceptedRec.meal.name}" to your meal history for ${format(
+          mealDate,
+          "MMM d"
+        )}? This action saves the meal.`,
+        async () => {
+          // Confirmation logic goes here
+          // 1. Optimistic UI Update (Trace Data)
+          const traceMealToAdd: Meal = {
+            ...acceptedMeal,
+            id: `trace-optimistic-${acceptedMeal.id}-${Date.now()}`,
             date: mealDate,
-            meals: [...(newData[dayIndex].meals || []), traceMealToAdd].sort(
-              (a, b) => a.time.localeCompare(b.time)
-            ),
           };
-        } else {
-          newData.push({ date: mealDate, meals: [traceMealToAdd] });
-        }
-        const sortedData = newData.sort(
-          (a, b) => a.date.getTime() - b.date.getTime()
-        );
-        traceDataRef.current = sortedData; // Update ref
-        return sortedData;
-      });
+          delete traceMealToAdd.originalBackendId;
 
-      // 2. Optimistic UI Update (Recommendation Data)
-      const originalRecommendationData = recommendationData;
-      setRecommendationData((prevRecData) => {
-        const updatedRecData = prevRecData
-          .map((dayRec) => {
-            if (isSameNormalizedDay(dayRec.date, mealDate)) {
-              return {
-                ...dayRec,
-                date: normalizeDate(dayRec.date),
-                recommendations: dayRec.recommendations.filter(
-                  (rec) => rec.meal.id !== acceptedRec.meal.id
-                ),
+          setTraceData((prevTraceData) => {
+            const newData = [...prevTraceData];
+            const dayIndex = newData.findIndex((day) =>
+              isSameNormalizedDay(day.date, mealDate)
+            );
+            if (dayIndex > -1) {
+              newData[dayIndex] = {
+                ...newData[dayIndex],
+                date: mealDate,
+                meals: [
+                  ...(newData[dayIndex].meals || []),
+                  traceMealToAdd,
+                ].sort((a, b) => a.time.localeCompare(b.time)),
               };
+            } else {
+              newData.push({ date: mealDate, meals: [traceMealToAdd] });
             }
-            return { ...dayRec, date: normalizeDate(dayRec.date) };
-          })
-          .filter((dayRec) => dayRec.recommendations.length > 0);
-        return updatedRecData;
-      });
+            const sortedData = newData.sort(
+              (a, b) => a.date.getTime() - b.date.getTime()
+            );
+            traceDataRef.current = sortedData; // Update ref
+            return sortedData;
+          });
 
-      // 3. Clear Selections
-      setSelectedRecommendation(null);
-      setSelectedMeal(null);
-      setSelectedFood(null);
-      setSelectedIngredient(null);
+          // 2. Optimistic UI Update (Recommendation Data)
+          const originalRecommendationData = recommendationData;
+          setRecommendationData((prevRecData) => {
+            const updatedRecData = prevRecData
+              .map((dayRec) => {
+                if (isSameNormalizedDay(dayRec.date, mealDate)) {
+                  return {
+                    ...dayRec,
+                    date: normalizeDate(dayRec.date),
+                    recommendations: dayRec.recommendations.filter(
+                      (rec) => rec.meal.id !== acceptedRec.meal.id
+                    ),
+                  };
+                }
+                return { ...dayRec, date: normalizeDate(dayRec.date) };
+              })
+              .filter((dayRec) => dayRec.recommendations.length > 0);
+            return updatedRecData;
+          });
 
-      // 4. Call Backend
-      try {
-        const saveSuccess = await onSaveMeal({
-          userId,
-          date: mealDateStr,
-          mealId: backendIdToSave,
-        });
-        if (saveSuccess) {
-          // 5. Update localStorage (on success)
+          // 3. Clear Selections
+          setSelectedRecommendation(null);
+          setSelectedMeal(null);
+          setSelectedFood(null);
+          setSelectedIngredient(null);
+
+          // 4. Call Backend
+          try {
+            const saveSuccess = await onSaveMeal({
+              userId,
+              date: mealDateStr,
+              mealId: backendIdToSave,
+            });
+            if (saveSuccess) {
+              // 5. Update localStorage (on success)
+              try {
+                const rawMealPlanString = localStorage.getItem("mealPlan");
+                if (rawMealPlanString) {
+                  let rawMealPlan = JSON.parse(rawMealPlanString);
+                  let changed = false;
+                  if (
+                    rawMealPlan.days &&
+                    rawMealPlan.days[mealDateStr] &&
+                    Array.isArray(rawMealPlan.days[mealDateStr].meals)
+                  ) {
+                    const initialLength =
+                      rawMealPlan.days[mealDateStr].meals.length;
+                    rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
+                      mealDateStr
+                    ].meals.filter(
+                      (rawMeal: any) => rawMeal._id !== backendIdToSave
+                    );
+                    const finalLength =
+                      rawMealPlan.days[mealDateStr].meals.length;
+                    if (finalLength < initialLength) {
+                      changed = true;
+                      if (
+                        finalLength === 0 &&
+                        Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
+                      ) {
+                        delete rawMealPlan.days[mealDateStr];
+                      }
+                    }
+                  }
+                  if (changed) {
+                    localStorage.setItem(
+                      "mealPlan",
+                      JSON.stringify(rawMealPlan)
+                    );
+                  }
+                }
+              } catch (e) {
+                console.error(
+                  "Viz: Failed to update localStorage['mealPlan'] after save:",
+                  e
+                );
+              }
+
+              // 6. Trigger Re-fetch
+              onRequestFetch({
+                datesToFetch: [mealDateStr],
+                direction: "specific",
+              });
+            } else {
+              // Revert UI on Save Failure
+              console.error(
+                `Viz: onSaveMeal failed for meal ${backendIdToSave}. Reverting UI.`
+              );
+              showErrorModal(
+                "Save Failed",
+                "Failed to save the meal. Recommendation restored."
+              ); // Use modal
+              setTraceData((prevTraceData) => {
+                const revertedData = prevTraceData
+                  .map((day) => {
+                    if (isSameNormalizedDay(day.date, mealDate)) {
+                      return {
+                        ...day,
+                        meals: day.meals.filter(
+                          (m) => m.id !== traceMealToAdd.id
+                        ),
+                      };
+                    }
+                    return day;
+                  })
+                  .filter(
+                    (day) =>
+                      !(
+                        day.meals.length === 0 &&
+                        !originalRecommendationData.find((d) =>
+                          isSameNormalizedDay(d.date, day.date)
+                        )?.recommendations.length
+                      )
+                  );
+                traceDataRef.current = revertedData; // Update ref
+                return revertedData;
+              });
+              setRecommendationData(originalRecommendationData);
+            }
+          } catch (error) {
+            // Revert UI on Save Error (Exception)
+            console.error("Viz: Error during onSaveMeal call:", error);
+            showErrorModal(
+              "Save Error",
+              "An error occurred while saving. Recommendation restored."
+            ); // Use modal
+            setTraceData((prevTraceData) => {
+              const revertedData = prevTraceData
+                .map((day) => {
+                  if (isSameNormalizedDay(day.date, mealDate)) {
+                    return {
+                      ...day,
+                      meals: day.meals.filter(
+                        (m) => m.id !== traceMealToAdd.id
+                      ),
+                    };
+                  }
+                  return day;
+                })
+                .filter(
+                  (day) =>
+                    !(
+                      day.meals.length === 0 &&
+                      !originalRecommendationData.find((d) =>
+                        isSameNormalizedDay(d.date, day.date)
+                      )?.recommendations.length
+                    )
+                );
+              traceDataRef.current = revertedData; // Update ref
+              return revertedData;
+            });
+            setRecommendationData(originalRecommendationData);
+          }
+        } // End of confirmation logic
+      ); // End of showConfirmModal call
+    },
+    [
+      selectedDate,
+      userId,
+      recommendationData,
+      onSaveMeal,
+      onRequestFetch,
+      setTraceData,
+      setRecommendationData,
+      setSelectedRecommendation,
+      setSelectedMeal,
+      setSelectedFood,
+      setSelectedIngredient,
+      showConfirmModal,
+      showErrorModal,
+    ]
+  );
+
+  // Reject Recommendation Handler
+  const handleRejectRecommendation = useCallback(
+    (rejectedRec: MealRecommendation) => {
+      const rejectedMeal = rejectedRec.meal;
+      const backendIdToRemove = rejectedMeal.originalBackendId;
+      const mealDate = normalizeDate(rejectedMeal.date || selectedDate);
+      const mealDateStr = format(mealDate, "yyyy-MM-dd");
+
+      if (!backendIdToRemove) {
+        showErrorModal(
+          "Action Failed",
+          "Could not reject recommendation due to missing internal ID."
+        );
+        return;
+      }
+
+      // Use modal for confirmation
+      showConfirmModal(
+        "Confirm Action",
+        `Reject recommendation "${rejectedRec.meal.name}" for ${format(
+          mealDate,
+          "MMM d"
+        )}?`,
+        () => {
+          // Confirmation logic
+          // 1. Optimistic UI Update (Recommendation Data)
+          setRecommendationData((prevRecData) => {
+            const updatedRecData = prevRecData
+              .map((dayRec) => {
+                if (isSameNormalizedDay(dayRec.date, mealDate)) {
+                  return {
+                    ...dayRec,
+                    date: normalizeDate(dayRec.date),
+                    recommendations: dayRec.recommendations.filter(
+                      (rec) => rec.meal.id !== rejectedRec.meal.id
+                    ),
+                  };
+                }
+                return { ...dayRec, date: normalizeDate(dayRec.date) };
+              })
+              .filter((dayRec) => dayRec.recommendations.length > 0);
+            return updatedRecData;
+          });
+
+          // 2. Update localStorage
           try {
             const rawMealPlanString = localStorage.getItem("mealPlan");
             if (rawMealPlanString) {
@@ -503,15 +733,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
                   mealDateStr
                 ].meals.filter(
-                  (rawMeal: any) => rawMeal._id !== backendIdToSave
+                  (rawMeal: any) => rawMeal._id !== backendIdToRemove
                 );
                 const finalLength = rawMealPlan.days[mealDateStr].meals.length;
                 if (finalLength < initialLength) {
                   changed = true;
-                  if (
-                    finalLength === 0 &&
-                    Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
-                  ) {
+                  if (finalLength === 0) {
                     delete rawMealPlan.days[mealDateStr];
                   }
                 }
@@ -522,175 +749,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             }
           } catch (e) {
             console.error(
-              "Viz: Failed to update localStorage['mealPlan'] after save:",
+              "Viz: Failed to update localStorage['mealPlan'] during rejection:",
               e
             );
           }
 
-          // 6. Trigger Re-fetch
-          onRequestFetch({
-            datesToFetch: [mealDateStr],
-            direction: "specific",
-          });
-        } else {
-          // Revert UI on Save Failure
-          console.error(
-            `Viz: onSaveMeal failed for meal ${backendIdToSave}. Reverting UI.`
-          );
-          alert("Failed to save the meal. Recommendation restored.");
-          setTraceData((prevTraceData) => {
-            const revertedData = prevTraceData
-              .map((day) => {
-                if (isSameNormalizedDay(day.date, mealDate)) {
-                  return {
-                    ...day,
-                    meals: day.meals.filter((m) => m.id !== traceMealToAdd.id),
-                  };
-                }
-                return day;
-              })
-              .filter(
-                (day) =>
-                  !(
-                    day.meals.length === 0 &&
-                    !originalRecommendationData.find((d) =>
-                      isSameNormalizedDay(d.date, day.date)
-                    )?.recommendations.length
-                  )
-              );
-            traceDataRef.current = revertedData; // Update ref
-            return revertedData;
-          });
-          setRecommendationData(originalRecommendationData);
-        }
-      } catch (error) {
-        // Revert UI on Save Error (Exception)
-        console.error("Viz: Error during onSaveMeal call:", error);
-        alert("An error occurred while saving. Recommendation restored.");
-        setTraceData((prevTraceData) => {
-          const revertedData = prevTraceData
-            .map((day) => {
-              if (isSameNormalizedDay(day.date, mealDate)) {
-                return {
-                  ...day,
-                  meals: day.meals.filter((m) => m.id !== traceMealToAdd.id),
-                };
-              }
-              return day;
-            })
-            .filter(
-              (day) =>
-                !(
-                  day.meals.length === 0 &&
-                  !originalRecommendationData.find((d) =>
-                    isSameNormalizedDay(d.date, day.date)
-                  )?.recommendations.length
-                )
-            );
-          traceDataRef.current = revertedData; // Update ref
-          return revertedData;
-        });
-        setRecommendationData(originalRecommendationData);
-      }
-    },
-    [
-      selectedDate,
-      userId,
-      recommendationData,
-      onSaveMeal,
-      onRequestFetch,
-      setTraceData,
-      setRecommendationData,
-      setSelectedRecommendation,
-      setSelectedMeal,
-      setSelectedFood,
-      setSelectedIngredient,
-    ]
-  );
-
-  // Reject Recommendation Handler
-  const handleRejectRecommendation = useCallback(
-    (rejectedRec: MealRecommendation) => {
-      const confirmReject = window.confirm(
-        `Reject recommendation "${rejectedRec.meal.name}" for ${format(
-          rejectedRec.meal.date || selectedDate,
-          "MMM d"
-        )}?`
-      );
-      if (!confirmReject) return;
-
-      const rejectedMeal = rejectedRec.meal;
-      const backendIdToRemove = rejectedMeal.originalBackendId;
-      const mealDate = normalizeDate(rejectedMeal.date || selectedDate);
-      const mealDateStr = format(mealDate, "yyyy-MM-dd");
-
-      if (!backendIdToRemove) {
-        alert(
-          "Error: Could not reject recommendation due to missing internal ID."
-        );
-        return;
-      }
-
-      // 1. Optimistic UI Update (Recommendation Data)
-      setRecommendationData((prevRecData) => {
-        const updatedRecData = prevRecData
-          .map((dayRec) => {
-            if (isSameNormalizedDay(dayRec.date, mealDate)) {
-              return {
-                ...dayRec,
-                date: normalizeDate(dayRec.date),
-                recommendations: dayRec.recommendations.filter(
-                  (rec) => rec.meal.id !== rejectedRec.meal.id
-                ),
-              };
-            }
-            return { ...dayRec, date: normalizeDate(dayRec.date) };
-          })
-          .filter((dayRec) => dayRec.recommendations.length > 0);
-        return updatedRecData;
-      });
-
-      // 2. Update localStorage
-      try {
-        const rawMealPlanString = localStorage.getItem("mealPlan");
-        if (rawMealPlanString) {
-          let rawMealPlan = JSON.parse(rawMealPlanString);
-          let changed = false;
-          if (
-            rawMealPlan.days &&
-            rawMealPlan.days[mealDateStr] &&
-            Array.isArray(rawMealPlan.days[mealDateStr].meals)
-          ) {
-            const initialLength = rawMealPlan.days[mealDateStr].meals.length;
-            rawMealPlan.days[mealDateStr].meals = rawMealPlan.days[
-              mealDateStr
-            ].meals.filter((rawMeal: any) => rawMeal._id !== backendIdToRemove);
-            const finalLength = rawMealPlan.days[mealDateStr].meals.length;
-            if (finalLength < initialLength) {
-              changed = true;
-              if (finalLength === 0) {
-                delete rawMealPlan.days[mealDateStr];
-              }
-            }
+          // 3. Clear Selections
+          if (selectedRecommendation?.meal.id === rejectedRec.meal.id) {
+            setSelectedRecommendation(null);
+            setSelectedMeal(null);
+            setSelectedFood(null);
+            setSelectedIngredient(null);
           }
-          if (changed) {
-            localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
-          }
-        }
-      } catch (e) {
-        console.error(
-          "Viz: Failed to update localStorage['mealPlan'] during rejection:",
-          e
-        );
-      }
-
-      // 3. Clear Selections if needed
-      if (selectedRecommendation?.meal.id === rejectedRec.meal.id) {
-        setSelectedRecommendation(null);
-        setSelectedMeal(null);
-        setSelectedFood(null);
-        setSelectedIngredient(null);
-      }
+        } // End confirmation logic
+      ); // End showConfirmModal call
     },
     [
       selectedDate,
@@ -700,6 +772,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedMeal,
       setSelectedFood,
       setSelectedIngredient,
+      showConfirmModal,
+      showErrorModal,
     ]
   );
 
@@ -989,6 +1063,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           </div>
         </div>
       </div>
+      {/* Render the Modal */}
+      {modalConfig && <CustomModal {...modalConfig} />}
     </div>
   );
 };
