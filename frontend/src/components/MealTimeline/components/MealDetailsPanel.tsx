@@ -41,6 +41,7 @@ interface MealDetailsPanelProps {
   currentLevel: VisualizationLevel["type"];
   // Add callbacks for actions if needed later
   // onFavoriteToggle?: (mealId: string) => void;
+  onShowRecipe: (food: Food) => void;
 }
 
 const DetailHeader: React.FC<{
@@ -270,7 +271,6 @@ const FoodList: React.FC<{ foods: Food[] | undefined }> = ({ foods }) => {
   }
   return (
     <div className="p-4 border-b border-[#E0E0E0]">
-      {" "}
       {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-2">Foods Included</h4>
       <div className="space-y-2">
@@ -278,7 +278,7 @@ const FoodList: React.FC<{ foods: Food[] | undefined }> = ({ foods }) => {
           <div
             key={food.id}
             className="flex items-center justify-between bg-[#FEF9F0] p-2 rounded-md hover:bg-[#FADFBB]/30 cursor-pointer" // Lighter cream bg, subtle hover
-            title={`View details for ${food.name} (Not Implemented)`}
+            title={`View details for ${food.name} in the Food View`}
           >
             <div className="flex items-center text-sm">
               <FoodTypeIcon
@@ -297,23 +297,22 @@ const FoodList: React.FC<{ foods: Food[] | undefined }> = ({ foods }) => {
   );
 };
 
-const InstructionSteps: React.FC<{ instructions: string[] | undefined }> = ({
-  instructions,
-}) => {
-  if (!instructions || instructions.length === 0) return null;
-  return (
-    <div className="p-4 border-b border-[#E0E0E0]">
-      {" "}
-      {/* Neutral border */}
-      <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions</h4>
-      <ol className="space-y-2 text-sm list-decimal list-inside text-gray-700">
-        {instructions.map((step, index) => (
-          <li key={index}>{step}</li>
-        ))}
-      </ol>
-    </div>
-  );
-};
+// const InstructionSteps: React.FC<{ instructions: string[] | undefined }> = ({
+//   instructions,
+// }) => {
+//   if (!instructions || instructions.length === 0) return null;
+//   return (
+//     <div className="p-4 border-b border-[#E0E0E0]">
+//       {/* Neutral border */}
+//       <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions</h4>
+//       <ol className="space-y-2 text-sm list-decimal list-inside text-gray-700">
+//         {instructions.map((step, index) => (
+//           <li key={index}>{step}</li>
+//         ))}
+//       </ol>
+//     </div>
+//   );
+// };
 
 const GeneralInfo: React.FC<{
   label: string;
@@ -508,6 +507,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   currentNutritionalValues, // Current day's totals (including simulated recommendation if selected)
   selectedDate,
   currentLevel,
+  onShowRecipe,
 }) => {
   // Determine what to display based on selection priority:
   // If a specific food/ingredient is selected, prioritize it.
@@ -602,6 +602,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
                 isValid(mealDate) ? format(mealDate, "MMM d, yyyy") : ""
               } (Saved)`}
               isTraceMeal // For favorite button
+              isFavorited={m.isFavorited} // Pass favorited status
               onClose={onClose}
             />
             <ScoreDisplay
@@ -666,7 +667,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             )}
             <NutritionalBreakdown info={f.nutritionalInfo} />
             <IngredientList ingredients={f.ingredients} />
-            <InstructionSteps instructions={f.instructions} />
+            {/* <InstructionSteps instructions={f.instructions} /> */}
             <div className="p-4 border-b space-y-2">
               <GeneralInfo
                 label="Prep Time"
@@ -682,6 +683,17 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <TagsList label="Allergens" tags={f.allergens} />
               <TagsList label="Tips" tags={f.tips} />
             </div>
+
+            {f.instructions && f.instructions.length > 0 && (
+              <div className="p-4 border-t border-[#E0E0E0]">
+                <button
+                  onClick={() => onShowRecipe(f)} // Call the new prop
+                  className="w-full px-4 py-2 bg-[#8B4513] text-white rounded-md hover:bg-[#A0522D] transition-colors text-sm font-medium"
+                >
+                  View Full Recipe
+                </button>
+              </div>
+            )}
           </>
         );
       }
@@ -824,21 +836,21 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
     };
 
     // Define goal colors
-    const goalColors = {
-      calories: {
-        text: "text-green-600",
-        bgGradient: "from-green-400 to-green-500",
-      },
-      carbs: { text: "text-blue-600", bgGradient: "from-blue-400 to-blue-500" },
-      protein: {
-        text: "text-purple-600",
-        bgGradient: "from-purple-400 to-purple-500",
-      },
-      fiber: {
-        text: "text-orange-600",
-        bgGradient: "from-orange-400 to-orange-500",
-      },
-    };
+    // const goalColors = {
+    //   calories: {
+    //     text: "text-green-600",
+    //     bgGradient: "from-green-400 to-green-500",
+    //   },
+    //   carbs: { text: "text-blue-600", bgGradient: "from-blue-400 to-blue-500" },
+    //   protein: {
+    //     text: "text-purple-600",
+    //     bgGradient: "from-purple-400 to-purple-500",
+    //   },
+    //   fiber: {
+    //     text: "text-orange-600",
+    //     bgGradient: "from-orange-400 to-orange-500",
+    //   },
+    // };
 
     return (
       <div className="flex-shrink-0 border-t bg-gradient-to-br from-white to-gray-50 p-6">

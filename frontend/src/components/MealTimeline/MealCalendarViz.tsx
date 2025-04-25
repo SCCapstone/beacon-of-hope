@@ -878,7 +878,68 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     hasRecommendationsInView,
   ]);
 
-  // Rendering
+  const handleShowRecipe = useCallback(
+    (foodToShow: Food) => {
+      // Prepare the content for the modal
+      const recipeContent = (
+        <div className="space-y-4 text-sm max-h-[65vh] overflow-y-auto pr-3 -mr-1">
+          {/* Ingredients */}
+          <div>
+            <h4 className="font-semibold mb-1 text-base text-gray-800 sticky top-0 bg-white py-1 z-10 -mt-1 pt-1">
+              Ingredients
+            </h4>
+            {foodToShow.ingredients && foodToShow.ingredients.length > 0 ? (
+              <ul className="list-disc list-inside pl-4 space-y-1 text-gray-700">
+                {foodToShow.ingredients.map((ing, index) => (
+                  <li key={ing.id || `${ing.name}-${index}`}>
+                    {ing.name} ({ing.amount} {ing.unit})
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500">No ingredients listed.</p>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div>
+            <h4 className="font-semibold mb-1 text-base text-gray-800 sticky top-0 bg-white py-1 z-10 -mt-1 pt-1">
+              Instructions
+            </h4>
+            {foodToShow.instructions && foodToShow.instructions.length > 0 ? (
+              <ol className="list-decimal list-inside pl-4 space-y-2 text-gray-700">
+                {foodToShow.instructions.map((step, index) => (
+                  <li key={index}>{step}</li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-gray-500">No instructions provided.</p>
+            )}
+          </div>
+
+          {/* Times */}
+          {(foodToShow.preparationTime > 0 || foodToShow.cookingTime > 0) && (
+            <div className="pt-2 border-t mt-4 text-xs text-gray-600">
+              {foodToShow.preparationTime > 0 &&
+                `Prep: ${foodToShow.preparationTime} min `}
+              {foodToShow.cookingTime > 0 &&
+                `Cook: ${foodToShow.cookingTime} min`}
+            </div>
+          )}
+        </div>
+      );
+
+      showModal({
+        title: `Recipe: ${foodToShow.name}`,
+        children: recipeContent,
+        type: "info",
+        size: "large",
+        hideCancelButton: true,
+      });
+    },
+    [showModal]
+  );
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-96 text-red-500">
@@ -912,7 +973,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         {/* Center Calendar View */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#FEF9F0] overflow-hidden">
           {/* Level Selector Bar */}
-          <div className="w-full h-16 px-4 bg-white border-b` border-gray-200 shadow-md z-10 flex items-center justify-between">
+          <div className="w-full h-16 px-4 bg-white border-b border-gray-200 shadow-md z-10 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <LevelSelector
                 currentLevel={currentLevel}
@@ -938,7 +999,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
               </button>
             </div>
-            {/* --- Week Selector and Today Button --- */}
+            {/* Week Selector and Today Button */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleGoToToday}
@@ -955,7 +1016,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 />
               </div>
             </div>
-            {/* --- End Week Selector and Today Button --- */}
+            {/* End Week Selector and Today Button */}
           </div>
           {/* Main Visualization Area */}
           <div className="flex-1 flex overflow-hidden">
@@ -965,11 +1026,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 className="viz-main-area bg-white rounded-lg shadow-md flex-1 overflow-hidden border border-gray-200 flex flex-col"
                 onClick={handleMainAreaClick}
               >
-                {/* Add background divs for better click target detection */}
+                {/* Render Views based on currentLevel */}
                 {currentLevel === "meal" && (
                   <div className="meal-view-background h-full">
                     <MealView
-                      allData={traceData} // Pass full trace data
+                      allData={traceData}
                       recommendationData={recommendationData}
                       selectedDate={selectedDate}
                       onMealSelect={handleMealSelect}
@@ -983,7 +1044,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       mealBinNames={mealBinNames}
                       onMealBinUpdate={handleMealBinNamesUpdate}
                       isLoading={loadingRecommendations}
-                      // Pass infinite scroll props
                       onRequestFetch={onRequestFetch}
                       isFetchingPast={isFetchingPast}
                       isFetchingFuture={isFetchingFuture}
@@ -995,9 +1055,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 )}
                 {currentLevel === "food" && (
                   <div className="food-view-background h-full">
-                    {/* Pass infinite scroll props to FoodView */}
                     <FoodView
-                      allData={traceData} // Pass full trace data
+                      allData={traceData}
                       recommendationData={recommendationData}
                       onFoodSelect={handleFoodSelect}
                       selectedFood={selectedFood}
@@ -1005,7 +1064,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       onMealBinUpdate={handleMealBinNamesUpdate}
                       selectedRecommendation={selectedRecommendation}
                       selectedDate={selectedDate}
-                      // Pass infinite scroll props
                       onRequestFetch={onRequestFetch}
                       isFetchingPast={isFetchingPast}
                       isFetchingFuture={isFetchingFuture}
@@ -1017,9 +1075,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 )}
                 {currentLevel === "ingredient" && (
                   <div className="ingredient-view-background h-full">
-                    {/* Pass infinite scroll props to IngredientView */}
                     <IngredientView
-                      allData={traceData} // Pass full trace data
+                      allData={traceData}
                       recommendationData={recommendationData}
                       onIngredientSelect={handleIngredientSelect}
                       selectedIngredient={selectedIngredient}
@@ -1027,7 +1084,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       onMealBinUpdate={handleMealBinNamesUpdate}
                       selectedRecommendation={selectedRecommendation}
                       selectedDate={selectedDate}
-                      // Pass infinite scroll props
                       onRequestFetch={onRequestFetch}
                       isFetchingPast={isFetchingPast}
                       isFetchingFuture={isFetchingFuture}
@@ -1058,6 +1114,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 baseNutritionalValues={baseNutritionalValues}
                 selectedDate={selectedDate}
                 currentLevel={currentLevel}
+                onShowRecipe={handleShowRecipe}
               />
             </div>
           </div>
