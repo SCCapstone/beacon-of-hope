@@ -18,7 +18,7 @@ from bson import ObjectId
 import logging
 import json
 import time
-
+from termcolor import colored
 
 firebaseManager = FirebaseManager()  # DB manager
 
@@ -84,11 +84,25 @@ def bandit_recommendation(request: HttpRequest):
                 status=403,
             )
         if "dietary_conditions" not in data:
-            print()
-            ...
-        
+            print(
+                colored(
+                    "There is no dietary conditions provided in the request body!! Assuming default values",
+                    "red",
+                )
+            )
+
         user_preferences = data["user_preferences"]
         user_id = data["user_id"]
+        dietary_conditions = data.get(
+            "dietary_conditions",
+            {
+                "diabetes": False,
+                "gluten_free": True,
+                "vegan": True,
+                "vegetarian": False,
+            },
+        )
+
         logger.info(f"User ID: {user_id}")
 
         user, status = firebaseManager.get_user_by_id(user_id)
@@ -98,8 +112,19 @@ def bandit_recommendation(request: HttpRequest):
                 status=status,
             )
 
+        old_dietary_conditions = user.get_dietary_conditions()
+
         bandit_counter = user.get_bandit_counter()
-        need_to_train = not (bandit_counter % 5 and user.has_favorite_items())
+
+        # we need to train the bandit in one of 3 cases
+        #   1. Their new dietary conditions don't match old dietary conditions (They updated their conditions)
+        #   2. Bandit Counter is a multiple of 5 (their items need to be refreshed)
+        #   3. User has no favorite items at all (this is their first time being recommended a meal)
+        need_to_train = (
+            not old_dietary_conditions == dietary_conditions
+            or not bandit_counter % 5
+            or not user.has_favorite_items()
+        )
         logger.info(f"User bandit counter: {bandit_counter}")
 
         # Increment bandit counter
@@ -150,7 +175,7 @@ def bandit_recommendation(request: HttpRequest):
 
             logger.info("Fetching recommended favorite items")
             # get the favorite items recommended by the bandit and save them to firebase
-            favorite_items = get_bandit_favorite_items(trial_num, user_preferences)
+            favorite_items = get_bandit_favorite_items(trial_num, user_preferences, dietary_conditions)
 
             # update user favorite items
             logger.info("Caching favorite items in DB")
@@ -168,7 +193,7 @@ def bandit_recommendation(request: HttpRequest):
                 "Main Course": [],
                 "Side": [],
                 "Dessert": [],
-                "Beverage": []
+                "Beverage": [],
             }
         for key, item_list in permanent_favorite_items.items():
             favorite_items[key] = list(set(favorite_items[key] + item_list))
@@ -236,6 +261,11 @@ def bandit_recommendation(request: HttpRequest):
                     return JsonResponse({"Error": msg}, status=status)
 
                 msg, status = user.set_numerical_preferences(user_preferences)
+                if status != 200:
+                    logger.info(msg)
+                    return JsonResponse({"Error": msg}, status=status)
+
+                msg, status = user.set_dietary_conditions(dietary_conditions)
                 if status != 200:
                     logger.info(msg)
                     return JsonResponse({"Error": msg}, status=status)
@@ -743,9 +773,11 @@ def create_user(request: HttpRequest):
                     "meat": 0,
                 },
             },
-            "health_info": {
-                "allergies": [""],
-                "conditions": [""],
+            "dietary_conditions": {
+                "diabetes": True,
+                "gluten_free": True,
+                "vegan": True,
+                "vegetarian": True,
             },
             "demographicsInfo": data.get("demographicsInfo", {}),
             "meal_plan_config": {},

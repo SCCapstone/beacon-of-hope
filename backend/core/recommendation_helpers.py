@@ -475,7 +475,7 @@ def test_bandit(bandit_trial_path):
 
 
 def get_bandit_favorite_items(
-    trial_num: int, user_preferences: Dict[str, int]
+    trial_num: int, user_preferences: Dict[str, int], dietary_condtions: Dict[str, bool]
 ) -> Dict[str, List[str]]:
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
@@ -536,6 +536,9 @@ def get_bandit_favorite_items(
     # get corresponding bandit recommended foods and bevs for the user
     bevs = rec_user_bevs[user + 1]
     foods = rec_user_foods[user + 1]
+
+    # TODO filter these beverages based off of dietary conditions
+    
 
     return {
         "Main Course": foods["Main Course"],

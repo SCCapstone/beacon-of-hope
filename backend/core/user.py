@@ -42,11 +42,13 @@ class User:
             numerical_preferences,
         )
 
-    def get_allergies(self) -> List[str]:
-        return self.health_info["allergies"]
+    def get_dietary_conditions(self) -> Dict:
+        return self.dietary_conditions
 
-    def get_conditions(self) -> List[str]:
-        return self.health_info["conditions"]
+    def set_dietary_conditions(self, dietary_conditions) -> Dict:
+        return self.firebaseManager.update_user_attr(
+            self.get_id(), "dietary_conditions", dietary_conditions
+        )
 
     def get_demographic_info(self) -> Dict:
         return self.demographicsInfo
