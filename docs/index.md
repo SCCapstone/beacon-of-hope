@@ -23,10 +23,17 @@ Anyone managing a dietary condition:
 - 🎯 Track your **nutritional goal progress** with clarity.
 
 ## Preview
+We have 3 different views in our calendar feature to view your meals.
 
+1. *Meal-specific view*: This is an overview where you can see your meals planned throughout the day, offering insights into why they were recommended and nutritional information in the meal. Users have the option to accept recommendations, delete meals, and favorite meals.
+![Screenshot Placeholder](img/meal.png)
 
-![Screenshot Placeholder](https://via.placeholder.com/600x400.png?text=App+Screenshot+1)
-![Screenshot Placeholder](https://via.placeholder.com/600x400.png?text=App+Screenshot+2)
+2. *Food Item-specific view*: This offers a view that delves into each individual component present in the meal (Main Course, Side, Dessert, and Beverage).
+![Screenshot Placeholder](img/food.png)
+
+3. *Ingredient-specific view*: This offers a list of all of the ingredients required for a particular meal. Giving users an easy way to check what groceries that they need to get in order to prepare those meals.
+![Screenshot Placeholder](img/ingr.png)
+
 
 ## Explore the Code
 [View our GitHub Repo](https://github.com/SCCapstone/beacon-of-hope)
