@@ -501,6 +501,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
+        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Past Loading Indicator */}
         {isFetchingPast && <LoadingIndicator position="top" />}

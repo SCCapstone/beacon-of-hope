@@ -806,7 +806,9 @@ export const MealView: React.FC<MealViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+      {/* Add padding-right to account for potential scrollbar width in the content below */}
+      {/* Using a common scrollbar width like 15px. */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F] pr-[15px]">
         {/* Darker cream header, darker border */}
         <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
           {/* Darker brown text, adjusted padding */}
@@ -830,6 +832,7 @@ export const MealView: React.FC<MealViewProps> = ({
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-[#FFFBF5] relative"
+        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Base cream background */}
         {isFetchingPast && <LoadingIndicator position="top" />}
@@ -884,9 +887,9 @@ export const MealView: React.FC<MealViewProps> = ({
                     {format(currentDate, "yyyy")}
                   </div>
                 </div>
-                {/* Meal Bins for this date (Flex container for columns) */}
-                <div className="flex flex-1">
-                  {mealBinNames.map((binName, index) => {
+                {/* Meal Bins for this date - Mapped directly within the main row flex container */}
+                {
+                  mealBinNames.map((binName, index) => {
                     const binContent = binsForDate[binName];
                     if (!binContent) {
                       return (
@@ -895,13 +898,11 @@ export const MealView: React.FC<MealViewProps> = ({
                           className={`flex-1 p-3 ${
                             index > 0 ? "border-l" : ""
                           } ${
-                            isSelected
-                              ? "border-[#A0522D]/30"
-                              : "border-[#E0E0E0]"
+                            "border-[#D3B89F]" // Match header border color
                           }`}
                           style={{ minWidth: "150px" }}
                         ></div>
-                      );
+                      ); // Render an empty div if binContent is undefined
                     }
                     const mealsInBin = binContent.meals;
                     const recommendationsInBin = binContent.recommendations;
@@ -911,9 +912,7 @@ export const MealView: React.FC<MealViewProps> = ({
                         className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
                           index > 0 ? "border-l" : ""
                         } ${
-                          isSelected
-                            ? "border-[#A0522D]/30"
-                            : "border-[#E0E0E0]"
+                          "border-[#D3B89F]" // Match header border color
                         }`}
                         style={{ minWidth: "150px" }}
                       >
@@ -956,8 +955,8 @@ export const MealView: React.FC<MealViewProps> = ({
                           )}
                       </div>
                     );
-                  })}
-                </div>
+                  }) /* End map over mealBinNames */
+                }
               </div>
             );
           })}

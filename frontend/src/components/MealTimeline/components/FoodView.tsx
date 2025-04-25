@@ -493,7 +493,9 @@ export const FoodView: React.FC<FoodViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+      {/* Add padding-right to account for potential scrollbar width in the content below */}
+      {/* Using a common scrollbar width like 15px. */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F] pr-[15px]">
         <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
           Date
         </div>
@@ -515,6 +517,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
+        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Past Loading Indicator */}
         {isFetchingPast && <LoadingIndicator position="top" />}
@@ -582,9 +585,9 @@ export const FoodView: React.FC<FoodViewProps> = ({
                   </div>
                 </div>
 
-                {/* Food Bins */}
-                <div className="flex flex-1">
-                  {mealBinNames.map((binName, index) => {
+                {/* Food Bins - Mapped directly within the main row flex container */}
+                {
+                  mealBinNames.map((binName, index) => {
                     const binContent = bins[binName];
                     return (
                       <div
@@ -592,9 +595,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
                         className={`flex-1 p-3 w-full flex flex-col items-stretch justify-start overflow-y-auto ${
                           index > 0 ? "border-l" : ""
                         } ${
-                          isSelectedHighlight
-                            ? "border-[#A0522D]/30"
-                            : "border-[#E0E0E0]" // Primary border for selected
+                          "border-[#D3B89F]" // Match header border color
                         }`}
                         style={{ minWidth: "150px" }}
                       >
@@ -621,8 +622,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
                         )}
                       </div>
                     );
-                  })}
-                </div>
+                  }) /* End map over mealBinNames */
+                }
               </div>
             );
           })}
