@@ -1,4 +1,3 @@
-# TODO Fix to not use csrf_exempt for safety purposes
 from django.shortcuts import render
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -42,6 +41,7 @@ def bandit_recommendation(request: HttpRequest):
         logger.info("Bandit Meal Plan Generation API Called ...")
         logger.info("Parsing Request Body ...")
         data: dict = json.loads(request.body)
+        print(data)
         meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
 
         if "starting_date" not in data:
@@ -83,6 +83,10 @@ def bandit_recommendation(request: HttpRequest):
                 {"Error": "Request body is missing key 'user_id'"},
                 status=403,
             )
+        if "dietary_conditions" not in data:
+            print()
+            ...
+        
         user_preferences = data["user_preferences"]
         user_id = data["user_id"]
         logger.info(f"User ID: {user_id}")
@@ -1033,6 +1037,7 @@ def set_nutritional_goals(request: HttpRequest):
 
     try:
         data = json.loads(request.body)
+        print(data)
         required_fields = ["user_id", "daily_goals"]
         if not all(k in data for k in required_fields):
             return JsonResponse(

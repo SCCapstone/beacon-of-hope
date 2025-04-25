@@ -13,3 +13,4 @@ If Vegan (no animal products) --> check list of all ingredients and remove all a
 
 For daily nutritional goals:
 Try to stay within 20% of goal for each macronutrient in each day
+
