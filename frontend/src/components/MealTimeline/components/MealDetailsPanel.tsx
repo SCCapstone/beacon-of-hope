@@ -14,7 +14,7 @@ import { format, isValid } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { formatScore } from "../utils";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
-// import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
+import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
 interface MealDetailsPanelProps {
   meal: Meal | null; // Parent trace meal (if selected)
@@ -23,13 +23,15 @@ interface MealDetailsPanelProps {
   recommendation: MealRecommendation | null; // Parent recommendation (if selected)
   onClose: () => void;
   nutritionalGoals: NutritionalGoals | null; // Accept null
-  currentNutritionalValues: { // Values for the day (potentially simulated)
+  currentNutritionalValues: {
+    // Values for the day (potentially simulated)
     calories: number;
     carbs: number;
     protein: number;
     fiber: number;
   };
-  baseNutritionalValues: { // Base values before simulation
+  baseNutritionalValues: {
+    // Base values before simulation
     calories: number;
     carbs: number;
     protein: number;
@@ -45,22 +47,27 @@ const DetailHeader: React.FC<{
   title: string;
   subtitle?: string;
   isRecommendation?: boolean;
-  isTraceMeal?: boolean; // Specific flag for trace meal header
+  isTraceMeal?: boolean;
+  isFavorited?: boolean;
   onClose: () => void;
   // onFavoriteClick?: () => void; // Optional favorite handler
-  // isFavorited?: boolean; // Optional favorite state
 }> = ({
   title,
   subtitle,
   isRecommendation,
   isTraceMeal,
+  isFavorited,
   onClose,
   // onFavoriteClick,
   // isFavorited
 }) => (
-  <div className="p-4 border-b bg-gray-50 relative">
+  <div className="p-4 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
+    {" "}
+    {/* Lighter cream bg, neutral border */}
     {isRecommendation && (
-      <span className="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium z-10">
+      <span className="absolute top-2 left-2 bg-[#5CB85C]/20 text-[#3C763D] px-2 py-0.5 rounded-full text-xs font-medium z-10">
+        {" "}
+        {/* Accent Green light */}
         Recommended
       </span>
     )}
@@ -80,18 +87,27 @@ const DetailHeader: React.FC<{
     </button>
     {/* Favorite Button for Trace Meals */}
     {isTraceMeal && (
-       <button
-          // onClick={onFavoriteClick}
-          onClick={() => console.warn("Favorite click not implemented")}
-          className="absolute top-2 right-10 p-1 text-yellow-400 hover:text-yellow-500 hover:bg-gray-100 rounded-full z-10"
-          aria-label="Favorite meal"
-          title="Favorite (Not Implemented)"
-        >
-          {/* {isFavorited ? <StarIconSolid className="w-5 h-5" /> : <StarIconOutline className="w-5 h-5" />} */}
-          <StarIconOutline className="w-5 h-5" /> {/* Placeholder */}
-        </button>
+      <button
+        // onClick={onFavoriteClick} // Not implemented
+        onClick={() => console.warn("Favorite click not implemented in panel")}
+        className="absolute top-2 right-10 p-1 text-[#FFC107] hover:text-[#FFA000] hover:bg-gray-100 rounded-full z-10" // Accent Yellow
+        aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
+        title={
+          isFavorited
+            ? "Favorited (Click to Unfavorite - Not Implemented)"
+            : "Favorite (Not Implemented)"
+        }
+      >
+        {/* Use isFavorited prop to show solid or outline star */}
+        {isFavorited ? (
+          <StarIconSolid className="w-5 h-5" />
+        ) : (
+          <StarIconOutline className="w-5 h-5" />
+        )}
+      </button>
     )}
-    <h3 className="text-lg font-semibold text-gray-800 mt-4 pr-16">{title}</h3> {/* Added padding-right */}
+    <h3 className="text-lg font-semibold text-gray-800 mt-4 pr-16">{title}</h3>{" "}
+    {/* Added padding-right */}
     {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
   </div>
 );
@@ -124,7 +140,8 @@ const NutritionalBreakdown: React.FC<{
   };
 
   return (
-    <div className="p-4 border-b">
+    <div className="p-4 border-b border-[#E0E0E0]">
+      {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-3">
         Nutritional Information
       </h4>
@@ -137,12 +154,13 @@ const NutritionalBreakdown: React.FC<{
               <span
                 className={
                   impact.calories > 0
-                    ? "text-green-600"
+                    ? "text-[#5CB85C]"
                     : impact.calories < 0
-                    ? "text-red-600"
+                    ? "text-[#D9534F]"
                     : "text-gray-500"
                 }
               >
+                {/* Accent Green/Red */}
                 {formatImpact(impact.calories)}
               </span>
             )}
@@ -156,12 +174,14 @@ const NutritionalBreakdown: React.FC<{
               <span
                 className={
                   impact.protein > 0
-                    ? "text-green-600"
+                    ? "text-[#5CB85C]"
                     : impact.protein < 0
-                    ? "text-red-600"
+                    ? "text-[#D9534F]"
                     : "text-gray-500"
                 }
               >
+                {" "}
+                {/* Accent Green/Red */}
                 {formatImpact(impact.protein)}g
               </span>
             )}
@@ -175,12 +195,14 @@ const NutritionalBreakdown: React.FC<{
               <span
                 className={
                   impact.carbs > 0
-                    ? "text-green-600"
+                    ? "text-[#5CB85C]"
                     : impact.carbs < 0
-                    ? "text-red-600"
+                    ? "text-[#D9534F]"
                     : "text-gray-500"
                 }
               >
+                {" "}
+                {/* Accent Green/Red */}
                 {formatImpact(impact.carbs)}g
               </span>
             )}
@@ -194,12 +216,14 @@ const NutritionalBreakdown: React.FC<{
               <span
                 className={
                   impact.fiber > 0
-                    ? "text-green-600"
+                    ? "text-[#5CB85C]"
                     : impact.fiber < 0
-                    ? "text-red-600"
+                    ? "text-[#D9534F]"
                     : "text-gray-500"
                 }
               >
+                {" "}
+                {/* Accent Green/Red */}
                 {formatImpact(impact.fiber)}g
               </span>
             )}
@@ -221,13 +245,14 @@ const IngredientList: React.FC<{ ingredients: Ingredient[] | undefined }> = ({
     );
   }
   return (
-    <div className="p-4 border-b">
+    <div className="p-4 border-b border-[#E0E0E0]">
+      {" "}
+      {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-2">Ingredients</h4>
       <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-gray-600">
         {ingredients.map((ing, index) => (
           <li key={ing.id || `${ing.name}-${index}`}>
             {ing.name} ({ing.amount} {ing.unit})
-            {/* TODO: Make ingredients clickable */}
           </li>
         ))}
       </ul>
@@ -244,14 +269,15 @@ const FoodList: React.FC<{ foods: Food[] | undefined }> = ({ foods }) => {
     );
   }
   return (
-    <div className="p-4 border-b">
+    <div className="p-4 border-b border-[#E0E0E0]">
+      {" "}
+      {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-2">Foods Included</h4>
       <div className="space-y-2">
         {foods.map((food) => (
           <div
             key={food.id}
-            className="flex items-center justify-between bg-gray-50 p-2 rounded hover:bg-gray-100 cursor-pointer" // Make clickable
-            // onClick={() => console.warn("Food click to switch view not implemented")} // Placeholder
+            className="flex items-center justify-between bg-[#FEF9F0] p-2 rounded-md hover:bg-[#FADFBB]/30 cursor-pointer" // Lighter cream bg, subtle hover
             title={`View details for ${food.name} (Not Implemented)`}
           >
             <div className="flex items-center text-sm">
@@ -276,7 +302,9 @@ const InstructionSteps: React.FC<{ instructions: string[] | undefined }> = ({
 }) => {
   if (!instructions || instructions.length === 0) return null;
   return (
-    <div className="p-4 border-b">
+    <div className="p-4 border-b border-[#E0E0E0]">
+      {" "}
+      {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-2">Instructions</h4>
       <ol className="space-y-2 text-sm list-decimal list-inside text-gray-700">
         {instructions.map((step, index) => (
@@ -303,7 +331,6 @@ const GeneralInfo: React.FC<{
       label.toLowerCase().includes("time"))
   )
     return null;
-
   return (
     <div className="flex justify-between text-sm">
       <span className="text-gray-600">{label}:</span>
@@ -324,8 +351,10 @@ const TagsList: React.FC<{ label: string; tags: string[] | undefined }> = ({
         {tags.map((tag) => (
           <span
             key={tag}
-            className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs capitalize"
+            className="px-2 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-full text-xs capitalize"
           >
+            {" "}
+            {/* Secondary color light */}
             {tag.replace(/_/g, " ")}
           </span>
         ))}
@@ -341,15 +370,18 @@ const RecommendationReasons: React.FC<{
   const hasReasons = reasons && reasons.length > 0;
   const hasBenefits = benefits && benefits.length > 0;
   if (!hasReasons && !hasBenefits) return null;
-
   return (
-    <div className="p-4 border-b space-y-3">
+    <div className="p-4 border-b border-[#E0E0E0] space-y-3">
+      {" "}
+      {/* Neutral border */}
       {hasReasons && (
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">
             Why Recommended?
           </h4>
-          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-blue-700">
+          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-[#8B4513]">
+            {" "}
+            {/* Primary color */}
             {reasons.map((reason, index) => (
               <li key={`reason-${index}`}>{reason}</li>
             ))}
@@ -361,7 +393,9 @@ const RecommendationReasons: React.FC<{
           <h4 className="text-sm font-medium text-gray-700 mb-2">
             Health Benefits
           </h4>
-          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-green-700">
+          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-[#5CB85C]">
+            {" "}
+            {/* Accent Green */}
             {benefits.map((benefit, index) => (
               <li key={`benefit-${index}`}>{benefit}</li>
             ))}
@@ -373,73 +407,95 @@ const RecommendationReasons: React.FC<{
 };
 
 const ScoreDisplay: React.FC<{
-    varietyScore?: number | null;
-    coverageScore?: number | null;
-    constraintScore?: number | null;
-    title?: string;
-}> = ({ varietyScore, coverageScore, constraintScore, title = "Recommendation Scores" }) => {
-    // Only render if at least one score is present
-    if (varietyScore === undefined && coverageScore === undefined && constraintScore === undefined) {
-        return null;
-    }
-
-    return (
-        <div className="p-4 border-b">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
-            <div className="flex justify-around text-center text-xs">
-                <div>
-                    <div className="font-semibold text-blue-600">{formatScore(varietyScore)}</div>
-                    <div className="text-gray-500">Variety</div>
-                </div>
-                <div>
-                    <div className="font-semibold text-purple-600">{formatScore(coverageScore)}</div>
-                    <div className="text-gray-500">Coverage</div>
-                </div>
-                <div>
-                    <div className="font-semibold text-orange-600">{formatScore(constraintScore)}</div>
-                    <div className="text-gray-500">Nutrition</div>
-                </div>
-            </div>
+  varietyScore?: number | null;
+  coverageScore?: number | null;
+  constraintScore?: number | null;
+  title?: string;
+}> = ({
+  varietyScore,
+  coverageScore,
+  constraintScore,
+  title = "Recommendation Scores",
+}) => {
+  if (
+    varietyScore === undefined &&
+    coverageScore === undefined &&
+    constraintScore === undefined
+  ) {
+    return null;
+  }
+  return (
+    <div className="p-4 border-b border-[#E0E0E0]">
+      {" "}
+      {/* Neutral border */}
+      <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
+      <div className="flex justify-around text-center text-xs">
+        <div>
+          <div className="font-semibold text-[#20B2AA]">
+            {formatScore(varietyScore)}
+          </div>{" "}
+          {/* Nutrient Teal */}
+          <div className="text-gray-500">Variety</div>
         </div>
-    );
+        <div>
+          <div className="font-semibold text-[#8B4513]">
+            {formatScore(coverageScore)}
+          </div>{" "}
+          {/* Nutrient Maroon */}
+          <div className="text-gray-500">Coverage</div>
+        </div>
+        <div>
+          <div className="font-semibold text-[#DAA520]">
+            {formatScore(constraintScore)}
+          </div>{" "}
+          {/* Nutrient Gold */}
+          <div className="text-gray-500">Nutrition</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Context for Trace items
 const ContextInfo: React.FC<{ text: string }> = ({ text }) => (
-    <div className="p-4 border-b bg-yellow-50 text-yellow-800 text-sm">
-        {text}
-        {/* Add clickable elements here if needed */}
-    </div>
+  <div className="p-4 border-b border-[#FFC107]/30 bg-[#FFC107]/15 text-[#8A6D3B] text-sm">
+    {" "}
+    {/* Accent Yellow light */}
+    {text}
+    {/* Add clickable elements here if needed */}
+  </div>
 );
 
 // Context for Recommended items
 const RecommendationContext: React.FC<{
-    parentMealName?: string;
-    parentRecScores?: { v?: number | null; c?: number | null; n?: number | null };
+  parentMealName?: string;
+  parentRecScores?: { v?: number | null; c?: number | null; n?: number | null };
 }> = ({ parentMealName, parentRecScores }) => {
-    if (!parentMealName) return null;
-    return (
-        <div className="p-4 border-b bg-green-50">
-            <h4 className="text-sm font-medium text-green-800 mb-2">
-                Part of Recommendation
-            </h4>
-            <p className="text-xs text-green-700 mb-1">
-                This item is part of the '
-                <span className="font-semibold">{parentMealName}</span>
-                ' recommendation.
-            </p>
-            {parentRecScores && (
-                 <p className="text-xs text-green-600">
-                    (Parent Scores - V: {formatScore(parentRecScores.v)}, C: {formatScore(parentRecScores.c)}, N: {formatScore(parentRecScores.n)})
-                 </p>
-            )}
-            <p className="text-xs text-green-700 mt-2">
-                Use the buttons on the main recommendation card in the calendar to accept or reject.
-            </p>
-        </div>
-    );
+  if (!parentMealName) return null;
+  return (
+    <div className="p-4 border-b border-[#5CB85C]/30 bg-[#5CB85C]/15">
+      {" "}
+      {/* Accent Green light */}
+      <h4 className="text-sm font-medium text-[#3C763D] mb-2">
+        Part of Recommendation
+      </h4>
+      <p className="text-xs text-[#3C763D] mb-1">
+        This item is part of the '
+        <span className="font-semibold">{parentMealName}</span>' recommendation.
+      </p>
+      {parentRecScores && (
+        <p className="text-xs text-[#3C763D]/80">
+          (Parent Scores - V: {formatScore(parentRecScores.v)}, C:{" "}
+          {formatScore(parentRecScores.c)}, N: {formatScore(parentRecScores.n)})
+        </p>
+      )}
+      <p className="text-xs text-[#3C763D] mt-2">
+        Use the buttons on the main recommendation card in the calendar to
+        accept or reject.
+      </p>
+    </div>
+  );
 };
-
 
 // Main Panel Component
 export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
@@ -517,10 +573,10 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               benefits={rec.healthBenefits}
             />
             <ScoreDisplay
-                varietyScore={rec.varietyScore}
-                coverageScore={rec.coverageScore}
-                constraintScore={rec.constraintScore}
-                title="Recommendation Scores"
+              varietyScore={rec.varietyScore}
+              coverageScore={rec.coverageScore}
+              constraintScore={rec.constraintScore}
+              title="Recommendation Scores"
             />
             <NutritionalBreakdown
               info={rec.meal?.nutritionalInfo}
@@ -537,6 +593,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         const mealDate = m.date || selectedDate;
         return (
           <>
+            {/* Pass isFavorited status to DetailHeader */}
             <DetailHeader
               title={m.name}
               subtitle={`${
@@ -547,18 +604,16 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isTraceMeal // For favorite button
               onClose={onClose}
             />
-             <ScoreDisplay
-                varietyScore={m.varietyScore}
-                coverageScore={m.coverageScore}
-                constraintScore={m.constraintScore}
-                title="Meal Scores"
+            <ScoreDisplay
+              varietyScore={m.varietyScore}
+              coverageScore={m.coverageScore}
+              constraintScore={m.constraintScore}
+              title="Meal Scores"
             />
             <NutritionalBreakdown info={m.nutritionalInfo} />
             <FoodList foods={m?.foods} />
             <div className="p-4 border-b space-y-2">
               <TagsList label="Cultural Tips" tags={m.culturalTips} />
-              {/* TODO: Add other relevant sections if needed */}
-              {/* <TagsList label="Health Benefits" tags={m.healthBenefits} /> */}
             </div>
           </>
         );
@@ -581,28 +636,34 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           <>
             <DetailHeader
               title={f.name}
-              subtitle={`${f.type.replace("_", " ")} ${isRecommendedFood ? '(Recommended)' : '(Saved)'}`}
-              isRecommendation={isRecommendedFood} // Controls badge visibility
+              subtitle={`${f.type.replace("_", " ")} ${
+                isRecommendedFood ? "(Recommended)" : "(Saved)"
+              }`}
+              isRecommendation={isRecommendedFood}
               onClose={onClose}
             />
             {/* Recommendation Context */}
-            {isRecommendedFood && recommendation && ( // Ensure recommendation exists
+            {isRecommendedFood &&
+              recommendation && ( // Ensure recommendation exists
                 <RecommendationContext
-                    parentMealName={parentRecMeal?.name}
-                    parentRecScores={{
-                        // Use scores from the top-level recommendation object
-                        v: recommendation.varietyScore,
-                        c: recommendation.coverageScore,
-                        n: recommendation.constraintScore
-                    }}
+                  parentMealName={parentRecMeal?.name}
+                  parentRecScores={{
+                    // Use scores from the top-level recommendation object
+                    v: recommendation.varietyScore,
+                    c: recommendation.coverageScore,
+                    n: recommendation.constraintScore,
+                  }}
                 />
+              )}
+            {!isRecommendedFood && parentTraceMeal && (
+              <ContextInfo
+                text={`Part of '${parentTraceMeal.name}' on ${
+                  isValid(parentTraceMeal.date || selectedDate)
+                    ? format(parentTraceMeal.date || selectedDate, "MMM d")
+                    : ""
+                }`}
+              />
             )}
-            {/* Trace Context */}
-            {!isRecommendedFood && parentTraceMeal && ( // Show context if it's a trace food AND a parent meal is selected
-                 <ContextInfo text={`Part of '${parentTraceMeal.name}' on ${isValid(parentTraceMeal.date || selectedDate) ? format(parentTraceMeal.date || selectedDate, "MMM d") : ""}`} />
-            )}
-
-            {/* Standard Food Details */}
             <NutritionalBreakdown info={f.nutritionalInfo} />
             <IngredientList ingredients={f.ingredients} />
             <InstructionSteps instructions={f.instructions} />
@@ -643,25 +704,33 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         let parentFoodName: string | undefined;
         let parentMealName: string | undefined;
         let parentMealDate: Date | undefined;
-        let parentRecScores: { v?: number | null; c?: number | null; n?: number | null } | undefined;
+        let parentRecScores:
+          | { v?: number | null; c?: number | null; n?: number | null }
+          | undefined;
 
         if (isRecommendedIngredient && recommendation) {
-            parentMealName = recommendation.meal.name;
-            parentRecScores = {
-                v: recommendation.varietyScore,
-                c: recommendation.coverageScore,
-                n: recommendation.constraintScore
-            };
-            const parentFood = recommendation.meal.foods.find(recFood =>
-                recFood.ingredients.some(ing => (ing.id && ing.id === i.id) || (!ing.id && !i.id && ing.name === i.name))
-            );
-            parentFoodName = parentFood?.name;
-        } else if (food) { // If a trace ingredient is selected, the parent 'food' should be selected too
-            parentFoodName = food.name;
-            if (meal) { // If the parent 'meal' is also selected
-                parentMealName = meal.name;
-                parentMealDate = meal.date;
-            }
+          parentMealName = recommendation.meal.name;
+          parentRecScores = {
+            v: recommendation.varietyScore,
+            c: recommendation.coverageScore,
+            n: recommendation.constraintScore,
+          };
+          const parentFood = recommendation.meal.foods.find((recFood) =>
+            recFood.ingredients.some(
+              (ing) =>
+                (ing.id && ing.id === i.id) ||
+                (!ing.id && !i.id && ing.name === i.name)
+            )
+          );
+          parentFoodName = parentFood?.name;
+        } else if (food) {
+          // If a trace ingredient is selected, the parent 'food' should be selected too
+          parentFoodName = food.name;
+          if (meal) {
+            // If the parent 'meal' is also selected
+            parentMealName = meal.name;
+            parentMealDate = meal.date;
+          }
         }
 
         const categoryColor =
@@ -673,39 +742,62 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           <>
             <DetailHeader
               title={i.name}
-              subtitle={`Ingredient (${i.amount} ${i.unit}) ${isRecommendedIngredient ? '(Recommended)' : '(Saved)'}`}
-              isRecommendation={isRecommendedIngredient} // Controls badge
+              // Display amount/unit if available
+              subtitle={`Ingredient ${
+                i.amount != null && i.unit
+                  ? `(${i.amount} ${i.unit})`
+                  : i.amount != null
+                  ? `(${i.amount})`
+                  : i.unit
+                  ? `(${i.unit})`
+                  : ""
+              } ${isRecommendedIngredient ? "(Recommended)" : "(Saved)"}`}
+              isRecommendation={isRecommendedIngredient}
               onClose={onClose}
             />
             {/* Recommendation Context */}
             {isRecommendedIngredient && (
-                 <RecommendationContext
-                    parentMealName={parentMealName}
-                    parentRecScores={parentRecScores}
-                 />
+              <RecommendationContext
+                parentMealName={parentMealName}
+                parentRecScores={parentRecScores}
+              />
             )}
             {/* Trace Context */}
             {!isRecommendedIngredient && parentFoodName && (
-                 <ContextInfo text={`Used in '${parentFoodName}'${parentMealName ? ` (Part of '${parentMealName}' on ${isValid(parentMealDate || selectedDate) ? format(parentMealDate || selectedDate, "MMM d") : ""})` : ''}`} />
+              <ContextInfo
+                text={`Used in '${parentFoodName}'${
+                  parentMealName
+                    ? ` (Part of '${parentMealName}' on ${
+                        isValid(parentMealDate || selectedDate)
+                          ? format(parentMealDate || selectedDate, "MMM d")
+                          : ""
+                      })`
+                    : ""
+                }`}
+              />
             )}
 
-            {/* Standard Ingredient Details */}
-            <div className="p-4 border-b flex items-center space-x-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: categoryColor }}
-              ></div>
-              <span className="text-sm font-medium text-gray-700 capitalize">
-                Category: {i.category}
-              </span>
-            </div>
-            <NutritionalBreakdown info={i.nutritionalInfo} />
-            <div className="p-4 border-b space-y-2">
-              <TagsList label="Cultural Origin" tags={i.culturalOrigin} />
-              <TagsList label="Allergens" tags={i.allergens} />
-              <TagsList label="Substitutes" tags={i.substitutes} />
-            </div>
-            {/* TODO: Add other relevant sections if needed */}
+            {/* Standard Ingredient Details - SIMPLIFIED */}
+            {/* Show Category if available */}
+            {i.category && (
+              <div className="p-4 border-b flex items-center space-x-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: categoryColor }}
+                ></div>
+                <span className="text-sm font-medium text-gray-700 capitalize">
+                  Category: {i.category}
+                </span>
+              </div>
+            )}
+
+            {/* Add a placeholder if category is also missing */}
+            {!i.category && (
+              <div className="p-4 text-sm text-gray-500">
+                Basic ingredient details. More information may be available at
+                the Food or Meal level.
+              </div>
+            )}
           </>
         );
       }
@@ -724,13 +816,28 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       );
     }
 
-    // Use currentNutritionalValues which includes simulation if a recommendation is selected
     const displayValues = currentNutritionalValues;
     const { dailyCalories, carbohydrates, protein, fiber } = nutritionalGoals;
-
     const calcProgress = (current: number, target: number) => {
       if (target <= 0) return 0;
-      return Math.min(Math.max((current / target) * 100, 0), 100); // Ensure 0-100 range
+      return Math.min(Math.max((current / target) * 100, 0), 100);
+    };
+
+    // Define goal colors
+    const goalColors = {
+      calories: {
+        text: "text-green-600",
+        bgGradient: "from-green-400 to-green-500",
+      },
+      carbs: { text: "text-blue-600", bgGradient: "from-blue-400 to-blue-500" },
+      protein: {
+        text: "text-purple-600",
+        bgGradient: "from-purple-400 to-purple-500",
+      },
+      fiber: {
+        text: "text-orange-600",
+        bgGradient: "from-orange-400 to-orange-500",
+      },
     };
 
     return (
@@ -753,7 +860,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Calories</span>
                 <span className="text-gray-500">
-                  {displayValues.calories.toFixed(0)} / {dailyCalories.toFixed(0)} kcal
+                  {displayValues.calories.toFixed(0)} /{" "}
+                  {dailyCalories.toFixed(0)} kcal
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -776,7 +884,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Carbohydrates</span>
                 <span className="text-gray-500">
-                  {displayValues.carbs.toFixed(0)} / {carbohydrates.daily.toFixed(0)}
+                  {displayValues.carbs.toFixed(0)} /{" "}
+                  {carbohydrates.daily.toFixed(0)}
                   {carbohydrates.unit}
                 </span>
               </div>
@@ -800,7 +909,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="flex justify-between text-xs">
                 <span className="font-medium text-gray-600">Protein</span>
                 <span className="text-gray-500">
-                  {displayValues.protein.toFixed(0)} / {protein.daily.toFixed(0)}
+                  {displayValues.protein.toFixed(0)} /{" "}
+                  {protein.daily.toFixed(0)}
                   {protein.unit}
                 </span>
               </div>
@@ -888,16 +998,18 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
 
   // Final Render
   return (
-    <div className="h-full flex flex-col bg-white border-l border-gray-200">
-      {/* Main Content Area */}
+    <div className="h-full flex flex-col bg-white border-l border-[#E0E0E0]">
+      {" "}
+      {/* Neutral border */}
       <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
-            // Update key to include more factors for smoother transitions
             key={
               displayType +
-              (displayItem as any)?.id + // Use item's ID
-              (isShowingRecommendationContext ? recommendation?.meal.id : 'trace') + // Include rec ID if context
+              (displayItem as any)?.id +
+              (isShowingRecommendationContext
+                ? recommendation?.meal.id
+                : "trace") +
               currentLevel
             }
             initial={{ opacity: 0, x: 50 }}
@@ -909,7 +1021,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           </motion.div>
         </AnimatePresence>
       </div>
-
       {/* Nutritional Goals Progress */}
       {renderGoalsProgress()}
     </div>

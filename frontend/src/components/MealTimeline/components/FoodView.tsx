@@ -87,10 +87,10 @@ const FoodCard: React.FC<{
   const totalTime = food.preparationTime + food.cookingTime;
   const timeIndicator =
     totalTime <= 15
-      ? { text: "<15m", color: "bg-green-100 text-green-800" }
+      ? { text: "<15m", color: "bg-[#5CB85C]/20 text-[#3C763D]" } // Accent Green Light
       : totalTime <= 30
-      ? { text: "15-30m", color: "bg-yellow-100 text-yellow-800" }
-      : { text: ">30m", color: "bg-red-100 text-red-800" };
+      ? { text: "15-30m", color: "bg-[#FFC107]/20 text-[#8A6D3B]" } // Accent Yellow Light
+      : { text: ">30m", color: "bg-[#D9534F]/20 text-[#A94442]" }; // Accent Red Light
 
   // Defensive check for nutritionalInfo
   const calories = food.nutritionalInfo?.calories ?? 0;
@@ -105,16 +105,16 @@ const FoodCard: React.FC<{
       className={`food-card-item relative p-2.5 mb-2 rounded-lg cursor-pointer text-xs
         ${
           isRecommended
-            ? "bg-green-50/60 border border-dashed border-green-300"
-            : "bg-white shadow-sm border border-gray-200"
+            ? "bg-[#90EE90]/20 border border-dashed border-[#5CB85C]/50" // Lighter accent green bg, accent green border
+            : "bg-[#FFFBF5] shadow-sm border border-[#E0E0E0]" // Light cream bg, neutral border
         }
-        ${isSelected ? "ring-2 ring-purple-500" : ""}
+        ${isSelected ? "ring-2 ring-[#8B4513]" : ""}
         hover:shadow-md transition-all duration-200
         flex items-center space-x-2`}
       onClick={onClick}
     >
       {isRecommended && (
-        <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full z-10 shadow-sm">
+        <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-[#5CB85C] text-white px-1.5 py-0.5 rounded-full z-10 shadow-sm">
           Rec
         </span>
       )}
@@ -133,7 +133,7 @@ const FoodCard: React.FC<{
         <div className="flex items-center justify-end space-x-1">
           {food.diabetesFriendly && (
             <span
-              className="inline-block px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded-full"
+              className="inline-block px-1 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] text-[10px] rounded-full"
               title="Diabetes Friendly"
             >
               DF
@@ -162,13 +162,13 @@ const LoadingIndicator = ({
   <div
     className={`flex items-center justify-center p-4 ${
       position === "top"
-        ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+        ? "sticky top-0 z-10 bg-gradient-to-b from-[#FFFBF5]/80 to-transparent"
         : position === "bottom"
         ? "py-4"
         : "h-full"
     }`}
   >
-    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>
   </div>
 );
 
@@ -493,15 +493,16 @@ export const FoodView: React.FC<FoodViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
-      <div className="flex border-b bg-white z-10 sticky top-0 flex-shrink-0">
-        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
           Date
         </div>
         {mealBinNames.map((binName, index) => (
           <div
             key={binName}
-            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
-              index > 0 ? "border-l" : ""
+            className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
+              // Darker brown text, adjusted padding
+              index > 0 ? "border-l border-[#D3B89F]" : "" // Darker border
             }`}
             style={{ minWidth: "150px" }}
           >
@@ -513,13 +514,15 @@ export const FoodView: React.FC<FoodViewProps> = ({
       {/* Scrollable container */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-gray-50 relative"
+        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
       >
         {/* Past Loading Indicator */}
         {isFetchingPast && <LoadingIndicator position="top" />}
 
         {/* Render Date Rows */}
-        <div className="min-w-full divide-y divide-gray-200">
+        <div className="min-w-full divide-y divide-[#E0E0E0]">
+          {" "}
+          {/* Lighter neutral divider */}
           {allAvailableDates.map((currentDate) => {
             const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             // Defensive check for valid date object
@@ -540,35 +543,39 @@ export const FoodView: React.FC<FoodViewProps> = ({
               <div
                 key={currentDate.toISOString()}
                 id={dateId}
-                className={`flex min-h-[150px] ${
-                  isSelectedHighlight ? "bg-purple-50" : "bg-white"
+                className={`flex min-h-[150px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                  // Hover effect
+                  isSelectedHighlight ? "bg-[#8B4513]/5" : "bg-white" // Light primary tint for selected, white for others
                 }`}
               >
                 {/* Date Cell */}
                 <div
-                  className={`w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start ${
+                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                    // Adjusted padding
                     isSelectedHighlight
-                      ? "border-purple-200"
-                      : "border-gray-200"
+                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                      : "border-[#E0E0E0]" // Primary border, light primary bg for selected
                   }`}
                 >
                   <div
                     className={`font-semibold ${
-                      isSelectedHighlight ? "text-purple-800" : "text-gray-800"
+                      isSelectedHighlight ? "text-[#8B4513]" : "text-gray-800" // Primary text color for selected
                     }`}
                   >
                     {format(currentDate, "EEE")}
                   </div>
                   <div
                     className={`text-sm ${
-                      isSelectedHighlight ? "text-purple-600" : "text-gray-500"
+                      isSelectedHighlight ? "text-[#A0522D]" : "text-gray-500" // Slightly lighter primary text
                     }`}
                   >
                     {format(currentDate, "MMM d")}
                   </div>
                   <div
                     className={`text-xs ${
-                      isSelectedHighlight ? "text-purple-500" : "text-gray-400"
+                      isSelectedHighlight
+                        ? "text-[#A0522D]/80"
+                        : "text-gray-400" // Lighter primary text
                     }`}
                   >
                     {format(currentDate, "yyyy")}
@@ -582,12 +589,12 @@ export const FoodView: React.FC<FoodViewProps> = ({
                     return (
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
-                        className={`flex-1 p-2 w-full flex flex-col items-stretch justify-center overflow-y-auto ${
+                        className={`flex-1 p-3 w-full flex flex-col items-stretch justify-start overflow-y-auto ${
                           index > 0 ? "border-l" : ""
                         } ${
                           isSelectedHighlight
-                            ? "border-purple-200"
-                            : "border-gray-200"
+                            ? "border-[#A0522D]/30"
+                            : "border-[#E0E0E0]" // Primary border for selected
                         }`}
                         style={{ minWidth: "150px" }}
                       >
@@ -609,7 +616,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
                         </AnimatePresence>
                         {(!binContent || binContent.length === 0) && (
                           <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                            -
+                            No food items
                           </div>
                         )}
                       </div>

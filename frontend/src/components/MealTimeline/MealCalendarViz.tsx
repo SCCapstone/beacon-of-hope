@@ -108,7 +108,7 @@ interface MealCalendarVizProps {
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
-  mealData: initialTraceData, // Rename prop for clarity
+  mealData: initialTraceData,
   nutritionalGoals,
   mealPlan,
   onRequestFetch,
@@ -120,7 +120,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   onFavoriteMeal,
   onDeleteMeal,
   userId,
-  // Destructure new props
   isFetchingPast,
   isFetchingFuture,
   loadedStartDate,
@@ -761,7 +760,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Always update the date state via the parent first
     handleDateChange(today);
     // *** Increment the trigger to force scroll effect execution ***
-    setScrollToTodayTrigger(prev => prev + 1);
+    setScrollToTodayTrigger((prev) => prev + 1);
     console.log("Viz: Today button clicked, triggering scroll.");
   }, [handleDateChange]); // Keep handleDateChange dependency
 
@@ -775,7 +774,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       // When changing level, also set date to today and trigger scroll
       const today = normalizeDate(new Date());
       onDateSelect(today);
-      setScrollToTodayTrigger(prev => prev + 1); // Trigger scroll for the new level view
+      setScrollToTodayTrigger((prev) => prev + 1); // Trigger scroll for the new level view
     },
     [onDateSelect]
   );
@@ -830,16 +829,16 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   return (
     <div
-      className="w-screen flex flex-col overflow-hidden bg-gray-100"
+      className="w-screen flex flex-col overflow-hidden bg-[#FFFBF5]"
       ref={vizRef}
       style={{ height: "calc(100vh - 64px)" }}
     >
       {/* Main Content */}
       <div className="w-full h-full flex flex-col overflow-hidden box-border">
         {/* Center Calendar View */}
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#FEF9F0] overflow-hidden">
           {/* Level Selector Bar */}
-          <div className="w-full h-16 px-4 bg-white border-b shadow-sm z-10 flex items-center justify-between">
+          <div className="w-full h-16 px-4 bg-white border-b` border-gray-200 shadow-md z-10 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <LevelSelector
                 currentLevel={currentLevel}
@@ -851,7 +850,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   ${
                     isRegenerating || !hasRecommendationsInView
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-gradient-to-r from-orange-200 to-pink-900 text-white hover:bg-blue-600"
+                      : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
                   }
                 `}
                 disabled={isRegenerating || !hasRecommendationsInView}
@@ -869,7 +868,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleGoToToday}
-                className="px-3 py-1.5 rounded-md text-sm flex items-center bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-200"
+                className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
                 title="Go to Today"
               >
                 <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
@@ -889,7 +888,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             {/* Calendar View */}
             <div className="flex-1 min-w-0 p-4 flex flex-col">
               <div
-                className="viz-main-area bg-white rounded-lg shadow-sm flex-1 overflow-hidden border border-gray-200 flex flex-col"
+                className="viz-main-area bg-white rounded-lg shadow-md flex-1 overflow-hidden border border-gray-200 flex flex-col"
                 onClick={handleMainAreaClick}
               >
                 {/* Add background divs for better click target detection */}
@@ -897,7 +896,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   <div className="meal-view-background h-full">
                     <MealView
                       allData={traceData} // Pass full trace data
-                      recommendationData={recommendationData} // Pass full rec data
+                      recommendationData={recommendationData}
                       selectedDate={selectedDate}
                       onMealSelect={handleMealSelect}
                       selectedMeal={selectedMeal}
@@ -968,7 +967,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             </div>
 
             {/* Right Panel */}
-            <div className="meal-details-panel-container w-[480px] bg-white shadow-lg z-10 flex-shrink-0 border-l border-gray-200">
+            <div className="meal-details-panel-container w-[480px] bg-white shadow-lg z-10 flex-shrink-0 border-l border-[#E0E0E0]">
               <MealDetailsPanel
                 meal={selectedMeal}
                 food={selectedFood}

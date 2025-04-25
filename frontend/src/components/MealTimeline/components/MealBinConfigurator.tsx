@@ -59,7 +59,7 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md text-sm font-medium"
+            className="px-3 py-1.5 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-md text-sm font-medium hover:bg-[#8FBC8F]/30" // Secondary color light
             onClick={() => setIsEditing(true)}
           >
             Edit
@@ -69,7 +69,7 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium"
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200" // Neutral
               onClick={handleCancel}
             >
               Cancel
@@ -77,7 +77,7 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md text-sm font-medium"
+              className="px-3 py-1.5 bg-[#5CB85C]/90 text-white rounded-md text-sm font-medium hover:bg-[#5CB85C]" // Accent Green
               onClick={handleSave}
             >
               Save
@@ -91,7 +91,7 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
           {mealBinNames.map((name, index) => (
             <div
               key={`bin-${index}`}
-              className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md text-sm"
+              className="px-3 py-1.5 bg-[#8B4513]/10 text-[#8B4513] rounded-md text-sm" // Primary color lighter
             >
               {name}
             </div>
@@ -108,13 +108,17 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
                 type="text"
                 value={name}
                 onChange={(e) => handleNameChange(index, e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="flex-1 px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#A0522D]/50 focus:border-[#A0522D]/50" // Neutral border, primary focus ring
                 placeholder={`Meal ${index + 1}`}
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                className={`p-2 rounded-md transition-colors ${
+                  editedNames.length <= 1
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-[#D9534F] hover:bg-[#D9534F]/10" // Accent Red
+                }`}
                 onClick={() => handleRemoveBin(index)}
                 disabled={editedNames.length <= 1}
               >
@@ -138,7 +142,7 @@ export const MealBinConfigurator: React.FC<MealBinConfiguratorProps> = ({
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full py-2 mt-2 bg-blue-50 text-blue-700 rounded-md text-sm font-medium flex items-center justify-center"
+            className="w-full py-2 mt-2 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-md text-sm font-medium flex items-center justify-center hover:bg-[#8FBC8F]/30" // Secondary color light
             onClick={handleAddBin}
           >
             <svg

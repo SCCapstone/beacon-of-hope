@@ -919,7 +919,8 @@ export const MealTimelinePage: React.FC = () => {
     return (
       <MainLayout title="Meal Calendar" subtitle="Loading your data...">
         <div className="flex items-center justify-center h-[calc(100vh-150px)]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+          {/* Use primary color for spinner */}
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]" />
         </div>
       </MainLayout>
     );
@@ -930,11 +931,12 @@ export const MealTimelinePage: React.FC = () => {
     // Show login error prominently
     return (
       <MainLayout title="Meal Calendar" subtitle="Access Denied">
-        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-red-500">
+        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-[#D9534F]">
+          {" "}
+          {/* Accent Red */}
           <div className="text-center">
             <p className="text-xl mb-4">Login Required</p>
             <p>{error}</p>
-            {/* Add a login button? */}
           </div>
         </div>
       </MainLayout>
@@ -943,7 +945,9 @@ export const MealTimelinePage: React.FC = () => {
     // Show other errors
     return (
       <MainLayout title="Meal Calendar" subtitle="Error">
-        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-red-500">
+        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-[#D9534F]">
+          {" "}
+          {/* Accent Red */}
           <div className="text-center">
             <p className="text-xl mb-4">Error Loading Data</p>
             <p>{error}</p>
@@ -961,9 +965,10 @@ export const MealTimelinePage: React.FC = () => {
                   fetchNutritionalGoals(userId).then(setNutritionalGoals);
                 }
               }}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="mt-4 px-4 py-2 bg-[#8B4513] text-white rounded-md hover:bg-[#A0522D]" // Primary color button
             >
-              Retry
+              {" "}
+              Retry{" "}
             </button>
           </div>
         </div>
@@ -1035,7 +1040,8 @@ export const MealTimelinePage: React.FC = () => {
       {/* Overlay loader uses combined logic */}
       {showOverlayLoader && (
         <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 pointer-events-none">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+          {/* Use primary color for spinner */}
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B4513]"></div>
         </div>
       )}
     </MainLayout>

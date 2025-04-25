@@ -50,7 +50,7 @@ interface MealViewProps {
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
-  isLoading?: boolean; // General loading state (e.g., for recommendations)
+  isLoading?: boolean;
   onRequestFetch: FetchRequestHandler;
   isFetchingPast: boolean;
   isFetchingFuture: boolean;
@@ -102,57 +102,48 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     setOptimisticFavorite(meal.isFavorited ?? false);
   }, [meal.isFavorited]);
 
-  // Destructure scores from meal object
   const {
     nutritionalInfo,
-    // diabetesFriendly,
     name,
     foods = [],
     varietyScore,
     coverageScore,
     constraintScore,
   } = meal;
-
-  // Defensive check for nutritionalInfo
   const safeNutritionalInfo = nutritionalInfo || {
     calories: 0,
     protein: 0,
     carbs: 0,
     fiber: 0,
   };
-
   const totalMacros =
     safeNutritionalInfo.carbs +
     safeNutritionalInfo.protein +
     safeNutritionalInfo.fiber;
+  // Use new nutrient colors for percentages
   const carbPercent =
-    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.carbs / totalMacros) * 100 : 0; // Teal
   const proteinPercent =
-    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.protein / totalMacros) * 100 : 0; // Maroon
   const fiberPercent =
-    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0;
+    totalMacros > 0 ? (safeNutritionalInfo.fiber / totalMacros) * 100 : 0; // Gold
 
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card selection
-    onDeleteClick(); // Call the passed handler
+    e.stopPropagation();
+    onDeleteClick();
   };
 
   const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isFavoriting) return; // Prevent double clicks
-
+    if (isFavoriting) return;
     setIsFavoriting(true);
-    setOptimisticFavorite(true); // Optimistically show as favorited
-
+    setOptimisticFavorite(true);
     try {
-      await onFavoriteClick(); // Call the handler passed from MealView
-      // Success message/handling is done in the parent (MealTimelinePage)
+      await onFavoriteClick();
     } catch (error) {
       console.error("Error during favorite click:", error);
-      setOptimisticFavorite(false); // Revert optimistic state on error
-      // Error message is shown in parent
+      setOptimisticFavorite(false);
     } finally {
-      // Reset loading state after a short delay to allow visual feedback
       setTimeout(() => setIsFavoriting(false), 500);
     }
   };
@@ -162,29 +153,28 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
   return (
     <motion.div
-      key={`meal-${meal.id}`} // Use meal.id as key
-      layout // Enable smooth layout changes
+      key={`meal-${meal.id}`}
+      layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.15 }}
-      className={`meal-card relative p-2 rounded-lg cursor-pointer
-        bg-white shadow-sm hover:shadow transition-all duration-300
-        ${isSelected ? "ring-2 ring-blue-500" : "border border-gray-200"}
+      className={`meal-card relative p-3 rounded-lg cursor-pointer transition-all duration-300
+        bg-white shadow-md hover:shadow-lg
         ${
-          optimisticFavorite ? "border-yellow-400 ring-1 ring-yellow-300" : ""
-        } // Add visual cue for favorite
-        flex flex-col min-h-[100px]`} // Ensure minimum height
+          isSelected ? "ring-2 ring-[#8B4513]" : "border border-[#E0E0E0]"
+        } // Primary ring, neutral border
+        ${
+          optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
+        } // Accent Yellow border/ring
+        flex flex-col min-h-[120px]`} // Increased padding/min-height
       onClick={onClick}
     >
       <motion.button
-        whileHover={{
-          scale: 1.05,
-          backgroundColor: "rgba(239, 68, 68, 0.9)", // Red hover
-        }}
+        whileHover={{ scale: 1.05, backgroundColor: "#C9302C" }} // Darker Accent Red
         whileTap={{ scale: 0.9 }}
         onClick={handleDeleteButtonClick}
-        className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-red-500 shadow-md z-20 hover:bg-red-500 transition-colors"
+        className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-[#D9534F] shadow-md z-20 transition-colors" // Accent Red
         title="Remove meal"
       >
         <XMarkIcon className="w-4 h-4" />
@@ -192,21 +182,18 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       <motion.button
         whileHover={{
-          scale: 1.1, // Slightly larger hover effect
-          backgroundColor: isFavoriting
-            ? "rgba(200, 150, 10, 0.9)"
-            : "rgba(245, 158, 11, 0.9)", // Yellow hover
-        }}
+          scale: 1.1,
+          backgroundColor: isFavoriting ? "#D4AF37" : "#FFA000",
+        }} // Darker Accent Yellow
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteButtonClick}
-        disabled={isFavoriting} // Disable while processing
+        disabled={isFavoriting}
         className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
                     ${
                       isFavoriting
                         ? "bg-yellow-600 animate-pulse"
-                        : "bg-yellow-500 hover:bg-yellow-600"
-                    }
-                  `}
+                        : "bg-[#FFC107] hover:bg-[#FFA000]"
+                    }`} // Accent Yellow
         title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
       >
         {isFavoriting ? (
@@ -240,8 +227,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         {name && (
-          <div className="mb-2">
-            <span className="text-sm font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full truncate pr-2">
+          <div className="mb-1">
+            <span className="text-sm font-medium px-2 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-full truncate pr-2">
+              {" "}
+              {/* Secondary color light */}
               {name}
             </span>
           </div>
@@ -253,30 +242,38 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       {/* Macro Visualization with Labels */}
       <div className="mb-1 flex justify-between text-xs">
-        <span className="text-blue-900">Carbs {Math.round(carbPercent)}%</span>
-        <span className="text-purple-900">
+        <span className="text-[#1A8C8A]">Carbs {Math.round(carbPercent)}%</span>{" "}
+        {/* Darker Teal */}
+        <span className="text-[#6B4226]">
           Protein {Math.round(proteinPercent)}%
-        </span>
-        <span className="text-orange-900">
+        </span>{" "}
+        {/* Darker Maroon */}
+        <span className="text-[#B8860B]">
           Fiber {Math.round(fiberPercent)}%
-        </span>
+        </span>{" "}
+        {/* Darker Gold */}
       </div>
-      <div className="flex h-2 rounded-full overflow-hidden mb-3">
+      <div className="flex h-2.5 rounded-full overflow-hidden mb-3">
+        {" "}
+        {/* Thicker bar */}
         <div
-          className="bg-blue-400"
+          className="bg-[#20B2AA]"
           style={{ width: `${carbPercent}%` }}
           title={`Carbs: ${safeNutritionalInfo.carbs}g`}
-        />
+        />{" "}
+        {/* Nutrient Teal */}
         <div
-          className="bg-purple-400"
+          className="bg-[#8B4513]"
           style={{ width: `${proteinPercent}%` }}
           title={`Protein: ${safeNutritionalInfo.protein}g`}
-        />
+        />{" "}
+        {/* Nutrient Maroon */}
         <div
-          className="bg-orange-400"
+          className="bg-[#DAA520]"
           style={{ width: `${fiberPercent}%` }}
           title={`Fiber: ${safeNutritionalInfo.fiber}g`}
-        />
+        />{" "}
+        {/* Nutrient Gold */}
       </div>
 
       {/* Food Type Icons */}
@@ -292,9 +289,18 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
       {/* Footer Indicators (Scores) */}
       <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
-        <span title="Variety Score">V: {formatScore(varietyScore)}</span>
-        <span title="Coverage Score">C: {formatScore(coverageScore)}</span>
-        <span title="Nutrition Score">N: {formatScore(constraintScore)}</span>
+        <span title="Variety Score" className="text-[#20B2AA]">
+          V: {formatScore(varietyScore)}
+        </span>{" "}
+        {/* Teal */}
+        <span title="Coverage Score" className="text-[#8B4513]">
+          C: {formatScore(coverageScore)}
+        </span>{" "}
+        {/* Maroon */}
+        <span title="Nutrition Score" className="text-[#DAA520]">
+          N: {formatScore(constraintScore)}
+        </span>{" "}
+        {/* Gold */}
       </div>
     </motion.div>
   );
@@ -718,7 +724,6 @@ export const MealView: React.FC<MealViewProps> = ({
     );
   };
 
-  // Loading indicator component
   const LoadingIndicator = ({
     position = "center",
   }: {
@@ -727,13 +732,14 @@ export const MealView: React.FC<MealViewProps> = ({
     <div
       className={`flex items-center justify-center p-4 ${
         position === "top"
-          ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+          ? "sticky top-0 z-10 bg-gradient-to-b from-[#FFFBF5]/80 to-transparent"
           : position === "bottom"
           ? "py-4"
-          : "h-full" // Center takes full height if needed
+          : "h-full"
       }`}
     >
-      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>{" "}
+      {/* Primary color */}
     </div>
   );
 
@@ -741,7 +747,7 @@ export const MealView: React.FC<MealViewProps> = ({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mb-4" />
           <p className="text-gray-500">Loading your meal data...</p>
         </div>
       </div>
@@ -750,38 +756,41 @@ export const MealView: React.FC<MealViewProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header for meal bins */}
-      <div className="flex border-b bg-white z-10 sticky top-0 flex-shrink-0">
+      {/* Fixed header */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
         {" "}
-        {/* Ensure header doesn't scroll */}
-        {/* Date column header */}
-        <div className="w-32 flex-shrink-0 p-4 font-medium text-gray-700 border-r">
+        {/* Darker cream header, darker border */}
+        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
+          {" "}
+          {/* Darker brown text, adjusted padding */}
           Date
         </div>
         {/* Meal bin headers */}
         {mealBinNames.map((binName, index) => (
           <div
             key={binName}
-            className={`flex-1 p-4 text-center font-medium text-gray-700 ${
-              index > 0 ? "border-l" : ""
+            className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
+              index > 0 ? "border-l border-[#D3B89F]" : ""
             }`}
-            style={{ minWidth: "150px" }} // Give bins a min-width
+            style={{ minWidth: "150px" }}
           >
+            {" "}
+            {/* Darker brown text, darker border */}
             {binName}
           </div>
         ))}
       </div>
-      {/* Scrollable container for DATES (Vertical Scroll) */}
+      {/* Scrollable container */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-gray-50 relative" // Vertical scroll here
+        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative"
       >
-        {/* Past Loading Indicator */}
+        {" "}
+        {/* Base cream background */}
         {isFetchingPast && <LoadingIndicator position="top" />}
-        {/* Render Date Rows */}
-        <div className="min-w-full divide-y divide-gray-200">
+        <div className="min-w-full divide-y divide-[#E0E0E0]">
           {" "}
-          {/* Use divide for row separators */}
+          {/* Lighter neutral divider */}
           {allAvailableDates.map((currentDate) => {
             const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             const isSelected = isSameDay(
@@ -794,54 +803,58 @@ export const MealView: React.FC<MealViewProps> = ({
               <div
                 key={currentDate.toISOString()}
                 id={dateId}
-                className={`flex min-h-[180px] ${
-                  // Each row is a flex container
-                  isSelected ? "bg-blue-50" : "bg-white"
+                className={`flex min-h-[180px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                  isSelected ? "bg-[#8B4513]/5" : "bg-white"
                 }`}
               >
-                {/* Date Cell (Fixed Width) */}
+                {" "}
+                {/* Light primary tint for selected, white otherwise */}
+                {/* Date Cell */}
                 <div
-                  className={`
-                    w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start
-                    ${isSelected ? "border-blue-200" : "border-gray-200"}
-                  `}
+                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                    isSelected
+                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                      : "border-[#E0E0E0]"
+                  }`}
                 >
+                  {" "}
+                  {/* Primary border/bg for selected */}
                   <div
                     className={`font-semibold ${
-                      isSelected ? "text-blue-800" : "text-gray-800"
+                      isSelected ? "text-[#8B4513]" : "text-gray-800"
                     }`}
                   >
                     {format(currentDate, "EEE")}
                   </div>
                   <div
                     className={`text-sm ${
-                      isSelected ? "text-blue-600" : "text-gray-500"
+                      isSelected ? "text-[#A0522D]" : "text-gray-500"
                     }`}
                   >
                     {format(currentDate, "MMM d")}
                   </div>
                   <div
                     className={`text-xs ${
-                      isSelected ? "text-blue-500" : "text-gray-400"
+                      isSelected ? "text-[#A0522D]/80" : "text-gray-400"
                     }`}
                   >
                     {format(currentDate, "yyyy")}
                   </div>
                 </div>
-
                 {/* Meal Bins for this date (Flex container for columns) */}
                 <div className="flex flex-1">
                   {mealBinNames.map((binName, index) => {
                     const binContent = binsForDate[binName];
                     if (!binContent) {
-                      // Should not happen with current logic, but safe fallback
                       return (
                         <div
                           key={`${currentDate.toISOString()}-${binName}-empty`}
-                          className={`flex-1 p-2 ${
+                          className={`flex-1 p-3 ${
                             index > 0 ? "border-l" : ""
                           } ${
-                            isSelected ? "border-blue-200" : "border-gray-200"
+                            isSelected
+                              ? "border-[#A0522D]/30"
+                              : "border-[#E0E0E0]"
                           }`}
                           style={{ minWidth: "150px" }}
                         ></div>
@@ -849,17 +862,20 @@ export const MealView: React.FC<MealViewProps> = ({
                     }
                     const mealsInBin = binContent.meals;
                     const recommendationsInBin = binContent.recommendations;
-
                     return (
                       <div
                         key={`${currentDate.toISOString()}-${binName}`}
-                        className={`
-                          flex-1 p-2 overflow-hidden flex flex-col items-stretch justify-center space-y-1.5
-                          ${index > 0 ? "border-l" : ""}
-                          ${isSelected ? "border-blue-200" : "border-gray-200"}
-                        `}
+                        className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
+                          index > 0 ? "border-l" : ""
+                        } ${
+                          isSelected
+                            ? "border-[#A0522D]/30"
+                            : "border-[#E0E0E0]"
+                        }`}
                         style={{ minWidth: "150px" }}
                       >
+                        {" "}
+                        {/* Adjusted padding/spacing */}
                         <AnimatePresence>
                           {mealsInBin.map((meal) =>
                             renderMealCard(meal, currentDate)
@@ -871,7 +887,7 @@ export const MealView: React.FC<MealViewProps> = ({
                               key={`rec-${
                                 recommendation.meal.id
                               }-${currentDate.toISOString()}`}
-                              className="flex-shrink-0" // Prevent card shrinking
+                              className="flex-shrink-0"
                               recommendation={recommendation}
                               onAccept={() =>
                                 onAcceptRecommendationClick(recommendation)
@@ -889,11 +905,10 @@ export const MealView: React.FC<MealViewProps> = ({
                             />
                           ))}
                         </AnimatePresence>
-                        {/* Empty State for the bin */}
                         {mealsInBin.length === 0 &&
                           recommendationsInBin.length === 0 && (
                             <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                              -
+                              Add Meal
                             </div>
                           )}
                       </div>
