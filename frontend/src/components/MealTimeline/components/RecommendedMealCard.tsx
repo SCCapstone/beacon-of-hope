@@ -4,6 +4,7 @@ import { MealRecommendation } from "../types";
 import { CheckIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { formatScore } from "../utils";
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
 interface RecommendedMealCardProps {
   recommendation: MealRecommendation;
@@ -85,6 +86,14 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
   const handleRejectClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onReject();
+  };
+
+  const scoreDescriptions = {
+    variety: "Measures the variation present in the recommended items",
+    coverage:
+      "Measures how well the recommended items fit the requested roles (Main Course, Side, etc.)",
+    nutrition:
+      "Measures how well the recommended items fit the requested user preferences (dairy, meat, and nuts)",
   };
 
   return (
@@ -210,18 +219,33 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
 
         {/* Footer Indicators (Scores) */}
         <div className="pt-2 mt-auto flex justify-around border-t border-green-100 text-xs text-gray-600">
-          <span title="Variety Score" className="text-[#20B2AA]">
-            V: {formatScore(varietyScore)}
-          </span>{" "}
-          {/* Teal */}
-          <span title="Coverage Score" className="text-[#8B4513]">
-            C: {formatScore(coverageScore)}
-          </span>{" "}
-          {/* Maroon */}
-          <span title="Nutrition Score" className="text-[#DAA520]">
-            N: {formatScore(constraintScore)}
-          </span>{" "}
-          {/* Gold */}
+          <div className="flex items-center space-x-1">
+            <span className="text-[#20B2AA]">
+              V: {formatScore(varietyScore)}
+            </span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.variety}
+            />
+          </div>
+          <div className="flex items-center space-x-1">
+            <span className="text-[#8B4513]">
+              C: {formatScore(coverageScore)}
+            </span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.coverage}
+            />
+          </div>
+          <div className="flex items-center space-x-1">
+            <span className="text-[#DAA520]">
+              N: {formatScore(constraintScore)}
+            </span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.nutrition}
+            />
+          </div>
         </div>
 
         {/* Health Benefits */}
