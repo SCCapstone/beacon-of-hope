@@ -122,11 +122,21 @@ interface MealCalendarVizProps {
   onDeleteMeal: DeleteMealHandler;
   onFavoriteMeal: FavoriteMealHandler;
   userId: string;
-  // New props for infinite scroll
   isFetchingPast: boolean;
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
+  getMealsForDate: (date: Date) => Meal[];
+  getRecommendationsForDate: (date: Date) => MealRecommendation[];
+  organizeMealsIntoBins: (date: Date) => {
+    bins: Record<
+      string,
+      { meals: Meal[]; recommendations: MealRecommendation[] }
+    >;
+    maxBinsNeeded: number;
+    currentBinNames: string[];
+  };
+  allAvailableDates: Date[];
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -427,7 +437,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         const priorityA = mealTypePriority[a.mealType] ?? 99;
         const priorityB = mealTypePriority[b.mealType] ?? 99;
         if (priorityA !== priorityB) return priorityA - priorityB;
-        return a.type === "meal" ? -1 : 1;
+        return a.type === "meal" ? -1 : 1; // Prioritize trace meals if time/type are same
       });
 
       const maxBinsNeeded = allItems.length;
@@ -437,7 +447,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       > = {};
       const currentBinNames: string[] = [];
 
-      for (let i = 0; i < maxBinsNeeded; i++) {
+      // Ensure enough bins exist based on the maximum needed for *this specific date*
+      const binCountForThisDate = Math.max(mealBinNames.length, maxBinsNeeded);
+
+      for (let i = 0; i < binCountForThisDate; i++) {
         const binName = mealBinNames[i] || `Meal Slot ${i + 1}`;
         bins[binName] = { meals: [], recommendations: [] };
         currentBinNames.push(binName);
@@ -452,9 +465,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             bins[binName].recommendations.push(item.item as MealRecommendation);
           }
         } else {
+          // This case should ideally not happen if binCountForThisDate is calculated correctly
           console.warn(
             `MealCalendarViz: Bin index out of bounds during distribution. Index: ${index}, Bins available: ${currentBinNames.length}`
           );
+          // Fallback: Add to the last available bin? Or create a new one?
+          // For simplicity, let's log and potentially skip.
         }
       });
 
@@ -463,7 +479,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     [getMealsForDate, getRecommendationsForDate, mealBinNames] // Dependencies
   );
 
-  // Calculate max bins needed and if expansion is required (moved from MealView)
+  // Calculate max bins needed and if expansion is required (central calculation)
   const { maxBinsAcrossAllDates, needsExpansion } = useMemo(() => {
     let maxNeeded = DEFAULT_BIN_COUNT;
     let anyDateNeedsExpansion = false;
@@ -476,6 +492,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         anyDateNeedsExpansion = true;
       }
     }
+    // Ensure maxNeeded is at least the default count
+    maxNeeded = Math.max(maxNeeded, DEFAULT_BIN_COUNT);
     return {
       maxBinsAcrossAllDates: maxNeeded,
       needsExpansion: anyDateNeedsExpansion,
@@ -1325,27 +1343,27 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger} // Pass scroll trigger
+                      scrollToTodayTrigger={scrollToTodayTrigger}
                       isExpanded={isExpanded}
                       maxBinsAcrossAllDates={maxBinsAcrossAllDates}
                       defaultBinCount={DEFAULT_BIN_COUNT}
                       getMealsForDate={getMealsForDate}
                       getRecommendationsForDate={getRecommendationsForDate}
                       organizeMealsIntoBins={organizeMealsIntoBins}
-                      allAvailableDates={allAvailableDates} // Pass calculated dates
+                      allAvailableDates={allAvailableDates}
                     />
                   </div>
                 )}
                 {currentLevel === "food" && (
                   <div className="food-view-background h-full">
                     <FoodView
-                      allData={traceData}
-                      recommendationData={recommendationData}
+                      allData={traceData} // Pass trace data
+                      recommendationData={recommendationData} // Pass recommendation data
                       onFoodSelect={handleFoodSelect}
                       selectedFood={selectedFood}
-                      mealBinNames={mealBinNames}
-                      onMealBinUpdate={handleMealBinNamesUpdate}
-                      selectedRecommendation={selectedRecommendation}
+                      mealBinNames={mealBinNames} // Pass bin names
+                      onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
+                      selectedRecommendation={selectedRecommendation} // Pass selection context
                       selectedDate={selectedDate}
                       onRequestFetch={onRequestFetch}
                       isFetchingPast={isFetchingPast}
@@ -1353,6 +1371,11 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
                       scrollToTodayTrigger={scrollToTodayTrigger}
+                      organizeMealsIntoBins={organizeMealsIntoBins}
+                      allAvailableDates={allAvailableDates}
+                      isExpanded={isExpanded}
+                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                      defaultBinCount={DEFAULT_BIN_COUNT}
                     />
                   </div>
                 )}
