@@ -484,14 +484,27 @@ class FirebaseManager:
         return ("That meal does not exist in the database", 500)
 
     """Object deletion functions"""
-
     def delete_user(self, user_id):
         """
         Deletes a user from Firestore.
+        Also deletes associated day plans and meal plans.
         Returns a tuple: (result message, status code)
         """
         try:
-            return self._delete_document("users", user_id)
+            # Delete the user document
+            self._delete_document("users", user_id)
+
+            # Delete associated day plans
+            day_plans = self.db.collection("day_plans").where("user_id", "==", user_id).stream()
+            for plan in day_plans:
+                self.db.collection("day_plans").document(plan.id).delete()
+
+            # Delete associated temp day plans
+            temp_day_plans = self.db.collection("temp_day_plans").where("user_id", "==", user_id).stream()
+            for temp_plan in temp_day_plans:
+                self.db.collection("temp_day_plans").document(temp_plan.id).delete()
+
+            return ("User and associated plans deleted successfully.", 200)
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
 
