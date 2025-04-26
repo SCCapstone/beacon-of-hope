@@ -1069,17 +1069,19 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
       setCurrentLevel(newLevel);
+      // Reset selections as the context changes between levels
       setSelectedMeal(null);
       setSelectedFood(null);
       setSelectedIngredient(null);
       setSelectedRecommendation(null);
-      // When changing level, also set date to today and trigger scroll
-      const today = normalizeDate(new Date());
-      onDateSelect(today); // Update date via parent
-      setScrollToTodayTrigger((prev) => prev + 1); // Trigger scroll for the new level view
-      // console.log("Viz: Level changed, setting date to today and triggering scroll.");
+
+      // Trigger a scroll effect to ensure the view scrolls to the currently selected date
+      // in the new level's layout. The name "scrollToTodayTrigger" is slightly misleading now,
+      // but its function (triggering scroll-to-selected-date) remains correct.
+      setScrollToTodayTrigger((prev) => prev + 1);
+      // console.log(`Viz: Level changed to ${newLevel}. Keeping selected date and triggering scroll.`);
     },
-    [onDateSelect]
+    []
   );
 
   const hasRecommendationsInView = recommendationData.some(
