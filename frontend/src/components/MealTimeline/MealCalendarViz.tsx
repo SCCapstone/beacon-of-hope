@@ -1052,6 +1052,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     (newDateInput: Date) => {
       const newDate = normalizeDate(newDateInput);
       onDateSelect(newDate); // Propagate date change to parent
+      setScrollToTodayTrigger((prev) => prev + 1);
+      // console.log("Viz: Date changed via picker/selector, triggering scroll.");
     },
     [onDateSelect]
   );
@@ -1061,9 +1063,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     const today = normalizeDate(new Date());
     // Always update the date state via the parent first
     handleDateChange(today);
-    // *** Increment the trigger to force scroll effect execution ***
-    setScrollToTodayTrigger((prev) => prev + 1);
-    // console.log("Viz: Today button clicked, triggering scroll.");
+    // console.log("Viz: Today button clicked, triggering scroll via handleDateChange.");
   }, [handleDateChange]); // Keep handleDateChange dependency
 
   const handleLevelChange = useCallback(
@@ -1075,8 +1075,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       setSelectedRecommendation(null);
       // When changing level, also set date to today and trigger scroll
       const today = normalizeDate(new Date());
-      onDateSelect(today);
+      onDateSelect(today); // Update date via parent
       setScrollToTodayTrigger((prev) => prev + 1); // Trigger scroll for the new level view
+      // console.log("Viz: Level changed, setting date to today and triggering scroll.");
     },
     [onDateSelect]
   );

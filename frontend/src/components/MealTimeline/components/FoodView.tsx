@@ -433,7 +433,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
-    const viewName = "FoodView"; // For logging
+    // const viewName = "FoodView"; // For logging
     const container = scrollContainerRef.current;
 
     if (container && selectedDate && isValidDate(selectedDate)) {
@@ -450,10 +450,10 @@ export const FoodView: React.FC<FoodViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "center",
+              block: "start",
               inline: "nearest",
             });
-          } else {
+          } else if (attempt < 3) {
             // console.log(
             //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
             // );
@@ -482,7 +482,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
     }
-  }, [selectedDate, scrollToTodayTrigger]);
+  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
 
   // console.log(
   //   `FoodView: Rendering component. Dates to render: ${

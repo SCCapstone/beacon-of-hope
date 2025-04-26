@@ -32,11 +32,12 @@ import { RootState } from "../app/store";
 import { ApiError } from "../utils/errorHandling";
 import { CustomModal, ModalProps } from "../components/CustomModal";
 
+// Helper function to normalize dates consistently
 const normalizeDate = (date: Date | string | null | undefined): Date => {
   if (date === null || date === undefined) {
-    console.warn(
-      "MealTimeLinePage normalizeDate received null/undefined, returning current date."
-    );
+    // console.warn(
+    //   "MealTimeLinePage normalizeDate received null/undefined, returning current date."
+    // );
     const fallbackDate = new Date();
     fallbackDate.setHours(0, 0, 0, 0);
     return fallbackDate;
@@ -44,10 +45,10 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
   // Handle string parsing carefully, assuming 'yyyy-MM-dd' or ISO format
   const dateObj = typeof date === "string" ? parseISO(date) : date;
   if (!isValidDate(dateObj)) {
-    console.warn(
-      "MealTimeLinePage normalizeDate received invalid date, returning current date:",
-      date
-    );
+    // console.warn(
+    //   "MealTimeLinePage normalizeDate received invalid date, returning current date:",
+    //   date
+    // );
     const fallbackDate = new Date();
     fallbackDate.setHours(0, 0, 0, 0);
     return fallbackDate;
@@ -56,6 +57,42 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
   const normalized = new Date(dateObj);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
+};
+
+// Function to determine the initial selected date based on recommendations or today
+const getInitialSelectedDate = (): Date => {
+  const today = normalizeDate(new Date());
+  try {
+    const rawMealPlanString = localStorage.getItem("mealPlan");
+    if (rawMealPlanString) {
+      const mealPlan = JSON.parse(rawMealPlanString);
+      if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
+        const recommendationDates = Object.keys(mealPlan.days)
+          .map(normalizeDate) // Normalize date strings to Date objects
+          .filter(isValidDate); // Filter out any invalid dates
+
+        if (recommendationDates.length > 0) {
+          const firstRecommendationDate = minDate(recommendationDates);
+          // console.log(
+          //   "MealTimelinePage: Found recommendations, setting initial date to:",
+          //   format(firstRecommendationDate, "yyyy-MM-dd")
+          // );
+          return firstRecommendationDate;
+        }
+      }
+    }
+  } catch (e) {
+    console.error(
+      "MealTimelinePage: Error reading or parsing mealPlan from localStorage:",
+      e
+    );
+    // Fall through to return today's date if error occurs
+  }
+  // console.log(
+  //   "MealTimelinePage: No recommendations found or error, setting initial date to today:",
+  //   format(today, "yyyy-MM-dd")
+  // );
+  return today; // Default to today if no recommendations or error
 };
 
 // Type for the callback payload from Viz for fetching
@@ -78,8 +115,9 @@ export const MealTimelinePage: React.FC = () => {
   const [isFetchingMorePast, setIsFetchingMorePast] = useState(false); // Specific loading state for past
   const [isFetchingMoreFuture, setIsFetchingMoreFuture] = useState(false); // Specific loading state for future
   const [error, setError] = useState<string | null>(null);
+  // Use the helper function to initialize selectedDate
   const [selectedDate, setSelectedDate] = useState<Date>(
-    normalizeDate(new Date())
+    getInitialSelectedDate
   );
   const [nutritionalGoals, setNutritionalGoals] =
     useState<NutritionalGoals | null>(null); // State for goals
@@ -192,7 +230,7 @@ export const MealTimelinePage: React.FC = () => {
       if (userId) {
         setIsLoadingGoals(true);
         try {
-          console.log("MealTimelinePage: Fetching nutritional goals...");
+          // console.log("MealTimelinePage: Fetching nutritional goals...");
           const goals = await fetchNutritionalGoals(userId);
           setNutritionalGoals(goals); // Set goals (can be null if not found)
           // console.log("MealTimelinePage: Goals fetched:", goals);
@@ -471,7 +509,7 @@ export const MealTimelinePage: React.FC = () => {
           !isFetchingMoreFuture
         ) {
           setIsLoading(false); // Ensure main loading is off if nothing is fetching
-          console.log("Page All fetches complete. isLoading set to false.");
+          // console.log("Page All fetches complete. isLoading set to false.");
         }
         // else {
         // console.log("Page Fetch complete for:", datesActuallyNeedingFetch.join(', '), "Remaining fetches:", Array.from(fetchingDatesRef.current));

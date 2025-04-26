@@ -440,7 +440,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
-    const viewName = "IngredientView"; // For logging
+    // const viewName = "IngredientView"; // For logging
     const container = scrollContainerRef.current;
 
     if (container && selectedDate && isValidDate(selectedDate)) {
@@ -448,7 +448,6 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       const scrollTarget = CSS.escape(dateId);
 
       const attemptScroll = (attempt = 1) => {
-        // Use rAF for each attempt to ensure it runs after paint
         requestAnimationFrame(() => {
           const element = container.querySelector(`#${scrollTarget}`);
           if (element) {
@@ -457,23 +456,14 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "center",
+              block: "start",
               inline: "nearest",
             });
-          } else {
-            // console.log(
-            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            // );
-            if (attempt < 3) {
-              // Retry up to 3 times
-              const delay = 100 * attempt; // Increase delay slightly each time
-              // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
-              setTimeout(() => attemptScroll(attempt + 1), delay);
-            } else {
-              // console.log(
-              //   `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              // );
-            }
+          } else if (attempt < 3) {
+            // Retry up to 3 times
+            const delay = 100 * attempt; // Increase delay slightly each time
+            // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+            setTimeout(() => attemptScroll(attempt + 1), delay);
           }
         });
       };
@@ -489,7 +479,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
     }
-  }, [selectedDate, scrollToTodayTrigger]);
+  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
 
   // console.log(
   //   `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`

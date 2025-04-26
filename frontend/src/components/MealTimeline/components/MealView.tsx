@@ -512,7 +512,7 @@ export const MealView: React.FC<MealViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "center",
+              block: "start",
               inline: "nearest",
             });
           } else if (attempt < 3) {
@@ -533,7 +533,7 @@ export const MealView: React.FC<MealViewProps> = ({
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
     }
-  }, [selectedDate, scrollToTodayTrigger]);
+  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
 
   const renderMealCard = (meal: Meal, date: Date) => {
     // Ensure meal.date is valid or fallback to the date passed in
