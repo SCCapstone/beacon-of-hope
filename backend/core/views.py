@@ -175,7 +175,9 @@ def bandit_recommendation(request: HttpRequest):
 
             logger.info("Fetching recommended favorite items")
             # get the favorite items recommended by the bandit and save them to firebase
-            favorite_items = get_bandit_favorite_items(trial_num, user_preferences, dietary_conditions)
+            favorite_items = get_bandit_favorite_items(
+                trial_num, user_preferences, dietary_conditions
+            )
 
             # update user favorite items
             logger.info("Caching favorite items in DB")
@@ -815,9 +817,11 @@ def login_user(request: HttpRequest):
         user, _ = firebaseManager.get_user_by_email(
             user_email=data["email"], password=data["password"]
         )
-        if isinstance(user, Exception):
-            return JsonResponse({"Error": str(user)}, status=500)
 
+        if isinstance(user, Exception):
+            logger.info(colored(f"{user}", "red"))
+            return JsonResponse({"Error": str(user)}, status=500)
+        logger.info(colored(f"Logging in user with id: {user['_id']}", "green"))
         return JsonResponse(user, status=200)
 
     except KeyError as e:  # Handle missing keys
@@ -894,7 +898,7 @@ def update_user(request: HttpRequest, user_id: str):
                 user_id, "demographicInfo.race", race
             )
             if status != 200:
-                logger.info(msg)
+                logger.info(colored(msg, "red"))
                 return JsonResponse({"Error": msg}, status=500)
 
         # Update Last Updated Timestamp
@@ -907,12 +911,12 @@ def update_user(request: HttpRequest, user_id: str):
             return JsonResponse({"Error": msg}, status=status)
 
         # Return Updated User
-        logger.info("Retrieving User")
+
+        logger.info(colored("Retrieving User", "light_yellow"))
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
-            logger.info(msg)
-            return JsonResponse({"Error": user}, status=500)
-
+            logger.info(user)
+            return JsonResponse({"Error": user}, status=status)
         return JsonResponse(user.to_dict(), status=status)
     except:
         return JsonResponse(

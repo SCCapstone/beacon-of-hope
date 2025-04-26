@@ -135,4 +135,7 @@ class User:
         return f"User({self.__dict__})"
 
     def to_dict(self):
-        return self.__dict__
+        user_dict = self.__dict__
+        if "firebaseManager" in user_dict:
+            user_dict.pop("firebaseManager")
+        return user_dict
