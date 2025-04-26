@@ -14,12 +14,39 @@ from .metrics import (
     nutritional_constraint_score,
 )
 from typing import Dict, List
+import copy
 
 # TODO, play around with number of trees in bandit and assess quality of recommendation
 
 firebaseManager = FirebaseManager()
 food_items, _ = firebaseManager.get_r3()
 beverages, _ = firebaseManager.get_beverages()
+
+
+def filter_based_on_dietary_conditions(ids, dietary_conditions):
+    filtered_foods = copy.deepcopy(food_items)
+    filtered_beverages = copy.deepcopy(beverages)
+
+    dietary_conditions = [
+        condition
+        for condition, hasCondition in dietary_conditions.items()
+        if hasCondition
+    ]
+
+    for condition in dietary_conditions:
+        # filter
+        if condition == "diabetes":
+            "isLowSugar"
+            ...
+        elif condition == "gluten_free":
+            "isGlutenFree"
+            ...
+        elif condition == "vegan":
+            "isVegan"
+            ...
+        elif condition == "vegetarian":
+            "hasMeat"
+            ...
 
 
 def get_highest_prob_foods(items_probs, num_users):
@@ -538,7 +565,6 @@ def get_bandit_favorite_items(
     foods = rec_user_foods[user + 1]
 
     # TODO filter these beverages based off of dietary conditions
-    
 
     return {
         "Main Course": foods["Main Course"],
