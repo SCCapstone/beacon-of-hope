@@ -108,27 +108,27 @@ const PersonalInfoModal: React.FC = () => {
     }
   };
 
-  const handleDemographicsChange = (field: 'ethnicity' | 'race', value: string) => {
+  // const handleDemographicsChange = (field: 'ethnicity' | 'race', value: string) => {
 
-    console.log(value);
-    if (!isGuest) {
-      setInfo((prev) => ({
-        ...prev,
-        demographicsInfo: {
-          ...prev.demographicsInfo,
-          [field]: value
-        }
-      }));
+  //   console.log(value);
+  //   if (!isGuest) {
+  //     setInfo((prev) => ({
+  //       ...prev,
+  //       demographicsInfo: {
+  //         ...prev.demographicsInfo,
+  //         [field]: value
+  //       }
+  //     }));
       
-      // Update the backend
-      dispatch(updateUser({
-        demographicsInfo: {
-          ...info.demographicsInfo,
-          [field]: value
-        }
-      }));
-    }
-  };
+  //     // Update the backend
+  //     dispatch(updateUser({
+  //       demographicsInfo: {
+  //         ...info.demographicsInfo,
+  //         [field]: value
+  //       }
+  //     }));
+  //   }
+  // };
 
   const renderField = (
     field: keyof PersonalInfo,
@@ -209,7 +209,7 @@ const PersonalInfoModal: React.FC = () => {
         </div>
       </div>
 
-      <div className="info-section">
+      {/* <div className="info-section">
         <h2>
           <b>Demographics & Preferences</b>
         </h2>
@@ -243,7 +243,7 @@ const PersonalInfoModal: React.FC = () => {
             <option value="other">Other</option>
           </select>
         </div>
-      </div>
+      </div> */}
 
       <p className="info-note">
         {isGuest ? (

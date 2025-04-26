@@ -14,10 +14,6 @@ import { convertTime24to12 } from "../utils/mealPlanTransformer";
 import { updateUser } from "../../src/features/userSlice";
 
 interface PersonalInfo {
-  name: string;
-  first_name: string;
-  last_name: string;
-  email: string;
   allowPersonalization: boolean;
   demographicsInfo: {
     ethnicity: string;
@@ -49,10 +45,6 @@ const FoodPreferencesPage: React.FC = () => {
   console.log(userData);
 
   const [info, setInfo] = useState<PersonalInfo>({
-    name: userData?.first_name + " " + userData?.last_name || "Guest User",
-    first_name: userData?.first_name || "Guest",
-    last_name: userData?.last_name || "User",
-    email: userData?.email || "guest@example.com",
     allowPersonalization: userData?.allowPersonalization ?? false,
     demographicsInfo: userData?.demographicsInfo || {
       ethnicity: userData?.demographicsInfo.ethnicity || "",
@@ -334,6 +326,12 @@ const FoodPreferencesPage: React.FC = () => {
         dairyPreference: dairy,
         meatPreference: meat,
         nutsPreference: nuts,
+      },
+      dietary_conditions: {
+        diabetes: diabetes,
+        gluten_free: glutenFree,
+        vegan: vegan,
+        vegetarian: vegetarian
       },
       user_id: userState.user?._id,
     };
