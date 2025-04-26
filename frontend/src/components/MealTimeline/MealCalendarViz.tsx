@@ -1216,46 +1216,40 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
             {/* Center: Action Buttons */}
             <div className="flex items-center space-x-3">
-              {/* Regenerate Button */}
-              <button
-                onClick={handleRegenerateClick}
-                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
-                  ${
-                    isRegenerating || !hasRecommendationsInView
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
-                  }
-                `}
-                disabled={isRegenerating || !hasRecommendationsInView}
-                title={regenerateButtonTooltip}
-              >
-                {isRegenerating ? (
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
+              {/* Regenerate Button - Conditionally Rendered */}
+              {!isRegenerating && hasRecommendationsInView && (
+                <button
+                  onClick={handleRegenerateClick}
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-[#8B4513] hover:bg-[#A0522D] text-white"
+                  title={regenerateButtonTooltip}
+                >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
-                )}
-                {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
-              </button>
+                  Regenerate Plans
+                </button>
+              )}
+              {/* Show loading indicator if regenerating */}
+              {isRegenerating && (
+                <button
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-300 text-gray-500 cursor-not-allowed"
+                  disabled={true}
+                  title={regenerateButtonTooltip}
+                >
+                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                  Regenerating...
+                </button>
+              )}
 
-              <button
-                onClick={handleClearAllRecommendations} // Use the new handler
-                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
-                  ${
-                    !hasRecommendationsInView
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed" // Disabled state
-                      : "bg-red-600 hover:bg-red-700 text-white" // Active state (red for destructive)
-                  }
-                `}
-                disabled={!hasRecommendationsInView} // Disable if no recommendations
-                title={
-                  !hasRecommendationsInView
-                    ? "No recommendations to clear"
-                    : "Clear all current recommendations"
-                }
-              >
-                <TrashIcon className="h-4 w-4 mr-2" />
-                Clear All
-              </button>
+              {/* Clear Recommendations Button - Conditionally Rendered */}
+              {hasRecommendationsInView && (
+                <button
+                  onClick={handleClearAllRecommendations} // Use the new handler
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-600 hover:bg-red-700 text-white"
+                  title="Clear all current recommendations"
+                >
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                  Clear Recommendations
+                </button>
+              )}
 
               {currentLevel === "meal" &&
                 showExpansionButton && ( // Only show for Meal View and if needed
