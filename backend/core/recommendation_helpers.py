@@ -13,13 +13,72 @@ from .metrics import (
     food_item_coverage_score,
     nutritional_constraint_score,
 )
-from typing import Dict, List
-
-# TODO, play around with number of trees in bandit and assess quality of recommendation
+from typing import Dict, List, Tuple
+import copy
+import logging
+from termcolor import colored
 
 firebaseManager = FirebaseManager()
 food_items, _ = firebaseManager.get_r3()
 beverages, _ = firebaseManager.get_beverages()
+
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+logger = logging.getLogger(__name__)
+
+
+def filter_based_on_dietary_conditions(
+    food_ids: Dict[str, List], bev_ids: List[str], dietary_conditions: Dict[str, bool]
+) -> Tuple[List[str], List[str]]:
+    # convert to set for O(1) lookup
+    logger.info(colored("Collecting all food ids", "green"))
+    all_food_ids = [id for role_ids in food_ids.values() for id in role_ids]
+    bev_ids = set(bev_ids)
+
+    # create deepcopy to avoid altering original dictionaries by reference
+    filtered_foods = copy.deepcopy(food_items)
+    filtered_bevs = copy.deepcopy(beverages)
+
+    # filter based off of provided food ids
+    filtered_foods = {i: r3 for i, r3 in filtered_foods.items() if i in all_food_ids}
+    filtered_bevs = {i: bev for i, bev in filtered_bevs.items() if i in bev_ids}
+
+    # get list of user's dietary conditions, subset of ["diabetes", "vegan", "vegetarian", "gluten_free"]
+    dietary_conditions = [
+        condition
+        for condition, hasCondition in dietary_conditions.items()
+        if hasCondition
+    ]
+
+    for condition in dietary_conditions:
+        if condition == "diabetes":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isLowSugar"]
+            }
+        elif condition == "gluten_free":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isGlutenFree"]
+            }
+        elif condition == "vegan":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isVegan"]
+            }
+            filtered_bevs = {
+                i: bev for i, bev in filtered_bevs.items() if not bev["hasDairy"]
+            }
+        elif condition == "vegetarian":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if not r3["hasMeat"]
+            }
+
+    logger.info(colored("Reconstructing food ids for meal roles", "green"))
+
+    food_ids = {
+        role: list(set(role_ids).intersection(set(filtered_foods)))
+        for role, role_ids in food_ids.items()
+    }
+    # now we just need to return the ids of the foods and bevs
+    return food_ids, list(filtered_bevs)
 
 
 def get_highest_prob_foods(items_probs, num_users):
@@ -475,7 +534,7 @@ def test_bandit(bandit_trial_path):
 
 
 def get_bandit_favorite_items(
-    trial_num: int, user_preferences: Dict[str, int]
+    trial_num: int, user_preferences: Dict[str, int], dietary_condtions: Dict[str, bool]
 ) -> Dict[str, List[str]]:
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
@@ -536,6 +595,11 @@ def get_bandit_favorite_items(
     # get corresponding bandit recommended foods and bevs for the user
     bevs = rec_user_bevs[user + 1]
     foods = rec_user_foods[user + 1]
+
+    logger.info(colored("Filtering food items based on dietary conditions", "green"))
+    foods, bevs = filter_based_on_dietary_conditions(
+        food_ids=foods, bev_ids=bevs, dietary_conditions=dietary_condtions
+    )
 
     return {
         "Main Course": foods["Main Course"],
