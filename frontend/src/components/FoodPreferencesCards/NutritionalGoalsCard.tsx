@@ -25,7 +25,7 @@ const NutritionalGoalsCard: React.FC<Props> = ({
     e: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<number>>
   ) => {
-    const value = parseInt(e.target.value) || 0;
+    const value = parseInt(e.target.value);
     setter(value);
   };
 
