@@ -23,7 +23,7 @@ const LoginPage: React.FC = () => {
       await dispatch(loginUser({email, password, rememberMe})).unwrap();
       navigate("/food-preferences");
     } catch(err: any) {
-      setError(err.response?.data?.message);
+      setError("Invalid email or password.");
     }
   };
 
@@ -115,7 +115,7 @@ const LoginPage: React.FC = () => {
         </div>
         <div id="login--content">
           <form onSubmit={handleSubmit}>
-            {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message">{error}</div>}{" "}
             <div className="login--input">
               <label
                 htmlFor="email"
