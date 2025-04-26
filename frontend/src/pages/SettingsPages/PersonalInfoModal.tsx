@@ -46,7 +46,7 @@ const PersonalInfoModal: React.FC = () => {
     allowPersonalization: userData?.allowPersonalization ?? false,
     demographicsInfo: userData?.demographicsInfo || {
       ethnicity: userData?.demographicsInfo.ethnicity || "",
-      race: userData?.demographicsInfo.ethnicity || "",
+      race: userData?.demographicsInfo.race || "",
       height: "",
       weight: "",
       age: 0,

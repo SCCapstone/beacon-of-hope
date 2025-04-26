@@ -14,6 +14,7 @@ interface User {
   allowPersonalization: boolean;
   demographicsInfo: {
     ethnicity: string;
+    race: string;
     height: string;
     weight: string;
     age: number;
@@ -145,6 +146,7 @@ export const userSlice = createSlice({
                 allowPersonalization: false,
                 demographicsInfo: {
                     ethnicity: "",
+                    race: "",
                     height: "",
                     weight: "",
                     age: 0,
