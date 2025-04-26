@@ -13,7 +13,10 @@ import {
 import { format, isValid } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { formatScore } from "../utils";
-import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
+import {
+  StarIcon as StarIconOutline,
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
 interface MealDetailsPanelProps {
@@ -423,32 +426,63 @@ const ScoreDisplay: React.FC<{
   ) {
     return null;
   }
+
+  // Define the descriptions for the tooltips
+  const scoreDescriptions = {
+    variety: "Measures the variation present in the recommended items",
+    coverage:
+      "Measures how well the recommended items fit the requested roles (Main Course, Side, etc.)",
+    nutrition:
+      "Measures how well the recommended items fit the requested user preferences (dairy, meat, and nuts)",
+  };
+
   return (
     <div className="p-4 border-b border-[#E0E0E0]">
       {" "}
       {/* Neutral border */}
       <h4 className="text-sm font-medium text-gray-700 mb-2">{title}</h4>
       <div className="flex justify-around text-center text-xs">
+        {/* Variety Score */}
         <div>
           <div className="font-semibold text-[#20B2AA]">
             {formatScore(varietyScore)}
           </div>{" "}
           {/* Nutrient Teal */}
-          <div className="text-gray-500">Variety</div>
+          <div className="text-gray-500 flex items-center justify-center space-x-1">
+            <span>Variety</span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.variety} // Tooltip on the icon
+            />
+          </div>
         </div>
+        {/* Coverage Score */}
         <div>
           <div className="font-semibold text-[#8B4513]">
             {formatScore(coverageScore)}
           </div>{" "}
           {/* Nutrient Maroon */}
-          <div className="text-gray-500">Coverage</div>
+          <div className="text-gray-500 flex items-center justify-center space-x-1">
+            <span>Coverage</span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.coverage} // Tooltip on the icon
+            />
+          </div>
         </div>
+        {/* Nutrition Score */}
         <div>
           <div className="font-semibold text-[#DAA520]">
             {formatScore(constraintScore)}
           </div>{" "}
           {/* Nutrient Gold */}
-          <div className="text-gray-500">Nutrition</div>
+          <div className="text-gray-500 flex items-center justify-center space-x-1">
+            <span>Nutrition</span>
+            <InformationCircleIcon
+              className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+              title={scoreDescriptions.nutrition} // Tooltip on the icon
+            />
+          </div>
         </div>
       </div>
     </div>

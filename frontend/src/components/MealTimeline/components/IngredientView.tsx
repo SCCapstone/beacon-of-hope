@@ -610,7 +610,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                   {/* Show message if no ingredients */}
                   {totalIngredients === 0 && (
                     <div className="flex items-center justify-center text-center text-gray-400 text-xs p-2 w-full h-full min-h-[40px]">
-                      No ingredients logged for this day.
+                      .
                     </div>
                   )}
                 </div>

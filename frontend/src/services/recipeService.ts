@@ -20,6 +20,57 @@ import { format, parse, startOfDay, isValid as isValidDate } from "date-fns";
 const BACKEND_URL = "http://127.0.0.1:8000";
 // const mealDataCache = new Map<string, any>();
 
+// Define the default nutritional values
+const DEFAULT_NUTRITIONAL_VALUES: Record<string, NutritionalInfo> = {
+  main_course: {
+    calories: 300,
+    fiber: 4,
+    carbs: 50,
+    protein: 20,
+  },
+  side_dish: {
+    calories: 100,
+    fiber: 2,
+    carbs: 20,
+    protein: 5,
+  },
+  dessert: {
+    calories: 200,
+    fiber: 0,
+    carbs: 100, // Note: Original had "100", parsed to number
+    protein: 5,
+  },
+  beverage: {
+    calories: 50,
+    fiber: 0,
+    carbs: 50, // Note: Original had "50", parsed to number
+    protein: 0,
+  },
+  // Add a default for snack or a general fallback if needed
+  snack: {
+    calories: 150,
+    fiber: 1,
+    carbs: 25,
+    protein: 8,
+  },
+  unknown: {
+    // Fallback for unknown types
+    calories: 150,
+    fiber: 2,
+    carbs: 25,
+    protein: 10,
+  },
+};
+
+// Helper function to get default nutritional info based on type
+const getDefaultNutritionalInfo = (mealType: string): NutritionalInfo => {
+  const normalizedType = mealType.toLowerCase().replace(/\s+/g, "_");
+  return (
+    DEFAULT_NUTRITIONAL_VALUES[normalizedType] ||
+    DEFAULT_NUTRITIONAL_VALUES.unknown
+  );
+};
+
 interface DayData {
   _id: string;
   meals: BanditMealData[];
@@ -51,6 +102,14 @@ interface RegenerateApiResponse {
       user_id: string;
     };
   };
+}
+
+// Placeholder type for food info fetched from API or created on error
+export interface FetchedFoodInfo {
+  id: string;
+  type: string; // 'main_course', 'beverage', etc.
+  data?: any; // Actual data from API if successful
+  error?: boolean; // Flag indicating fetch error
 }
 
 export async function fetchNutritionalGoals(
@@ -193,13 +252,14 @@ export async function fetchRecipeInfo(foodId: string) {
       `${BACKEND_URL}/beacon/get-recipe-info/${foodId}`
     );
     if (typeof response.data === "string") {
-      return { name: response.data }; // Wrap in an object if needed downstream
+      // If API returns just a string (e.g., name), wrap it for consistency
+      return { name: response.data };
     }
     // console.log(`Recipe info for ID ${foodId}:`, response.data);
-    return response.data;
+    return response.data; // Expecting an object with recipe details
   } catch (error) {
     console.error(`Error fetching recipe info for ID ${foodId}:`, error);
-    throw error;
+    throw error; // Re-throw to be handled by the caller
   }
 }
 
@@ -210,13 +270,14 @@ export async function fetchBeverageInfo(bevId: string) {
       `${BACKEND_URL}/beacon/get-beverage-info/${bevId}`
     );
     if (typeof response.data === "string") {
-      return { name: response.data }; // Wrap in an object if needed downstream
+      // If API returns just a string (e.g., name), wrap it for consistency
+      return { name: response.data };
     }
     // console.log(`Beverage info for ID ${bevId}:`, response.data);
-    return response.data;
+    return response.data; // Expecting an object with beverage details
   } catch (error) {
     console.error(`Error fetching beverage info for ID ${bevId}:`, error);
-    throw error;
+    throw error; // Re-throw to be handled by the caller
   }
 }
 
@@ -407,49 +468,83 @@ function normalizeAndValidateDate(dateInput: Date | string): Date {
 
 // Helper function to transform food information
 export async function transformFoodInfo(
-  foodInfo: any,
-  mealType: string,
+  fetchedInfo: FetchedFoodInfo, // Use the new type
+  mealType: string, // Keep mealType for defaults
   foodId: string // Keep original ID for reference
 ): Promise<Food> {
-  if (!foodInfo) {
-    console.error(
-      `transformFoodInfo called with null/undefined foodInfo for ID ${foodId}, Type ${mealType}`
+  let nutritionalInfo: NutritionalInfo;
+  let ingredients: Ingredient[] = [];
+  let foodName = "Unknown Food";
+  let preparationTime = 0;
+  let cookingTime = 0;
+  let instructions: string[] = [];
+  let culturalOrigin: string[] = [];
+  let allergens: string[] = [];
+  let diabetesFriendly = false; // Default to false if info is missing
+
+  // Check if there was an error fetching or if data is missing
+  if (
+    fetchedInfo.error ||
+    !fetchedInfo.data ||
+    Object.keys(fetchedInfo.data).length === 0
+  ) {
+    console.warn(
+      `transformFoodInfo: Using default values for ${mealType} ID ${foodId} due to fetch error or missing data.`
     );
-    // Return a placeholder or throw? Let's throw for clarity during debugging.
-    throw new Error(`Missing food info for transformation (ID: ${foodId})`);
-    // Or return a placeholder Food object:
-    // return { id: foodId, name: `Error Loading (${foodId})`, type: mealType as any, ingredients: [], nutritionalInfo: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }, preparationTime: 0, cookingTime: 0, instructions: [], allergens: [] };
+    nutritionalInfo = getDefaultNutritionalInfo(mealType);
+    foodName = `Unavailable ${mealType.replace("_", " ")}`;
+    // Keep other fields as defaults (empty arrays, 0 times)
+  } else {
+    // Data exists, process it as before
+    const foodData = fetchedInfo.data;
+    foodName =
+      foodData.recipe_name ||
+      foodData.name ||
+      `Unnamed ${mealType.replace("_", " ")}`;
+
+    // Calculate nutritional info from the fetched data
+    nutritionalInfo = calculateNutritionalInfo(foodData);
+
+    // Transform ingredients if they exist
+    ingredients =
+      foodData.ingredients?.map((ing: any, index: number) => {
+        const ingName =
+          ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
+        const ingId =
+          ing.id ||
+          `${foodId}-ing-${ingName
+            .toLowerCase()
+            .replace(/\s+/g, "-")}-${index}}`;
+        const ingNutritionalInfo = calculateNutritionalInfo(ing);
+        return {
+          id: ingId,
+          name: ingName,
+          amount: parseFloat(ing.quantity?.measure) || 1,
+          unit: ing.quantity?.unit || "unit",
+          category: ing.category || "other",
+          nutritionalInfo: ingNutritionalInfo,
+          allergens: ing.allergies?.category || [],
+          culturalOrigin: ing.cultural_origin || foodData.cultural_origin || [],
+          diabetesFriendly: isDiabetesFriendly(ingNutritionalInfo),
+        };
+      }) || [];
+
+    // Calculate overall diabetes friendliness based on fetched nutrition
+    diabetesFriendly = isDiabetesFriendly(nutritionalInfo);
+    preparationTime = parseInt(foodData.prep_time?.split(" ")[0] || "0");
+    cookingTime = parseInt(foodData.cook_time?.split(" ")[0] || "0");
+    instructions =
+      foodData.instructions?.map(
+        (inst: any) => inst.original_text || inst.text || ""
+      ) || [];
+    culturalOrigin = foodData.cultural_origin || [];
+    allergens = foodData.allergens || extractAllergensFromR3(foodData);
   }
 
-  // Calculate nutritional info for the whole item first
-  const nutritionalInfo = calculateNutritionalInfo(foodInfo);
-
-  // Transform ingredients
-  const ingredients: Ingredient[] =
-    foodInfo.ingredients?.map((ing: any, index: number) => {
-      const ingName =
-        ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
-      // Attempt to create a somewhat unique ID based on name if backend ID isn't provided
-      const ingId =
-        ing.id ||
-        `${foodId}-ing-${ingName.toLowerCase().replace(/\s+/g, "-")}-${index}}`;
-      const ingNutritionalInfo = calculateNutritionalInfo(ing); // Calculate per ingredient
-      return {
-        id: ingId,
-        name: ingName,
-        amount: parseFloat(ing.quantity?.measure) || 1,
-        unit: ing.quantity?.unit || "unit",
-        category: ing.category || "other",
-        nutritionalInfo: ingNutritionalInfo,
-        allergens: ing.allergies?.category || [],
-        culturalOrigin: ing.cultural_origin || foodInfo.cultural_origin || [], // Inherit if needed
-        diabetesFriendly: isDiabetesFriendly(ingNutritionalInfo), // Check each ingredient
-      };
-    }) || [];
-
+  // Construct the final Food object
   return {
     id: foodId, // Use the original ID passed in
-    name: foodInfo.recipe_name || foodInfo.name || "Unnamed Food",
+    name: foodName,
     type: mealType as
       | "main_course"
       | "side_dish"
@@ -457,18 +552,13 @@ export async function transformFoodInfo(
       | "dessert"
       | "snack",
     ingredients,
-    nutritionalInfo,
-    // Base overall diabetes friendliness on the whole food item's nutrition
-    diabetesFriendly: isDiabetesFriendly(nutritionalInfo),
-    preparationTime: parseInt(foodInfo.prep_time?.split(" ")[0] || "0"),
-    cookingTime: parseInt(foodInfo.cook_time?.split(" ")[0] || "0"),
-    instructions:
-      foodInfo.instructions?.map(
-        (inst: any) => inst.original_text || inst.text || ""
-      ) || [],
-    culturalOrigin: foodInfo.cultural_origin || [],
-    allergens: foodInfo.allergens || extractAllergensFromR3(foodInfo), // Use helper if needed
-    // tips: foodInfo.tips || [], // if available
+    nutritionalInfo, // Use calculated or default info
+    diabetesFriendly, // Use calculated or default value
+    preparationTime,
+    cookingTime,
+    instructions,
+    culturalOrigin,
+    allergens,
   };
 }
 
@@ -484,7 +574,8 @@ function calculateCombinedNutritionalInfo(foods: Food[]): NutritionalInfo {
   if (!foods || foods.length === 0) return initial;
 
   const combined = foods.reduce((acc, food) => {
-    const info = food.nutritionalInfo || {}; // Handle potentially missing info
+    // Use the nutritionalInfo from the Food object, which might be default values
+    const info = food.nutritionalInfo || {};
     return {
       calories: acc.calories + (info.calories || 0),
       protein: acc.protein + (info.protein || 0),
@@ -532,7 +623,7 @@ export async function transformApiResponseToDayMeals(
   }
 
   // Step 2: Batch fetch all food information
-  const foodInfoMap = new Map<string, any>();
+  const foodInfoMap = new Map<string, FetchedFoodInfo>(); // Store FetchedFoodInfo
   const fetchPromises: Promise<void>[] = [];
 
   foodIdsToFetch.forEach(({ type }, id) => {
@@ -544,20 +635,16 @@ export async function transformApiResponseToDayMeals(
         } else {
           info = await fetchRecipeInfo(id);
         }
-        if (info) {
-          // Only store if fetch was successful
-          foodInfoMap.set(id, info);
-        } else {
-          console.warn(`No info returned for ${type} ID ${id}`);
-        }
+        // Store successful fetch result
+        foodInfoMap.set(id, { id, type, data: info, error: false });
       } catch (error) {
-        // Log error but continue processing other items
+        // Log error and store placeholder indicating failure
         console.error(
           `Error fetching info for ${type} ID ${id}:`,
           error instanceof Error ? error.message : error
         );
-        // Optionally store null or an error marker if needed downstream
-        // foodInfoMap.set(id, null);
+        // Store placeholder with error flag
+        foodInfoMap.set(id, { id, type, error: true });
       }
     })();
     fetchPromises.push(fetchPromise);
@@ -566,7 +653,7 @@ export async function transformApiResponseToDayMeals(
   // Wait for all fetches to complete (or fail)
   await Promise.all(fetchPromises);
   console.log(
-    `Fetched details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
+    `Fetched/Processed details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
   );
 
   // Step 3: Transform the data day by day
@@ -603,28 +690,30 @@ export async function transformApiResponseToDayMeals(
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
           if (typeof foodId !== "string" || foodId.trim() === "") continue;
 
-          const foodInfo = foodInfoMap.get(foodId);
-          if (!foodInfo) {
-            console.warn(
-              `No pre-fetched info found for ${foodId} (type: ${mealType}) in meal ${meal.meal_name} on ${dateStr}. Skipping.`
+          const fetchedInfo = foodInfoMap.get(foodId); // Get FetchedFoodInfo
+          if (!fetchedInfo) {
+            // This shouldn't happen if the map is populated correctly
+            console.error(
+              `Internal Error: No fetched info found for ${foodId} (type: ${mealType}) in meal ${meal.meal_name} on ${dateStr}. Skipping.`
             );
-            continue; // Skip this food item if info wasn't fetched
+            continue;
           }
 
           if (!mealFoodIds.has(foodId)) {
             mealFoodIds.add(foodId);
-            foodItemsToTransform.push({ foodId, mealType });
+            // Pass the mealType along, as fetchedInfo might just be an error placeholder
+            foodItemsToTransform.push({ foodId, mealType: fetchedInfo.type });
           } else {
-            // Optional: Log if a duplicate was found in the raw data for this meal
-            // console.log(`Skipping duplicate food ID '${foodId}' within meal '${meal.meal_name}' on ${dateStr}.`);
+            // Optional: Log duplicate
           }
         }
 
         // Asynchronously transform unique food info for this meal
         const foodTransformPromises: Promise<Food | null>[] =
           foodItemsToTransform.map(({ foodId, mealType }) => {
-            const foodInfo = foodInfoMap.get(foodId)!; // We know it exists from the previous loop
-            return transformFoodInfo(foodInfo, mealType, foodId).catch(
+            const fetchedInfo = foodInfoMap.get(foodId)!; // We know it exists
+            // Pass the FetchedFoodInfo object to transformFoodInfo
+            return transformFoodInfo(fetchedInfo, mealType, foodId).catch(
               (error) => {
                 console.error(
                   `Error transforming food info for ${foodId} (type: ${mealType}):`,
@@ -641,38 +730,21 @@ export async function transformApiResponseToDayMeals(
           (food): food is Food => food !== null
         ); // Filter out nulls and ensure type correctness
 
-        // Calculate combined nutritional info for the meal
+        // Calculate combined nutritional info for the meal (using potentially default values)
         const mealNutritionalInfo = calculateCombinedNutritionalInfo(mealFoods);
 
-        // Get default meal time if not provided, otherwise use provided (needs API update?)
+        // Get default meal time if not provided
         const mealTime = meal.meal_time || getDefaultMealTime(meal.meal_name);
 
-        // Get Individual Scores for Trace Meal
-        const varietyScore = meal.variety_score ?? 0; // Default to 0 if missing
+        // Get Individual Scores
+        const varietyScore = meal.variety_score ?? 0;
         const coverageScore = meal.item_coverage_score ?? 0;
         const constraintScore = meal.nutritional_constraint_score ?? 0;
 
-        // Find the index of the current meal within the day's meals array from the API response
-        // This assumes the order from the API is somewhat stable for a given fetch,
-        // or at least provides *some* differentiation if _id collides.
-        const mealIndexInResponse = dayData.meals.findIndex(
-          (apiMeal) =>
-            apiMeal._id === meal._id && apiMeal.meal_name === meal.meal_name
-        );
-
-        // Find the index (optional, might not be needed if _id is truly unique per trace)
-        // const mealIndexInResponse = dayData.meals.findIndex(
-        //   (apiMeal) => apiMeal._id === meal._id
-        // );
-
-        // Generate a potentially more unique ID by including the index
-        // const uniqueFrontendId = `trace-${dateStr}-${meal.meal_name}-${meal._id}-${mealIndexInResponse}`;
-
         // Create the Meal object
         const completeMeal: Meal = {
-          // id: uniqueFrontendId,
           id: meal._id,
-          originalBackendId: meal._id, // Keep track of original ID
+          originalBackendId: meal._id,
           name: `${
             meal.meal_name.charAt(0).toUpperCase() + meal.meal_name.slice(1)
           }`,
@@ -680,6 +752,7 @@ export async function transformApiResponseToDayMeals(
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
           foods: mealFoods,
           nutritionalInfo: mealNutritionalInfo,
+          // Base diabetes friendliness on the actual foods (which might have default nutrition)
           diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
           date: currentDate,
           varietyScore: varietyScore,

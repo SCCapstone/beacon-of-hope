@@ -21,7 +21,10 @@ import {
   StarIcon as StarIconSolid,
 } from "@heroicons/react/20/solid";
 import { formatScore } from "../utils";
-import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
+import {
+  StarIcon as StarIconOutline,
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
 import { generateDateRange } from "../../../services/recipeService";
 import { CustomModal, ModalProps } from "../../CustomModal";
 
@@ -155,6 +158,15 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
   // Get unique food types from the meal
   const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
+
+  // Define the descriptions for the tooltips
+  const scoreDescriptions = {
+    variety: "Measures the variation present in the recommended items",
+    coverage:
+      "Measures how well the recommended items fit the requested roles (Main Course, Side, etc.)",
+    nutrition:
+      "Measures how well the recommended items fit the requested user preferences (dairy, meat, and nuts)",
+  };
 
   return (
     <motion.div
@@ -292,20 +304,33 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         </div>
       )}
 
-      {/* Footer Indicators (Scores) */}
+      {/* Footer Indicators (Scores) with Tooltips */}
       <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
-        <span title="Variety Score" className="text-[#20B2AA]">
-          V: {formatScore(varietyScore)}
-        </span>{" "}
-        {/* Teal */}
-        <span title="Coverage Score" className="text-[#8B4513]">
-          C: {formatScore(coverageScore)}
-        </span>{" "}
-        {/* Maroon */}
-        <span title="Nutrition Score" className="text-[#DAA520]">
-          N: {formatScore(constraintScore)}
-        </span>{" "}
-        {/* Gold */}
+        <div className="flex items-center space-x-1">
+          <span className="text-[#20B2AA]">V: {formatScore(varietyScore)}</span>
+          <InformationCircleIcon
+            className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+            title={scoreDescriptions.variety}
+          />
+        </div>
+        <div className="flex items-center space-x-1">
+          <span className="text-[#8B4513]">
+            C: {formatScore(coverageScore)}
+          </span>
+          <InformationCircleIcon
+            className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+            title={scoreDescriptions.coverage}
+          />
+        </div>
+        <div className="flex items-center space-x-1">
+          <span className="text-[#DAA520]">
+            N: {formatScore(constraintScore)}
+          </span>
+          <InformationCircleIcon
+            className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
+            title={scoreDescriptions.nutrition}
+          />
+        </div>
       </div>
     </motion.div>
   );
