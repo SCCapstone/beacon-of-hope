@@ -25,6 +25,8 @@ import { FoodTypeIcon } from "./FoodTypeIcon";
 import {
   XMarkIcon,
   StarIcon as StarIconSolid,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/20/solid";
 import { formatScore } from "../utils";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
@@ -303,6 +305,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   );
 };
 
+const DEFAULT_BIN_COUNT = 1; // Define the default number of bins
+
 export const MealView: React.FC<MealViewProps> = ({
   allData,
   recommendationData,
@@ -316,9 +320,8 @@ export const MealView: React.FC<MealViewProps> = ({
   onFavoriteMealClick,
   selectedRecommendation,
   mealBinNames,
-  onMealBinUpdate,
+  // onMealBinUpdate,
   isLoading = false,
-  // Destructure infinite scroll props
   onRequestFetch,
   isFetchingPast,
   isFetchingFuture,
@@ -335,33 +338,8 @@ export const MealView: React.FC<MealViewProps> = ({
   const prevLoadedStartDateRef = useRef<Date | null>(null);
   const isAdjustingScrollRef = useRef(false); // Prevent race conditions
 
-  // Combine and sort all available dates from trace and recommendation data
-  const allAvailableDates = useMemo(() => {
-    const dateSet = new Set<string>();
-    allData.forEach((day) => {
-      const normDate = normalizeDate(day.date);
-      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
-    });
-    recommendationData.forEach((day) => {
-      const normDate = normalizeDate(day.date);
-      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
-    });
-    // Add loaded boundaries if they exist and are not already included
-    if (loadedStartDate && isValidDate(loadedStartDate))
-      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
-    if (loadedEndDate && isValidDate(loadedEndDate))
-      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
-
-    const sortedDates = Array.from(dateSet)
-      .map((dateStr) => normalizeDate(dateStr))
-      .filter(isValidDate) // Ensure only valid dates proceed
-      .sort((a, b) => a.getTime() - b.getTime());
-
-    // console.log(
-    //   `MealView: Calculated ${sortedDates.length} available dates to render.`
-    // );
-    return sortedDates;
-  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
+  // State for expansion
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<ModalProps | null>(null); // State for modal
 
@@ -463,49 +441,15 @@ export const MealView: React.FC<MealViewProps> = ({
         snack: 3,
       };
 
-      // Sort all meals by time, then by meal type priority if times are the same
-      const sortedMeals = [...meals].sort((a, b) => {
-        const timeA = a.time.split(":").map(Number);
-        const timeB = b.time.split(":").map(Number);
-
-        // First compare by time
-        const timeCompare =
-          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-
-        // If times are the same, sort by meal type priority
-        if (timeCompare === 0) {
-          return mealTypePriority[a.type] - mealTypePriority[b.type];
-        }
-
-        return timeCompare;
-      });
-
-      // Sort all recommendations by time, then by meal type priority if times are the same
-      const sortedRecommendations = [...recommendations].sort((a, b) => {
-        const timeA = a.meal.time.split(":").map(Number);
-        const timeB = b.meal.time.split(":").map(Number);
-
-        // First compare by time
-        const timeCompare =
-          timeA[0] * 60 + timeA[1] - (timeB[0] * 60 + timeB[1]);
-
-        // If times are the same, sort by meal type priority
-        if (timeCompare === 0) {
-          return mealTypePriority[a.meal.type] - mealTypePriority[b.meal.type];
-        }
-
-        return timeCompare;
-      });
-
       // Create time slots for all items (meals and recommendations)
       const allItems = [
-        ...sortedMeals.map((meal) => ({
+        ...meals.map((meal) => ({
           type: "meal",
           item: meal,
           time: meal.time,
           mealType: meal.type,
         })),
-        ...sortedRecommendations.map((rec) => ({
+        ...recommendations.map((rec) => ({
           type: "recommendation",
           item: rec,
           time: rec.meal.time,
@@ -524,37 +468,33 @@ export const MealView: React.FC<MealViewProps> = ({
         // If same time and type, prioritize trace meals over recommendations
         return a.type === "meal" ? -1 : 1;
       });
-      // Dynamically determine the number of bins needed based on the max items per time slot
-      // Or simply use the total number of items for simplicity if one item per bin is desired
-      const requiredBins = allItems.length; // One bin per item
 
-      // Adjust mealBinNames if necessary (this part seems okay, but ensure it runs *before* distribution)
-      if (requiredBins > mealBinNames.length) {
-        const newNames = [...mealBinNames];
-        while (newNames.length < requiredBins) {
-          newNames.push(`Meal ${newNames.length + 1}`);
-        }
-        // Defer update slightly
-        setTimeout(() => onMealBinUpdate(newNames), 0);
-        // Return early or use the old names for this render cycle to avoid immediate state issues
-        // For now, let's proceed with the potentially outdated mealBinNames for this render,
-        // the next render will have the updated names.
-      }
+      const maxBinsNeeded = allItems.length; // Each item gets a bin
 
-      // Create bins based on the current mealBinNames
+      // Create bins based on the *maximum needed*
       const bins: Record<
         string,
         { meals: Meal[]; recommendations: MealRecommendation[] }
       > = {};
-      mealBinNames.forEach((name) => {
-        bins[name] = { meals: [], recommendations: [] };
-      });
+      const currentBinNames: string[] = []; // Store the actual names used for this date's bins
 
-      // Distribute items to bins sequentially
+      for (let i = 0; i < maxBinsNeeded; i++) {
+        // Use mealBinNames if available, otherwise generate dynamically
+        const binName = mealBinNames[i] || `Meal Slot ${i + 1}`;
+        bins[binName] = { meals: [], recommendations: [] };
+        currentBinNames.push(binName);
+        // If a dynamic name was generated and we want to persist it, call onMealBinUpdate
+        // Be cautious with immediate updates causing re-renders during calculation
+        // if (i >= mealBinNames.length) {
+        //   // Consider debouncing or delaying this update
+        //   // onMealBinUpdate([...mealBinNames, binName]);
+        // }
+      }
+
+      // Distribute items to bins sequentially using the generated/existing names
       allItems.forEach((item, index) => {
-        // Ensure we don't try to access a bin that doesn't exist yet
-        if (index < mealBinNames.length) {
-          const binName = mealBinNames[index];
+        if (index < currentBinNames.length) {
+          const binName = currentBinNames[index];
           if (item.type === "meal") {
             bins[binName].meals.push(item.item as Meal);
           } else {
@@ -562,17 +502,52 @@ export const MealView: React.FC<MealViewProps> = ({
           }
         } else {
           console.warn(
-            `MealView: Not enough bins (${mealBinNames.length}) to place item ${
-              index + 1
-            }. Item skipped.`
+            `MealView: Bin index out of bounds during distribution. Index: ${index}, Bins available: ${currentBinNames.length}`
           );
         }
       });
 
-      return bins;
+      return { bins, maxBinsNeeded, currentBinNames }; // Return actual names used and max needed
     },
-    [getMealsForDate, getRecommendationsForDate, mealBinNames, onMealBinUpdate]
+    [getMealsForDate, getRecommendationsForDate, mealBinNames] // Removed onMealBinUpdate dependency here
   );
+
+  // Calculate bins for the *selected* date to determine if expansion is needed
+  const { maxBinsNeeded: maxBinsForSelectedDate } = useMemo(() => {
+    const { maxBinsNeeded } = organizeMealsIntoBins(selectedDate);
+    return { maxBinsNeeded };
+  }, [selectedDate, organizeMealsIntoBins]);
+
+  const showExpansionButton = maxBinsForSelectedDate > DEFAULT_BIN_COUNT;
+  // Calculate the number of bins to *actually render* based on expansion state
+  const currentVisibleBinCount = isExpanded
+    ? maxBinsForSelectedDate
+    : DEFAULT_BIN_COUNT;
+
+  // Combine and sort all available dates from trace and recommendation data
+  const allAvailableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    allData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    recommendationData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    // Add loaded boundaries if they exist and are not already included
+    if (loadedStartDate && isValidDate(loadedStartDate))
+      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+    if (loadedEndDate && isValidDate(loadedEndDate))
+      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
+
+    const sortedDates = Array.from(dateSet)
+      .map((dateStr) => normalizeDate(dateStr))
+      .filter(isValidDate) // Ensure only valid dates proceed
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    return sortedDates;
+  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
   // Scroll handler for VERTICAL infinite loading
   const handleScroll = useCallback(() => {
@@ -669,7 +644,7 @@ export const MealView: React.FC<MealViewProps> = ({
   }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
-    const viewName = "MealView"; // For logging
+    // const viewName = "MealView"; // For logging
     const container = scrollContainerRef.current;
 
     if (container && selectedDate && isValidDate(selectedDate)) {
@@ -689,31 +664,20 @@ export const MealView: React.FC<MealViewProps> = ({
               block: "center",
               inline: "nearest",
             });
-          } else {
-            // console.log(
-            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            // );
-            if (attempt < 3) {
-              // Retry up to 3 times
-              const delay = 100 * attempt; // Increase delay slightly each time
-              // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
-              setTimeout(() => attemptScroll(attempt + 1), delay);
-            } else {
-              // console.log(
-              //   `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              // );
-            }
+          } else if (attempt < 3) {
+            const delay = 100 * attempt;
+            setTimeout(() => attemptScroll(attempt + 1), delay);
           }
         });
       };
 
       // Initial attempt
       attemptScroll();
-    } else if (!container) {
+      // } else if (!container) {
       // console.log(
       //   `${viewName}: Scroll effect skipped, container ref not available.`
       // );
-    } else if (!selectedDate || !isValidDate(selectedDate)) {
+      // } else if (!selectedDate || !isValidDate(selectedDate)) {
       // console.log(
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
@@ -808,55 +772,78 @@ export const MealView: React.FC<MealViewProps> = ({
       {/* Fixed header */}
       {/* Add padding-right to account for potential scrollbar width */}
       <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-        {/* Darker cream header, darker border */}
-        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
-          {/* Darker brown text, adjusted padding */}
+        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F] flex items-center">
           Date
+          {/* Expansion Button */}
+          {showExpansionButton && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="ml-2 p-0.5 rounded text-[#6B4226] hover:bg-[#D3B89F]/50 transition-colors"
+              title={
+                isExpanded ? "Show Fewer Meal Slots" : "Show All Meal Slots"
+              }
+            >
+              {isExpanded ? (
+                <ChevronLeftIcon className="w-4 h-4" />
+              ) : (
+                <ChevronRightIcon className="w-4 h-4" />
+              )}
+            </button>
+          )}
         </div>
-        {/* Meal bin headers */}
-        {mealBinNames.map((binName, index) => (
+        {/* Meal bin headers - Render only visible bins */}
+        {/* Use mealBinNames for header titles, but only render up to currentVisibleBinCount */}
+        {mealBinNames.slice(0, currentVisibleBinCount).map((binName, index) => (
           <div
             key={binName}
             className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
               index > 0 ? "border-l border-[#D3B89F]" : ""
             } ${
-              // Add right padding ONLY to the last header element
-              index === mealBinNames.length - 1 ? "pr-[15px]" : ""
+              index === currentVisibleBinCount - 1 ? "pr-[15px]" : "" // Pad last visible header
             }`}
-            style={{ minWidth: "150px" }}
+            style={{ minWidth: "150px" }} // Ensure bins have a minimum width
           >
-            {/* Darker brown text, darker border */}
             {binName}
           </div>
         ))}
       </div>
-      {/* Scrollable container */}
+
+      {/* Scrollable container - VERTICAL scroll for dates */}
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-[#FFFBF5] relative"
-        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
+        style={{ scrollbarGutter: "stable" }}
       >
         {/* Base cream background */}
         {isFetchingPast && <LoadingIndicator position="top" />}
-        <div className="min-w-full divide-y divide-[#E0E0E0]">
-          {/* Lighter neutral divider */}
+        {/* This container needs to handle HORIZONTAL scrolling for the bins */}
+        <div className="min-w-full divide-y divide-[#E0E0E0] overflow-x-auto">
           {allAvailableDates.map((currentDate) => {
             const isSelected = isSameDay(
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
             );
-            const binsForDate = organizeMealsIntoBins(currentDate);
+            // Organize bins for *this specific date* being rendered
+            const {
+              bins: binsForDate,
+              maxBinsNeeded: maxBinsForThisDate,
+              currentBinNames: currentBinNamesForDate,
+            } = organizeMealsIntoBins(currentDate);
+            // Determine visible bins for *this specific date* based on global expansion state
+            const visibleBinCountForThisDate = isExpanded
+              ? maxBinsForThisDate
+              : DEFAULT_BIN_COUNT;
 
             return (
               <div
                 key={currentDate.toISOString()}
                 id={`date-row-${format(currentDate, "yyyy-MM-dd")}`}
+                // The flex container for the row. Min-width ensures horizontal scroll works if needed.
                 className={`flex min-h-[180px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
                   isSelected ? "bg-[#8B4513]/5" : "bg-white"
-                }`}
+                } min-w-max`} // Use min-w-max to allow content to define width
               >
-                {/* Light primary tint for selected, white otherwise */}
-                {/* Date Cell */}
+                {/* Date Cell (Fixed Width) */}
                 <div
                   className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
                     isSelected
@@ -887,73 +874,66 @@ export const MealView: React.FC<MealViewProps> = ({
                     {format(currentDate, "yyyy")}
                   </div>
                 </div>
-                {/* Meal Bins for this date - Mapped directly within the main row flex container */}
+
+                {/* Meal Bins for this date - Render only visible bins */}
+                {/* Iterate using the actual bin names generated for this date */}
                 {
-                  mealBinNames.map((binName, index) => {
-                    const binContent = binsForDate[binName];
-                    if (!binContent) {
+                  currentBinNamesForDate
+                    .slice(0, visibleBinCountForThisDate)
+                    .map((binName, index) => {
+                      const binContent = binsForDate[binName];
+                      // Ensure binContent exists before accessing its properties
+                      const mealsInBin = binContent?.meals || [];
+                      const recommendationsInBin =
+                        binContent?.recommendations || [];
+
                       return (
                         <div
-                          key={`${currentDate.toISOString()}-${binName}-empty`}
-                          className={`flex-1 p-3 ${
+                          key={`${currentDate.toISOString()}-${binName}`}
+                          className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
                             index > 0 ? "border-l" : ""
                           } ${
                             "border-[#D3B89F]" // Match header border color
                           }`}
-                          style={{ minWidth: "150px" }}
-                        ></div>
-                      ); // Render an empty div if binContent is undefined
-                    }
-                    const mealsInBin = binContent.meals;
-                    const recommendationsInBin = binContent.recommendations;
-                    return (
-                      <div
-                        key={`${currentDate.toISOString()}-${binName}`}
-                        className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
-                          index > 0 ? "border-l" : ""
-                        } ${
-                          "border-[#D3B89F]" // Match header border color
-                        }`}
-                        style={{ minWidth: "150px" }}
-                      >
-                        {/* Adjusted padding/spacing */}
-                        <AnimatePresence>
-                          {mealsInBin.map((meal) =>
-                            renderMealCard(meal, currentDate)
-                          )}
-                        </AnimatePresence>
-                        <AnimatePresence>
-                          {recommendationsInBin.map((recommendation) => (
-                            <RecommendedMealCard
-                              key={`rec-${
-                                recommendation.meal.id
-                              }-${currentDate.toISOString()}`}
-                              className="flex-shrink-0"
-                              recommendation={recommendation}
-                              onAccept={() =>
-                                onAcceptRecommendationClick(recommendation)
-                              }
-                              onReject={() =>
-                                onRejectRecommendationClick(recommendation)
-                              }
-                              onClick={() =>
-                                onRecommendationSelect(recommendation)
-                              }
-                              isSelected={
-                                selectedRecommendation?.meal.id ===
-                                recommendation.meal.id
-                              }
-                            />
-                          ))}
-                        </AnimatePresence>
-                        {mealsInBin.length === 0 &&
-                          recommendationsInBin.length === 0 && (
-                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                            </div>
-                          )}
-                      </div>
-                    );
-                  }) /* End map over mealBinNames */
+                          style={{ minWidth: "150px" }} // Ensure bins have a minimum width
+                        >
+                          {/* Adjusted padding/spacing */}
+                          <AnimatePresence>
+                            {mealsInBin.map((meal) =>
+                              renderMealCard(meal, currentDate)
+                            )}
+                          </AnimatePresence>
+                          <AnimatePresence>
+                            {recommendationsInBin.map((recommendation) => (
+                              <RecommendedMealCard
+                                key={`rec-${
+                                  recommendation.meal.id
+                                }-${currentDate.toISOString()}`}
+                                className="flex-shrink-0"
+                                recommendation={recommendation}
+                                onAccept={() =>
+                                  onAcceptRecommendationClick(recommendation)
+                                }
+                                onReject={() =>
+                                  onRejectRecommendationClick(recommendation)
+                                }
+                                onClick={() =>
+                                  onRecommendationSelect(recommendation)
+                                }
+                                isSelected={
+                                  selectedRecommendation?.meal.id ===
+                                  recommendation.meal.id
+                                }
+                              />
+                            ))}
+                          </AnimatePresence>
+                          {mealsInBin.length === 0 &&
+                            recommendationsInBin.length === 0 && (
+                              <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2"></div>
+                            )}
+                        </div>
+                      );
+                    }) /* End map over mealBinNames */
                 }
               </div>
             );
