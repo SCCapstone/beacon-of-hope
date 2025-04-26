@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   DayMeals,
   DayRecommendations,
@@ -27,9 +33,20 @@ import {
 import {
   ArrowPathIcon,
   CalendarDaysIcon,
+  ChevronLeftIcon,
   TrashIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
+
+const mealTypePriority = {
+  breakfast: 0,
+  lunch: 1,
+  dinner: 2,
+  snack: 3,
+};
+
+const DEFAULT_BIN_COUNT = 3;
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -155,9 +172,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const traceDataRef = useRef<DayMeals[]>(initialTraceData);
   const [scrollToTodayTrigger, setScrollToTodayTrigger] = useState<number>(0);
   const [modalConfig, setModalConfig] = useState<ModalProps | null>(null); // State for modal
+  const [isExpanded, setIsExpanded] = useState(false); // State for expansion
 
   // State Synchronization and Data Handling
-
   // Effect to update local traceData state when initialTraceData prop changes
   useEffect(() => {
     // console.log("Viz: initialTraceData prop changed. Updating local state.");
@@ -324,6 +341,149 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Set the final current values
     setCurrentNutritionalValues(currentValues);
   }, [selectedDate, selectedRecommendation, calculateBaseNutrition, traceData]);
+
+  const getDataForDate = useCallback(
+    (targetDate: Date): DayMeals | undefined => {
+      const normalizedTarget = normalizeDate(targetDate);
+      // Use the ref for potentially more up-to-date data before state update completes
+      return traceDataRef.current.find((day) => {
+        const normalizedDayDate = normalizeDate(day.date);
+        if (
+          isNaN(normalizedDayDate.getTime()) ||
+          isNaN(normalizedTarget.getTime())
+        ) {
+          return false;
+        }
+        return isSameDay(normalizedDayDate, normalizedTarget);
+      });
+    },
+    [] // Depend only on normalizeDate function reference
+  );
+
+  const getMealsForDate = useCallback(
+    (targetDate: Date): Meal[] => {
+      const dayData = getDataForDate(targetDate);
+      return dayData?.meals || [];
+    },
+    [getDataForDate]
+  );
+
+  const getRecommendationsForDate = useCallback(
+    (targetDate: Date): MealRecommendation[] => {
+      const dayRecs = recommendationData.find((day) =>
+        isSameDay(normalizeDate(day.date), normalizeDate(targetDate))
+      );
+      return dayRecs?.recommendations || [];
+    },
+    [recommendationData] // Depends on recommendationData state
+  );
+
+  const allAvailableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    // Use traceDataRef for potentially more up-to-date list
+    traceDataRef.current.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    recommendationData.forEach((day) => {
+      const normDate = normalizeDate(day.date);
+      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+    });
+    if (loadedStartDate && isValidDate(loadedStartDate))
+      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+    if (loadedEndDate && isValidDate(loadedEndDate))
+      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
+
+    const sortedDates = Array.from(dateSet)
+      .map((dateStr) => normalizeDate(dateStr))
+      .filter(isValidDate)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    return sortedDates;
+  }, [recommendationData, loadedStartDate, loadedEndDate]); // Add traceDataRef.current? No, useMemo won't track ref changes. Rely on traceData state update triggering re-calc via useEffect dependency chain.
+
+  // Organize meals into bins for each date (moved from MealView)
+  const organizeMealsIntoBins = useCallback(
+    (date: Date) => {
+      const meals = getMealsForDate(date);
+      const recommendations = getRecommendationsForDate(date);
+
+      const allItems = [
+        ...meals.map((meal) => ({
+          type: "meal",
+          item: meal,
+          time: meal.time,
+          mealType: meal.type,
+        })),
+        ...recommendations.map((rec) => ({
+          type: "recommendation",
+          item: rec,
+          time: rec.meal.time,
+          mealType: rec.meal.type,
+        })),
+      ].sort((a, b) => {
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
+        const priorityA = mealTypePriority[a.mealType] ?? 99;
+        const priorityB = mealTypePriority[b.mealType] ?? 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        return a.type === "meal" ? -1 : 1;
+      });
+
+      const maxBinsNeeded = allItems.length;
+      const bins: Record<
+        string,
+        { meals: Meal[]; recommendations: MealRecommendation[] }
+      > = {};
+      const currentBinNames: string[] = [];
+
+      for (let i = 0; i < maxBinsNeeded; i++) {
+        const binName = mealBinNames[i] || `Meal Slot ${i + 1}`;
+        bins[binName] = { meals: [], recommendations: [] };
+        currentBinNames.push(binName);
+      }
+
+      allItems.forEach((item, index) => {
+        if (index < currentBinNames.length) {
+          const binName = currentBinNames[index];
+          if (item.type === "meal") {
+            bins[binName].meals.push(item.item as Meal);
+          } else {
+            bins[binName].recommendations.push(item.item as MealRecommendation);
+          }
+        } else {
+          console.warn(
+            `MealCalendarViz: Bin index out of bounds during distribution. Index: ${index}, Bins available: ${currentBinNames.length}`
+          );
+        }
+      });
+
+      return { bins, maxBinsNeeded, currentBinNames };
+    },
+    [getMealsForDate, getRecommendationsForDate, mealBinNames] // Dependencies
+  );
+
+  // Calculate max bins needed and if expansion is required (moved from MealView)
+  const { maxBinsAcrossAllDates, needsExpansion } = useMemo(() => {
+    let maxNeeded = DEFAULT_BIN_COUNT;
+    let anyDateNeedsExpansion = false;
+    for (const date of allAvailableDates) {
+      const { maxBinsNeeded } = organizeMealsIntoBins(date);
+      if (maxBinsNeeded > maxNeeded) {
+        maxNeeded = maxBinsNeeded;
+      }
+      if (maxBinsNeeded > DEFAULT_BIN_COUNT) {
+        anyDateNeedsExpansion = true;
+      }
+    }
+    return {
+      maxBinsAcrossAllDates: maxNeeded,
+      needsExpansion: anyDateNeedsExpansion,
+    };
+  }, [allAvailableDates, organizeMealsIntoBins]); // Dependencies
+
+  // Determine if the button should be shown
+  const showExpansionButton = needsExpansion;
 
   const showModal = useCallback(
     (config: Omit<ModalProps, "isOpen" | "onClose">) => {
@@ -1030,6 +1190,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ? "No recommendations to regenerate"
     : "Regenerate all current recommendations";
 
+  const expandButtonTooltip = isExpanded
+    ? "Show Fewer Meal Slots"
+    : "Show All Meal Slots";
+
   return (
     <div
       className="w-screen flex flex-col overflow-hidden bg-[#FFFBF5]"
@@ -1042,63 +1206,87 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         <div className="flex-1 flex flex-col min-w-0 bg-[#FEF9F0] overflow-hidden">
           {/* Level Selector Bar */}
           <div className="w-full h-16 px-4 bg-white border-b border-gray-200 shadow-md z-10 flex items-center justify-between">
-            {/* Left side controls */}
-            <div className="flex items-center gap-4">
+            {/* Left Side: Level Selector */}
+            <div className="flex items-center space-x-4">
               <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={handleLevelChange}
               />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleRegenerateClick}
-                  className={`px-4 py-2 rounded-md text-sm flex items-center transition-colors duration-200
-          ${
-            isRegenerating || !hasRecommendationsInView
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
-          }
-        `}
-                  disabled={isRegenerating || !hasRecommendationsInView}
-                  title={regenerateButtonTooltip}
-                >
-                  {isRegenerating ? (
-                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ArrowPathIcon className="h-4 w-4 mr-2" />
-                  )}
-                  {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
-                </button>
+            </div>
 
-                <button
-                  onClick={handleClearAllRecommendations} // Use the new handler
-                  className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
+            {/* Center: Action Buttons */}
+            <div className="flex items-center space-x-3">
+              {/* Regenerate Button */}
+              <button
+                onClick={handleRegenerateClick}
+                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
+                  ${
+                    isRegenerating || !hasRecommendationsInView
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
+                  }
+                `}
+                disabled={isRegenerating || !hasRecommendationsInView}
+                title={regenerateButtonTooltip}
+              >
+                {isRegenerating ? (
+                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+                )}
+                {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
+              </button>
+
+              <button
+                onClick={handleClearAllRecommendations} // Use the new handler
+                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
                   ${
                     !hasRecommendationsInView
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed" // Disabled state
                       : "bg-red-600 hover:bg-red-700 text-white" // Active state (red for destructive)
                   }
                 `}
-                  disabled={!hasRecommendationsInView} // Disable if no recommendations
-                  title={
-                    !hasRecommendationsInView
-                      ? "No recommendations to clear"
-                      : "Clear all current recommendations"
-                  }
-                >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Clear All
-                </button>
-              </div>
+                disabled={!hasRecommendationsInView} // Disable if no recommendations
+                title={
+                  !hasRecommendationsInView
+                    ? "No recommendations to clear"
+                    : "Clear all current recommendations"
+                }
+              >
+                <TrashIcon className="h-4 w-4 mr-2" />
+                Clear All
+              </button>
+
+              {currentLevel === "meal" &&
+                showExpansionButton && ( // Only show for Meal View and if needed
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    title={expandButtonTooltip}
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronLeftIcon className="w-4 h-4 mr-1.5" />
+                        <span>Collapse Slots</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronRightIcon className="w-4 h-4 mr-1.5" />
+                        <span>Expand Slots</span>
+                      </>
+                    )}
+                  </button>
+                )}
             </div>
 
-            {/* Right side controls (Week Selector, Today Button) */}
+            {/* Right Side: Date Controls */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleGoToToday}
-                className="px-4 py-2 rounded-md text-sm flex items-center border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
                 title="Go to Today"
               >
-                <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
                 Today
               </button>
               <div className="week-selector-container">
@@ -1140,7 +1328,14 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       isFetchingFuture={isFetchingFuture}
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
+                      scrollToTodayTrigger={scrollToTodayTrigger} // Pass scroll trigger
+                      isExpanded={isExpanded}
+                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                      defaultBinCount={DEFAULT_BIN_COUNT}
+                      getMealsForDate={getMealsForDate}
+                      getRecommendationsForDate={getRecommendationsForDate}
+                      organizeMealsIntoBins={organizeMealsIntoBins}
+                      allAvailableDates={allAvailableDates} // Pass calculated dates
                     />
                   </div>
                 )}
