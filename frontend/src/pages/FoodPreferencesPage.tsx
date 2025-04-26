@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../app/store";
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
@@ -11,16 +11,69 @@ import { MainLayout } from "../components/Layouts/MainLayout";
 import { personas } from "./personas";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertTime24to12 } from "../utils/mealPlanTransformer";
+import { updateUser } from "../../src/features/userSlice";
+
+interface PersonalInfo {
+  allowPersonalization: boolean;
+  demographicsInfo: {
+    ethnicity: string;
+    race: string;
+    height: string;
+    weight: string;
+    age: number;
+    gender: string;
+  };
+  dietaryRestrictions: string;
+  dietary_preferences: {
+    preferences: string[];
+    numerical_preferences: {
+      dairy: number;
+      nuts: number;
+      meat: number;
+    };
+  };
+  health_info: {
+    allergies: string[];
+    conditions: string[];
+  };
+}
 
 const FoodPreferencesPage: React.FC = () => {
   const navigate = useNavigate();
   const userState = useSelector((state: RootState) => state.user);
+  const userData = userState.user;
+  console.log(userData);
+
+  const [info, setInfo] = useState<PersonalInfo>({
+    allowPersonalization: userData?.allowPersonalization ?? false,
+    demographicsInfo: userData?.demographicsInfo || {
+      ethnicity: userData?.demographicsInfo.ethnicity || "",
+      race: userData?.demographicsInfo.race || "",
+      height: userData?.demographicsInfo.height || `5'8"`,
+      weight: userData?.demographicsInfo.weight || "185",
+      age: userData?.demographicsInfo.age || 26,
+      gender: ""
+    },
+    dietaryRestrictions: userData?.dietaryRestrictions || "",
+    dietary_preferences: userData?.dietary_preferences || {
+      preferences: [],
+      numerical_preferences: {
+        dairy: userData?.dietary_preferences.numerical_preferences.dairy || 0,
+        nuts: userData?.dietary_preferences.numerical_preferences.nuts || 0,
+        meat: userData?.dietary_preferences.numerical_preferences.meat || 0
+      }
+    },
+    health_info: userData?.health_info || {
+      allergies: [],
+      conditions: []
+    }
+  })
 
   // User Info
-  const [height, setHeight] = useState<string>(`5'8"`);
-  const [age, setAge] = useState<string>("26");
-  const [weight, setWeight] = useState<string>("185");
-  const [gender, setGender] = useState<string>("Male");
+  const [height, setHeight] = useState<string>(userData?.demographicsInfo.height || `5'8"`);
+  const [age, setAge] = useState<number>(userData?.demographicsInfo.age || 26);
+  const [weight, setWeight] = useState<string>(userData?.demographicsInfo.weight || "185");
+  const [gender, setGender] = useState<string>(userData?.demographicsInfo.gender || "Male");
 
   // Meal Plan Config Card
   const [mealPlanLength, setMealPlanLength] = useState<number>(1);
@@ -101,6 +154,8 @@ const FoodPreferencesPage: React.FC = () => {
   const [carbs, setCarbs] = useState<number>(250);
   const [protein, setProtein] = useState<number>(100);
   const [fiber, setFiber] = useState<number>(30);
+
+  const dispatch = useDispatch();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -214,6 +269,32 @@ const FoodPreferencesPage: React.FC = () => {
     setCurrentMealIndex((prev) => Math.min(mealsPerDay - 1, prev + 1));
   };
 
+  const handleSave = () => {
+    // 1. Update info state with latest values
+    const updatedInfo: PersonalInfo = {
+      ...info,
+      demographicsInfo: {
+        ...info.demographicsInfo,
+        height,
+        weight,
+        age,
+        gender,
+      },
+      dietary_preferences: {
+        ...info.dietary_preferences,
+        numerical_preferences: {
+          dairy,
+          meat,
+          nuts,
+        },
+      },
+      // Add any other fields you want to update
+    };
+    setInfo(updatedInfo);
+
+    dispatch(updateUser(updatedInfo) as any);
+  }
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setError(null);
@@ -245,6 +326,12 @@ const FoodPreferencesPage: React.FC = () => {
         dairyPreference: dairy,
         meatPreference: meat,
         nutsPreference: nuts,
+      },
+      dietary_conditions: {
+        diabetes: diabetes,
+        gluten_free: glutenFree,
+        vegan: vegan,
+        vegetarian: vegetarian
       },
       user_id: userState.user?._id,
     };
@@ -705,6 +792,10 @@ const FoodPreferencesPage: React.FC = () => {
               "GENERATE MEAL PLAN"
             )}
           </motion.button>
+          
+          <button onClick={handleSave}>
+            save
+          </button>
         </div>
       </div>
     </MainLayout>
