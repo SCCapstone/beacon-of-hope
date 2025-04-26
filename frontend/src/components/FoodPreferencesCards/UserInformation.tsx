@@ -73,7 +73,6 @@ const UserInformation: React.FC<{
                 onChange={(e) => handleHeightChange(parseInt(e.target.value), inches || 0)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
               >
-                <option value="">Feet</option>
                 {Array.from({ length: 4 }, (_, i) => i + 4).map((foot) => (
                   <option key={foot} value={foot}>
                     {foot} ft
@@ -88,7 +87,6 @@ const UserInformation: React.FC<{
                 onChange={(e) => handleHeightChange(feet || 0, parseInt(e.target.value))}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
               >
-                <option value="">Inches</option>
                 {Array.from({ length: 12 }, (_, i) => i).map((inch) => (
                   <option key={inch} value={inch}>
                     {inch} in
