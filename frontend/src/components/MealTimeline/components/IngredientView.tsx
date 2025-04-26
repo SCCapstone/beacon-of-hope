@@ -239,9 +239,9 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       .filter(isValidDate)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    console.log(
-      `IngredientView: Calculated ${sortedDates.length} available dates to render.`
-    );
+    // console.log(
+    //   `IngredientView: Calculated ${sortedDates.length} available dates to render.`
+    // );
     return sortedDates;
   }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
@@ -364,7 +364,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
 
     if (isNearTop && !isFetchingPast) {
-      console.log("IngredientView: Near top, requesting past data...");
+      // console.log("IngredientView: Near top, requesting past data...");
       const fetchEndDate = subDays(loadedStartDate, 1);
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -376,7 +376,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
     }
 
     if (isNearBottom && !isFetchingFuture) {
-      console.log("IngredientView: Near bottom, requesting future data...");
+      // console.log("IngredientView: Near bottom, requesting future data...");
       const fetchStartDate = addDays(loadedEndDate, 1);
       const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -424,9 +424,9 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         isAdjustingScrollRef.current = true; // Set flag before adjustment
         requestAnimationFrame(() => {
           container.scrollTop += scrollOffset;
-          console.log(
-            `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
-          );
+          // console.log(
+          //   `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          // );
           // Reset flag slightly after adjustment to allow scroll events again
           setTimeout(() => {
             isAdjustingScrollRef.current = false;
@@ -452,27 +452,27 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         requestAnimationFrame(() => {
           const element = container.querySelector(`#${scrollTarget}`);
           if (element) {
-            console.log(
-              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            // );
             element.scrollIntoView({
               behavior: "instant",
               block: "center",
               inline: "nearest",
             });
           } else {
-            console.log(
-              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            // );
             if (attempt < 3) {
               // Retry up to 3 times
               const delay = 100 * attempt; // Increase delay slightly each time
-              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+              // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
               setTimeout(() => attemptScroll(attempt + 1), delay);
             } else {
-              console.log(
-                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              );
+              // console.log(
+              //   `${viewName}: Max scroll retries reached for #${scrollTarget}.`
+              // );
             }
           }
         });
@@ -481,22 +481,34 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       // Initial attempt
       attemptScroll();
     } else if (!container) {
-      console.log(
-        `${viewName}: Scroll effect skipped, container ref not available.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped, container ref not available.`
+      // );
     } else if (!selectedDate || !isValidDate(selectedDate)) {
-      console.log(
-        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      // );
     }
   }, [selectedDate, scrollToTodayTrigger]);
 
-  console.log(
-    `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
-  );
+  // console.log(
+  //   `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
+  // );
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
+      {/* Fixed header */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
+          Date
+        </div>
+        {/* Header for the ingredients area */}
+        {/* Add right padding to this element as it's the last one */}
+        <div className="flex-1 p-3 text-left font-semibold text-[#6B4226] pr-[15px]">
+          Ingredients
+        </div>
+      </div>
+
       {/* Scrollable container for DATES (Vertical Scroll) */}
       <div
         ref={scrollContainerRef}

@@ -84,10 +84,10 @@ export const WeekSelector: React.FC<WeekSelectorProps> = ({
   const handleDateInputChange = useCallback(
     (newValue: Date | null) => {
       if (newValue && isValid(newValue)) {
-        console.log(
-          "MUI DatePicker changed to:",
-          format(newValue, "yyyy-MM-dd")
-        );
+        // console.log(
+        //   "MUI DatePicker changed to:",
+        //   format(newValue, "yyyy-MM-dd")
+        // );
         onDateChange(startOfDay(newValue)); // Pass normalized Date object
       } else {
         console.error("Invalid date from MUI DatePicker:", newValue);

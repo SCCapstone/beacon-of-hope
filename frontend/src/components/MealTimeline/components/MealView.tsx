@@ -357,9 +357,9 @@ export const MealView: React.FC<MealViewProps> = ({
       .filter(isValidDate) // Ensure only valid dates proceed
       .sort((a, b) => a.getTime() - b.getTime());
 
-    console.log(
-      `MealView: Calculated ${sortedDates.length} available dates to render.`
-    );
+    // console.log(
+    //   `MealView: Calculated ${sortedDates.length} available dates to render.`
+    // );
     return sortedDates;
   }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
@@ -592,7 +592,7 @@ export const MealView: React.FC<MealViewProps> = ({
 
     // Fetch past data
     if (isNearTop && !isFetchingPast) {
-      console.log("MealView: Near top, requesting past data...");
+      // console.log("MealView: Near top, requesting past data...");
       const fetchEndDate = subDays(loadedStartDate, 1);
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -605,7 +605,7 @@ export const MealView: React.FC<MealViewProps> = ({
 
     // Fetch future data
     if (isNearBottom && !isFetchingFuture) {
-      console.log("MealView: Near bottom, requesting future data...");
+      // console.log("MealView: Near bottom, requesting future data...");
       const fetchStartDate = addDays(loadedEndDate, 1);
       const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -653,9 +653,9 @@ export const MealView: React.FC<MealViewProps> = ({
         isAdjustingScrollRef.current = true; // Set flag before adjustment
         requestAnimationFrame(() => {
           container.scrollTop += scrollOffset;
-          console.log(
-            `MealView: Adjusted scroll top by ${scrollOffset} after past data load.`
-          );
+          // console.log(
+          //   `MealView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          // );
           // Reset flag slightly after adjustment to allow scroll events again
           setTimeout(() => {
             isAdjustingScrollRef.current = false;
@@ -681,27 +681,27 @@ export const MealView: React.FC<MealViewProps> = ({
         requestAnimationFrame(() => {
           const element = container.querySelector(`#${scrollTarget}`);
           if (element) {
-            console.log(
-              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            // );
             element.scrollIntoView({
               behavior: "instant",
               block: "center",
               inline: "nearest",
             });
           } else {
-            console.log(
-              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            // );
             if (attempt < 3) {
               // Retry up to 3 times
               const delay = 100 * attempt; // Increase delay slightly each time
-              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+              // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
               setTimeout(() => attemptScroll(attempt + 1), delay);
             } else {
-              console.log(
-                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              );
+              // console.log(
+              //   `${viewName}: Max scroll retries reached for #${scrollTarget}.`
+              // );
             }
           }
         });
@@ -710,13 +710,13 @@ export const MealView: React.FC<MealViewProps> = ({
       // Initial attempt
       attemptScroll();
     } else if (!container) {
-      console.log(
-        `${viewName}: Scroll effect skipped, container ref not available.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped, container ref not available.`
+      // );
     } else if (!selectedDate || !isValidDate(selectedDate)) {
-      console.log(
-        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      // );
     }
   }, [selectedDate, scrollToTodayTrigger]);
 
@@ -806,9 +806,8 @@ export const MealView: React.FC<MealViewProps> = ({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
-      {/* Add padding-right to account for potential scrollbar width in the content below */}
-      {/* Using a common scrollbar width like 15px. */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F] pr-[15px]">
+      {/* Add padding-right to account for potential scrollbar width */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
         {/* Darker cream header, darker border */}
         <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
           {/* Darker brown text, adjusted padding */}
@@ -820,6 +819,9 @@ export const MealView: React.FC<MealViewProps> = ({
             key={binName}
             className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
               index > 0 ? "border-l border-[#D3B89F]" : ""
+            } ${
+              // Add right padding ONLY to the last header element
+              index === mealBinNames.length - 1 ? "pr-[15px]" : ""
             }`}
             style={{ minWidth: "150px" }}
           >
@@ -853,7 +855,6 @@ export const MealView: React.FC<MealViewProps> = ({
                   isSelected ? "bg-[#8B4513]/5" : "bg-white"
                 }`}
               >
-                {" "}
                 {/* Light primary tint for selected, white otherwise */}
                 {/* Date Cell */}
                 <div
@@ -863,7 +864,6 @@ export const MealView: React.FC<MealViewProps> = ({
                       : "border-[#E0E0E0]"
                   }`}
                 >
-                  {" "}
                   {/* Primary border/bg for selected */}
                   <div
                     className={`font-semibold ${
@@ -916,7 +916,6 @@ export const MealView: React.FC<MealViewProps> = ({
                         }`}
                         style={{ minWidth: "150px" }}
                       >
-                        {" "}
                         {/* Adjusted padding/spacing */}
                         <AnimatePresence>
                           {mealsInBin.map((meal) =>
@@ -950,7 +949,6 @@ export const MealView: React.FC<MealViewProps> = ({
                         {mealsInBin.length === 0 &&
                           recommendationsInBin.length === 0 && (
                             <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                              Add Meal
                             </div>
                           )}
                       </div>

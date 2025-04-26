@@ -188,14 +188,14 @@ export async function setNutritionalGoals(
 
 export async function fetchRecipeInfo(foodId: string) {
   try {
-    console.log(`Fetching recipe info for ID: ${foodId}`);
+    // console.log(`Fetching recipe info for ID: ${foodId}`);
     const response = await axios.get(
       `${BACKEND_URL}/beacon/get-recipe-info/${foodId}`
     );
     if (typeof response.data === "string") {
       return { name: response.data }; // Wrap in an object if needed downstream
     }
-    console.log(`Recipe info for ID ${foodId}:`, response.data);
+    // console.log(`Recipe info for ID ${foodId}:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching recipe info for ID ${foodId}:`, error);
@@ -205,14 +205,14 @@ export async function fetchRecipeInfo(foodId: string) {
 
 export async function fetchBeverageInfo(bevId: string) {
   try {
-    console.log(`Fetching beverage info for ID: ${bevId}`);
+    // console.log(`Fetching beverage info for ID: ${bevId}`);
     const response = await axios.get(
       `${BACKEND_URL}/beacon/get-beverage-info/${bevId}`
     );
     if (typeof response.data === "string") {
       return { name: response.data }; // Wrap in an object if needed downstream
     }
-    console.log(`Beverage info for ID ${bevId}:`, response.data);
+    // console.log(`Beverage info for ID ${bevId}:`, response.data);
     return response.data;
   } catch (error) {
     console.error(`Error fetching beverage info for ID ${bevId}:`, error);

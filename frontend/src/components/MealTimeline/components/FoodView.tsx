@@ -217,9 +217,9 @@ export const FoodView: React.FC<FoodViewProps> = ({
       .filter(isValidDate)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    console.log(
-      `FoodView: Calculated ${sortedDates.length} available dates to render.`
-    );
+    // console.log(
+    //   `FoodView: Calculated ${sortedDates.length} available dates to render.`
+    // );
     return sortedDates;
   }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
@@ -357,7 +357,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
       scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
 
     if (isNearTop && !isFetchingPast) {
-      console.log("FoodView: Near top, requesting past data...");
+      // console.log("FoodView: Near top, requesting past data...");
       const fetchEndDate = subDays(loadedStartDate, 1);
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -369,7 +369,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
     }
 
     if (isNearBottom && !isFetchingFuture) {
-      console.log("FoodView: Near bottom, requesting future data...");
+      // console.log("FoodView: Near bottom, requesting future data...");
       const fetchStartDate = addDays(loadedEndDate, 1);
       const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -417,9 +417,9 @@ export const FoodView: React.FC<FoodViewProps> = ({
         isAdjustingScrollRef.current = true; // Set flag before adjustment
         requestAnimationFrame(() => {
           container.scrollTop += scrollOffset;
-          console.log(
-            `FoodView: Adjusted scroll top by ${scrollOffset} after past data load.`
-          );
+          // console.log(
+          //   `FoodView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          // );
           // Reset flag slightly after adjustment to allow scroll events again
           setTimeout(() => {
             isAdjustingScrollRef.current = false;
@@ -445,27 +445,27 @@ export const FoodView: React.FC<FoodViewProps> = ({
         requestAnimationFrame(() => {
           const element = container.querySelector(`#${scrollTarget}`);
           if (element) {
-            console.log(
-              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            // );
             element.scrollIntoView({
               behavior: "instant",
               block: "center",
               inline: "nearest",
             });
           } else {
-            console.log(
-              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            // );
             if (attempt < 3) {
               // Retry up to 3 times
               const delay = 100 * attempt; // Increase delay slightly each time
-              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+              // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
               setTimeout(() => attemptScroll(attempt + 1), delay);
             } else {
-              console.log(
-                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              );
+              // console.log(
+              //   `${viewName}: Max scroll retries reached for #${scrollTarget}.`
+              // );
             }
           }
         });
@@ -474,28 +474,26 @@ export const FoodView: React.FC<FoodViewProps> = ({
       // Initial attempt
       attemptScroll();
     } else if (!container) {
-      console.log(
-        `${viewName}: Scroll effect skipped, container ref not available.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped, container ref not available.`
+      // );
     } else if (!selectedDate || !isValidDate(selectedDate)) {
-      console.log(
-        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      // );
     }
   }, [selectedDate, scrollToTodayTrigger]);
 
-  console.log(
-    `FoodView: Rendering component. Dates to render: ${
-      allAvailableDates.length
-    }, Bins: ${mealBinNames.join(", ")}`
-  );
+  // console.log(
+  //   `FoodView: Rendering component. Dates to render: ${
+  //     allAvailableDates.length
+  //   }, Bins: ${mealBinNames.join(", ")}`
+  // );
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
       {/* Fixed header */}
-      {/* Add padding-right to account for potential scrollbar width in the content below */}
-      {/* Using a common scrollbar width like 15px. */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F] pr-[15px]">
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
         <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
           Date
         </div>
@@ -503,8 +501,10 @@ export const FoodView: React.FC<FoodViewProps> = ({
           <div
             key={binName}
             className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
-              // Darker brown text, adjusted padding
-              index > 0 ? "border-l border-[#D3B89F]" : "" // Darker border
+              index > 0 ? "border-l border-[#D3B89F]" : ""
+            } ${
+              // Add right padding ONLY to the last header element
+              index === mealBinNames.length - 1 ? "pr-[15px]" : ""
             }`}
             style={{ minWidth: "150px" }}
           >

@@ -80,7 +80,7 @@ export const CustomModal: React.FC<ModalProps> = ({
         ) {
           return "bg-red-600 hover:bg-red-700 focus-visible:outline-red-600";
         }
-        return "bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600"; // Default confirm is blue
+        return "bg-[#8B4513] hover:bg-[#A0522D] focus-visible:outline-[#8B4513]"; // Default confirm is primary color
       case "success":
         return "bg-green-600 hover:bg-green-700 focus-visible:outline-green-600";
       case "info":
@@ -94,9 +94,9 @@ export const CustomModal: React.FC<ModalProps> = ({
       case "small":
         return "max-w-sm";
       case "large":
-        return "max-w-lg"; // Adjusted from xl for potentially better fit
+        return "max-w-lg";
       case "xlarge":
-        return "max-w-xl"; // Use xl for wider recipes if needed
+        return "max-w-xl";
       case "medium":
       default:
         return "max-w-md";

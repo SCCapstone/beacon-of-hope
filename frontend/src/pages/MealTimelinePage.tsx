@@ -4,7 +4,6 @@ import {
   DayMeals,
   UserPreferences,
   UserAnthropometrics,
-  Meal,
   NutritionalGoals,
 } from "../components/MealTimeline/types";
 import { MainLayout } from "../components/Layouts/MainLayout";
@@ -196,7 +195,7 @@ export const MealTimelinePage: React.FC = () => {
           console.log("MealTimelinePage: Fetching nutritional goals...");
           const goals = await fetchNutritionalGoals(userId);
           setNutritionalGoals(goals); // Set goals (can be null if not found)
-          console.log("MealTimelinePage: Goals fetched:", goals);
+          // console.log("MealTimelinePage: Goals fetched:", goals);
         } catch (err) {
           console.error(
             "MealTimelinePage: Error fetching nutritional goals:",
@@ -228,10 +227,10 @@ export const MealTimelinePage: React.FC = () => {
       );
 
       if (datesActuallyNeedingFetch.length === 0) {
-        console.log(
-          "Page Fetch skipped: Dates already being fetched or empty list.",
-          datesToFetchParam
-        );
+        // console.log(
+        //   "Page Fetch skipped: Dates already being fetched or empty list.",
+        //   datesToFetchParam
+        // );
         // Reset specific loading states if the trigger was for them but nothing fetched
         if (direction === "past") setIsFetchingMorePast(false);
         if (direction === "future") setIsFetchingMoreFuture(false);
@@ -244,10 +243,10 @@ export const MealTimelinePage: React.FC = () => {
       datesActuallyNeedingFetch.forEach((date) =>
         fetchingDatesRef.current.add(date)
       );
-      console.log(
-        `Page Fetching meal data for dates (${direction}):`,
-        datesActuallyNeedingFetch
-      );
+      // console.log(
+      //   `Page Fetching meal data for dates (${direction}):`,
+      //   datesActuallyNeedingFetch
+      // );
 
       // Set appropriate loading state based on direction
       if (direction === "initial") setIsLoading(true);
@@ -260,10 +259,10 @@ export const MealTimelinePage: React.FC = () => {
 
       try {
         const response = await fetchMealDays(userId, datesActuallyNeedingFetch);
-        console.log(
-          `Page API response received for (${direction}):`,
-          datesActuallyNeedingFetch.join(", ")
-        );
+        // console.log(
+        //   `Page API response received for (${direction}):`,
+        //   datesActuallyNeedingFetch.join(", ")
+        // );
 
         let transformedData: DayMeals[] = [];
         // Check if day_plans is an object and not empty
@@ -287,28 +286,28 @@ export const MealTimelinePage: React.FC = () => {
               minFetched < loadedStartDateRef.current
             ) {
               loadedStartDateRef.current = minFetched;
-              console.log(
-                "Page Updated loadedStartDateRef:",
-                format(minFetched, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedStartDateRef:",
+              //   format(minFetched, "yyyy-MM-dd")
+              // );
             }
             if (
               !loadedEndDateRef.current ||
               maxFetched > loadedEndDateRef.current
             ) {
               loadedEndDateRef.current = maxFetched;
-              console.log(
-                "Page Updated loadedEndDateRef:",
-                format(maxFetched, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedEndDateRef:",
+              //   format(maxFetched, "yyyy-MM-dd")
+              // );
             }
           }
           // --- End Update loaded range ---
         } else {
-          console.log(
-            `Page No meal history found in response for requested dates (${direction}):`,
-            datesActuallyNeedingFetch.join(", ")
-          );
+          // console.log(
+          //   `Page No meal history found in response for requested dates (${direction}):`,
+          //   datesActuallyNeedingFetch.join(", ")
+          // );
           // If no data found, still update the loaded range to prevent re-fetching these empty dates
           const requestedDates = datesActuallyNeedingFetch
             .map((d) => normalizeDate(d))
@@ -321,20 +320,20 @@ export const MealTimelinePage: React.FC = () => {
               minRequested < loadedStartDateRef.current
             ) {
               loadedStartDateRef.current = minRequested;
-              console.log(
-                "Page Updated loadedStartDateRef (no data):",
-                format(minRequested, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedStartDateRef (no data):",
+              //   format(minRequested, "yyyy-MM-dd")
+              // );
             }
             if (
               !loadedEndDateRef.current ||
               maxRequested > loadedEndDateRef.current
             ) {
               loadedEndDateRef.current = maxRequested;
-              console.log(
-                "Page Updated loadedEndDateRef (no data):",
-                format(maxRequested, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedEndDateRef (no data):",
+              //   format(maxRequested, "yyyy-MM-dd")
+              // );
             }
           }
         }
@@ -379,69 +378,27 @@ export const MealTimelinePage: React.FC = () => {
               .filter(([key]) => key !== "invalid") // Filter out invalid entries
           );
 
+          // Process the transformed data from the current fetch
           transformedData.forEach((newDayData) => {
             // newDayData is from the API response for the specific fetched dates
             const normalizedDayDate = normalizeDate(newDayData.date); // Normalize once
             if (isValidDate(normalizedDayDate)) {
               const dateKey = format(normalizedDayDate, "yyyy-MM-dd");
-              const existingDayData = dataMap.get(dateKey);
-
-              if (existingDayData) {
-                // Day exists: Merge meals carefully
-                const combinedMealsMap = new Map<string, Meal>();
-
-                // Add existing meals from the state first
-                (existingDayData.meals || []).forEach((meal) => {
-                  // Use meal.id which should be unique for each meal instance (trace or accepted rec)
-                  if (meal.id) {
-                    combinedMealsMap.set(meal.id, meal);
-                  } else {
-                    console.warn(
-                      "Existing meal missing ID during merge:",
-                      meal
-                    );
-                    // Handle fallback if needed, e.g., generate a temporary key, but ideally IDs are reliable
-                  }
-                });
-
-                // Add or update with new meals from the API response
-                (newDayData.meals || []).forEach((newMeal) => {
-                  if (newMeal.id) {
-                    // Check if a meal with this ID already exists in our map.
-                    // If it doesn't, add the new meal.
-                    // If it does, we keep the existing one to prevent overwrites due to potentially non-unique IDs
-                    // generated based on backend data. This assumes the backend returns all relevant meals.
-                    if (!combinedMealsMap.has(newMeal.id)) {
-                      combinedMealsMap.set(newMeal.id, newMeal);
-                      // console.log(`Page Merge: Added new meal ${newMeal.id} for date ${dateKey}`);
-                    } else {
-                      // Optional: Log that an overwrite was prevented.
-                      // console.log(`Page Merge: Meal with ID ${newMeal.id} already exists for date ${dateKey}. Keeping existing entry.`);
-                    }
-                  } else {
-                    console.warn("New meal missing ID during merge:", newMeal);
-                  }
-                });
-
-                // Create the updated day object with merged meals
-                const mergedDayData: DayMeals = {
-                  ...existingDayData, // Keep potential original day info like _id if relevant
-                  ...newDayData, // Overwrite with potentially new day info from API (if any, e.g., scores)
-                  date: normalizedDayDate, // Ensure normalized date
-                  meals: Array.from(combinedMealsMap.values()).sort((a, b) =>
-                    a.time.localeCompare(b.time)
-                  ), // Update meals list, sorted by time
-                };
-                dataMap.set(dateKey, mergedDayData);
-                // console.log(`Page Merged meals for date: ${dateKey}. Total meals: ${mergedDayData.meals.length}`);
-              } else {
-                // Day doesn't exist in map yet, just add the new data
-                dataMap.set(dateKey, {
-                  ...newDayData,
-                  date: normalizedDayDate,
-                });
-                // console.log(`Page Added new day data for date: ${dateKey}`);
-              }
+              // *** Replace the entire entry for this date with the newly fetched data ***
+              // This ensures optimistic entries are overwritten by the source of truth from the backend.
+              dataMap.set(dateKey, {
+                ...newDayData, // Use the structure from transformedData
+                date: normalizedDayDate, // Ensure normalized date
+                // Ensure meals are sorted if transformApiResponseToDayMeals doesn't already do it
+                meals: (newDayData.meals || []).sort((a, b) =>
+                  a.time.localeCompare(b.time)
+                ),
+              });
+              // console.log(
+              //   `Page: Updated/Set data for date: ${dateKey} with ${
+              //     newDayData.meals?.length || 0
+              //   } meals.`
+              // );
             } else {
               console.warn(
                 "Page Skipping invalid date object during merge:",
@@ -548,9 +505,9 @@ export const MealTimelinePage: React.FC = () => {
 
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
-      console.log(
-        `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
-      );
+      // console.log(
+      //   `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
+      // );
       const originalWeekData = [...weekData];
 
       // Optimistic UI Update
@@ -572,17 +529,17 @@ export const MealTimelinePage: React.FC = () => {
         // return newData.filter(day => day.meals.length > 0);
         return newData;
       });
-      console.log(
-        `Page: Optimistically removed meal ${mealIdToDelete} from UI.`
-      );
+      // console.log(
+      //   `Page: Optimistically removed meal ${mealIdToDelete} from UI.`
+      // );
       setError(null); // Clear previous errors
 
       // Call Backend API
       try {
         await deleteMealFromTrace(userId, dateStr, mealIdToDelete);
-        console.log(
-          `Page: Successfully deleted meal ${mealIdToDelete} from backend.`
-        );
+        // console.log(
+        //   `Page: Successfully deleted meal ${mealIdToDelete} from backend.`
+        // );
         // UI is already updated, no further action needed on success
       } catch (err: any) {
         console.error(`Page: Error deleting meal ${mealIdToDelete}:`, err);
@@ -605,14 +562,14 @@ export const MealTimelinePage: React.FC = () => {
         return;
       }
       if (datesToRegenerate.length === 0) {
-        console.log("Page: No dates provided for regeneration.");
+        // console.log("Page: No dates provided for regeneration.");
         return;
       }
 
-      console.log(
-        "Page: handleRegeneratePartial called for dates:",
-        datesToRegenerate.join(", ")
-      );
+      // console.log(
+      //   "Page: handleRegeneratePartial called for dates:",
+      //   datesToRegenerate.join(", ")
+      // );
       setIsRegenerating(true);
       setError(null);
 
@@ -621,7 +578,7 @@ export const MealTimelinePage: React.FC = () => {
           userId,
           datesToRegenerate
         );
-        console.log("Page: Regeneration API response received.");
+        // console.log("Page: Regeneration API response received.");
 
         // Update localStorage["mealPlan"]
         const rawMealPlanString = localStorage.getItem("mealPlan");
@@ -702,9 +659,9 @@ export const MealTimelinePage: React.FC = () => {
               // item_coverage_score: undefined,
               // nutritional_constraint_score: undefined,
             };
-            console.log(
-              `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
-            );
+            // console.log(
+            //   `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
+            // );
           } else {
             console.warn(
               `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
@@ -714,9 +671,9 @@ export const MealTimelinePage: React.FC = () => {
 
         // Save the updated meal plan back to localStorage
         localStorage.setItem("mealPlan", JSON.stringify(currentMealPlan));
-        console.log(
-          "Page: Updated localStorage['mealPlan'] after regeneration."
-        );
+        // console.log(
+        //   "Page: Updated localStorage['mealPlan'] after regeneration."
+        // );
 
         // The MealCalendarViz component will automatically re-render and update
         // its recommendations based on the change to the 'mealPlan' prop derived from localStorage.
@@ -758,9 +715,9 @@ export const MealTimelinePage: React.FC = () => {
       try {
         const success = await saveMealToTrace(reqUserId, date, mealId);
         if (success) {
-          console.log(
-            `Page: Successfully initiated save for meal ${mealId} on ${date}.`
-          );
+          // console.log(
+          //   `Page: Successfully initiated save for meal ${mealId} on ${date}.`
+          // );
           // The Viz component handles localStorage removal *after* this succeeds.
           // The Viz component also triggers the refetch via onRequestFetch.
           return true;
@@ -814,17 +771,17 @@ export const MealTimelinePage: React.FC = () => {
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
 
-      console.log(
-        `Page: Attempting to favorite meal ${mealIdToFavorite} on ${dateStr}`
-      );
+      // console.log(
+      //   `Page: Attempting to favorite meal ${mealIdToFavorite} on ${dateStr}`
+      // );
       setError(null); // Clear previous errors
 
       // Call Backend API
       try {
         await favoriteMealInTrace(userId, dateStr, mealIdToFavorite);
-        console.log(
-          `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
-        );
+        // console.log(
+        //   `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
+        // );
         // Show success feedback using the modal
         showSuccessModal(
           "Meal Favorited",
@@ -865,10 +822,10 @@ export const MealTimelinePage: React.FC = () => {
   const handleFetchRequest = useCallback(
     (payload: FetchRequestPayload) => {
       const { datesToFetch, direction } = payload; // Destructure direction
-      console.log(
-        `Page handleFetchRequest received from Viz. Direction: ${direction}, Dates:`,
-        datesToFetch.join(", ") || "None"
-      );
+      // console.log(
+      //   `Page handleFetchRequest received from Viz. Direction: ${direction}, Dates:`,
+      //   datesToFetch.join(", ") || "None"
+      // );
       if (datesToFetch.length > 0) {
         fetchMealData(datesToFetch, direction); // Pass direction to fetch function
       }
@@ -890,9 +847,9 @@ export const MealTimelinePage: React.FC = () => {
             normalizedNewDate < loadedStartDateRef.current ||
             normalizedNewDate > loadedEndDateRef.current
           ) {
-            console.log(
-              "Page Selected date outside loaded range. Fetching surrounding data."
-            );
+            // console.log(
+            //   "Page Selected date outside loaded range. Fetching surrounding data."
+            // );
             const fetchStart = subDays(normalizedNewDate, 3); // Fetch a window around the new date
             const fetchEnd = addDays(normalizedNewDate, 3);
             const datesToFetch = generateDateRange(fetchStart, fetchEnd);
@@ -920,7 +877,7 @@ export const MealTimelinePage: React.FC = () => {
   useEffect(() => {
     // Ensure userId is present before initial load
     if (!initialLoadAttemptedRef.current && userId) {
-      console.log("Page Initial load effect running.");
+      // console.log("Page Initial load effect running.");
       initialLoadAttemptedRef.current = true; // Mark attempt even before fetch starts
       // Use the initial selectedDate state (already normalized)
       // Fetch a wider initial range for infinite scroll

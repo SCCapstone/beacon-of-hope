@@ -156,7 +156,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   // Effect to update local traceData state when initialTraceData prop changes
   useEffect(() => {
-    console.log("Viz: initialTraceData prop changed. Updating local state.");
+    // console.log("Viz: initialTraceData prop changed. Updating local state.");
     // Normalize dates in the incoming prop data
     const normalizedPropData = initialTraceData
       .map((day) => ({
@@ -185,14 +185,14 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Use a deep comparison or JSON stringify (careful with functions/Date objects if not serialized properly)
     // For simplicity, let's update state if the length or first/last date differs, or use stringify
     if (JSON.stringify(sortedNormalizedData) !== JSON.stringify(traceData)) {
-      console.log(
-        "Viz: Updating traceData state with new normalized data from props."
-      );
+      // console.log(
+      //   "Viz: Updating traceData state with new normalized data from props."
+      // );
       setTraceData(sortedNormalizedData);
     } else {
-      console.log(
-        "Viz: Normalized prop data matches current traceData state. No update needed."
-      );
+      // console.log(
+      //   "Viz: Normalized prop data matches current traceData state. No update needed."
+      // );
     }
   }, [initialTraceData, traceData]); // Rerun only when the prop changes or local state changes
 
@@ -214,7 +214,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       ) {
         setLoadingRecommendations(true);
         setError(null);
-        console.log("Viz: Transforming meal plan to recommendations...");
+        // console.log("Viz: Transforming meal plan to recommendations...");
         try {
           // Pass the raw mealPlan and fetched nutritionalGoals to the transformer
           const transformedData = await transformMealPlanToRecommendations(
@@ -236,7 +236,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             }))
             .filter((day) => isValidDate(day.date));
 
-          console.log("Viz: Transformation complete.");
+          // console.log("Viz: Transformation complete.");
           setRecommendationData(recommendations);
         } catch (transformError) {
           console.error("Viz: Error transforming meal plan:", transformError);
@@ -835,7 +835,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     handleDateChange(today);
     // *** Increment the trigger to force scroll effect execution ***
     setScrollToTodayTrigger((prev) => prev + 1);
-    console.log("Viz: Today button clicked, triggering scroll.");
+    // console.log("Viz: Today button clicked, triggering scroll.");
   }, [handleDateChange]); // Keep handleDateChange dependency
 
   const handleLevelChange = useCallback(
