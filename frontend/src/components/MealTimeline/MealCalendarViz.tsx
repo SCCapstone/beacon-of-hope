@@ -24,7 +24,11 @@ import {
   parseISO,
   isValid as isValidDate,
 } from "date-fns";
-import { ArrowPathIcon, CalendarDaysIcon } from "@heroicons/react/20/solid";
+import {
+  ArrowPathIcon,
+  CalendarDaysIcon,
+  TrashIcon,
+} from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
 
 // Robust date normalization
@@ -363,6 +367,70 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     },
     [showModal]
   );
+
+  const showSuccessModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "success" });
+    },
+    [showModal]
+  );
+
+  const handleClearAllRecommendations = useCallback(() => {
+    // Check if there are actually recommendations to clear
+    const hasRecommendations = recommendationData.some(
+      (dayRec) => dayRec.recommendations.length > 0
+    );
+    if (!hasRecommendations) return;
+
+    showConfirmModal(
+      "Confirm Clear Recommendations",
+      "Are you sure you want to clear all current meal recommendations? This action cannot be undone and will remove them from view.",
+      () => {
+        // Confirmation Logic
+        console.log("Clearing all recommendations...");
+
+        // 1. Clear recommendation state in the component
+        setRecommendationData([]);
+
+        // 2. Clear any selection that might be a recommendation
+        setSelectedRecommendation(null);
+        // Clear food/ingredient if they might be linked
+        // (Add checks if necessary to see if selectedFood/Ingredient belongs to a recommendation)
+        setSelectedFood(null);
+        setSelectedIngredient(null);
+
+        // 3. Clear the 'mealPlan' from localStorage
+        try {
+          localStorage.removeItem("mealPlan");
+          console.log("Cleared 'mealPlan' from localStorage.");
+          showSuccessModal(
+            "Recommendations Cleared",
+            "All recommendations have been removed."
+          );
+        } catch (e) {
+          console.error("Failed to clear 'mealPlan' from localStorage:", e);
+          showErrorModal(
+            "Storage Error",
+            "Could not clear recommendations from storage, but they have been removed from the current view."
+          );
+        }
+
+        // Modal closes automatically via showConfirmModal's setup
+      },
+      () => {
+        console.log("Clear recommendations cancelled.");
+      }
+    );
+  }, [
+    recommendationData, // Dependency: need to know if there are recs
+    showConfirmModal,
+    setRecommendationData,
+    setSelectedRecommendation,
+    setSelectedFood,
+    setSelectedIngredient,
+    showErrorModal,
+    showSuccessModal,
+  ]);
 
   // Selection Handlers
   const handleMealSelect = (meal: Meal | null) => {
@@ -974,39 +1042,63 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         <div className="flex-1 flex flex-col min-w-0 bg-[#FEF9F0] overflow-hidden">
           {/* Level Selector Bar */}
           <div className="w-full h-16 px-4 bg-white border-b border-gray-200 shadow-md z-10 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            {/* Left side controls */}
+            <div className="flex items-center gap-4">
               <LevelSelector
                 currentLevel={currentLevel}
                 onLevelChange={handleLevelChange}
               />
-              <button
-                onClick={handleRegenerateClick}
-                className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRegenerateClick}
+                  className={`px-4 py-2 rounded-md text-sm flex items-center transition-colors duration-200
+          ${
+            isRegenerating || !hasRecommendationsInView
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
+          }
+        `}
+                  disabled={isRegenerating || !hasRecommendationsInView}
+                  title={regenerateButtonTooltip}
+                >
+                  {isRegenerating ? (
+                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowPathIcon className="h-4 w-4 mr-2" />
+                  )}
+                  {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
+                </button>
+
+                <button
+                  onClick={handleClearAllRecommendations} // Use the new handler
+                  className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200
                   ${
-                    isRegenerating || !hasRecommendationsInView
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-[#8B4513] hover:bg-[#A0522D] text-white"
+                    !hasRecommendationsInView
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed" // Disabled state
+                      : "bg-red-600 hover:bg-red-700 text-white" // Active state (red for destructive)
                   }
                 `}
-                disabled={isRegenerating || !hasRecommendationsInView}
-                title={regenerateButtonTooltip}
-              >
-                {isRegenerating ? (
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ArrowPathIcon className="h-4 w-4 mr-2" />
-                )}
-                {isRegenerating ? "Regenerating..." : "Regenerate Plans"}
-              </button>
+                  disabled={!hasRecommendationsInView} // Disable if no recommendations
+                  title={
+                    !hasRecommendationsInView
+                      ? "No recommendations to clear"
+                      : "Clear all current recommendations"
+                  }
+                >
+                  <TrashIcon className="h-4 w-4 mr-2" />
+                  Clear All
+                </button>
+              </div>
             </div>
-            {/* Week Selector and Today Button */}
+
+            {/* Right side controls (Week Selector, Today Button) */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleGoToToday}
-                className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                className="px-4 py-2 rounded-md text-sm flex items-center border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
                 title="Go to Today"
               >
-                <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
+                <CalendarDaysIcon className="h-4 w-4 mr-2" />
                 Today
               </button>
               <div className="week-selector-container">
@@ -1016,7 +1108,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 />
               </div>
             </div>
-            {/* End Week Selector and Today Button */}
           </div>
           {/* Main Visualization Area */}
           <div className="flex-1 flex overflow-hidden">
