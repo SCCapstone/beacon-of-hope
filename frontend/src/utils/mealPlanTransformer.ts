@@ -342,7 +342,7 @@ export async function transformMealPlanToRecommendations(
   });
 
   await Promise.all(fetchPromises);
-  console.log(`Recommendations: Fetched details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`);
+  // console.log(`Recommendations: Fetched details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`);
 
 
   // Step 3: Iterate through days and meals to build recommendations using fetched data
@@ -524,6 +524,6 @@ export async function transformMealPlanToRecommendations(
   // Sort final list of days by date
   recommendations.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  console.log("Transformed recommendations (Refactored):", recommendations.length, "days");
+  // console.log("Transformed recommendations (Refactored):", recommendations.length, "days");
   return recommendations;
 }

@@ -124,8 +124,6 @@ const IngredientCard: React.FC<{
       ingredient.category as keyof typeof COLOR_SCHEMES.ingredient
     ] || "#cccccc";
   const primaryNutrient = getPrimaryNutrient(ingredient.nutritionalInfo);
-  // Defensive check for nutritionalInfo
-  const calories = ingredient.nutritionalInfo?.calories ?? 0;
 
   return (
     <motion.div
@@ -134,26 +132,30 @@ const IngredientCard: React.FC<{
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.1 }}
-      className={`ingredient-card-item relative p-1.5 mb-1.5 rounded cursor-pointer text-xs flex items-center space-x-2
+      className={`ingredient-card-item relative p-1.5 rounded-md cursor-pointer text-xs flex items-center space-x-1.5 transition-colors duration-150 w-auto
         ${
           isRecommended
-            ? "bg-green-50/50 border border-dashed border-green-200"
-            : "bg-gray-50 border border-transparent hover:bg-gray-100"
+            ? "bg-[#90EE90]/20 border border-dashed border-[#5CB85C]/40" // Lighter accent green bg, accent green border
+            : "bg-[#FEF9F0] hover:bg-[#FADFBB]/30 border border-transparent" // Lighter cream bg, subtle hover
         }
-        ${isSelected ? "ring-1 ring-orange-400 bg-white" : ""}
+        ${
+          isSelected ? "ring-1 ring-[#DAA520] bg-[#FFFBF5]" : ""
+        } // Accent gold ring, light cream bg
       `}
       onClick={onClick}
     >
       {isRecommended && (
-        <span className="absolute -top-1 -left-1 text-[8px] bg-green-500 text-white px-1 py-0.5 rounded-full z-10 shadow-sm">
+        <span className="absolute -top-1 -left-1 text-[8px] bg-[#5CB85C] text-white px-1 py-0.5 rounded-full z-10 shadow-sm">
           Rec
         </span>
       )}
+      {/* Category Color Bar */}
       <div
         className="w-1.5 h-5 rounded-sm flex-shrink-0"
         style={{ backgroundColor: categoryColor }}
         title={`Category: ${ingredient.category}`}
       ></div>
+      {/* Ingredient Name and Amount (will grow) */}
       <div className="flex-grow overflow-hidden">
         <h5 className="font-medium text-gray-800 truncate">
           {ingredient.name}
@@ -162,10 +164,10 @@ const IngredientCard: React.FC<{
           {ingredient.amount} {ingredient.unit}
         </p>
       </div>
-      <div className="text-right flex-shrink-0 space-y-0.5">
-        <div className="text-gray-600 text-[11px]">{calories} cal</div>
+      <div className="text-right flex-shrink-0">
         {primaryNutrient && (
-          <span className="inline-block px-1 py-0.5 bg-purple-100 text-purple-800 text-[9px] rounded-full">
+          <span className="inline-block px-1 py-0.5 bg-[#8B4513]/15 text-[#6B4226] text-[9px] rounded-full">
+            {/* Primary color light */}
             {primaryNutrient}
           </span>
         )}
@@ -174,7 +176,7 @@ const IngredientCard: React.FC<{
   );
 };
 
-// Loading indicator component (reuse from FoodView or move to shared)
+// Loading indicator component
 const LoadingIndicator = ({
   position = "center",
 }: {
@@ -183,13 +185,14 @@ const LoadingIndicator = ({
   <div
     className={`flex items-center justify-center p-4 ${
       position === "top"
-        ? "sticky top-0 z-10 bg-gradient-to-b from-gray-100 to-transparent"
+        ? "sticky top-0 z-10 bg-gradient-to-b from-[#FFFBF5]/80 to-transparent" // Use base background
         : position === "bottom"
         ? "py-4"
         : "h-full"
     }`}
   >
-    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>{" "}
+    {/* Primary color */}
   </div>
 );
 
@@ -198,7 +201,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   recommendationData,
   onIngredientSelect,
   selectedIngredient,
-  selectedDate, // Keep for highlighting/context
+  selectedDate,
   onRequestFetch,
   isFetchingPast,
   isFetchingFuture,
@@ -236,9 +239,9 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       .filter(isValidDate)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    console.log(
-      `IngredientView: Calculated ${sortedDates.length} available dates to render.`
-    );
+    // console.log(
+    //   `IngredientView: Calculated ${sortedDates.length} available dates to render.`
+    // );
     return sortedDates;
   }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
@@ -341,46 +344,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
 
       return combinedIngredients;
     },
-    [getDataForDate, recommendationData] // Depend on helper
-  );
-
-  // Organize ingredients into bins based on category for a specific date
-  const organizeIngredientsIntoBins = useCallback(
-    (date: Date) => {
-      const ingredientsForDate = getCombinedIngredientsForDate(date);
-      const bins: Record<
-        string,
-        Array<Ingredient & { isRecommended: boolean }>
-      > = {};
-      const categories = [
-        ...new Set(ingredientsForDate.map((ing) => ing.category || "other")),
-      ].sort();
-      const displayBinNames = categories.map(
-        (cat) => cat.charAt(0).toUpperCase() + cat.slice(1)
-      );
-
-      displayBinNames.forEach((name) => (bins[name] = []));
-      if (categories.includes("other") && !displayBinNames.includes("Other")) {
-        bins["Other"] = [];
-      }
-
-      ingredientsForDate.forEach((ing) => {
-        const categoryName =
-          (ing.category || "other").charAt(0).toUpperCase() +
-          (ing.category || "other").slice(1);
-        const binTarget = bins[categoryName] ? categoryName : "Other";
-        if (bins[binTarget]) {
-          bins[binTarget].push(ing);
-        }
-      });
-
-      return {
-        bins,
-        displayBinNames,
-        totalIngredients: ingredientsForDate.length,
-      };
-    },
-    [getCombinedIngredientsForDate]
+    [getDataForDate, recommendationData]
   );
 
   // Scroll handler for VERTICAL infinite loading
@@ -400,7 +364,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
 
     if (isNearTop && !isFetchingPast) {
-      console.log("IngredientView: Near top, requesting past data...");
+      // console.log("IngredientView: Near top, requesting past data...");
       const fetchEndDate = subDays(loadedStartDate, 1);
       const fetchStartDate = subDays(fetchEndDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -412,7 +376,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
     }
 
     if (isNearBottom && !isFetchingFuture) {
-      console.log("IngredientView: Near bottom, requesting future data...");
+      // console.log("IngredientView: Near bottom, requesting future data...");
       const fetchStartDate = addDays(loadedEndDate, 1);
       const fetchEndDate = addDays(fetchStartDate, FETCH_RANGE_DAYS - 1);
       const datesToFetch = generateDateRange(fetchStartDate, fetchEndDate);
@@ -460,9 +424,9 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         isAdjustingScrollRef.current = true; // Set flag before adjustment
         requestAnimationFrame(() => {
           container.scrollTop += scrollOffset;
-          console.log(
-            `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
-          );
+          // console.log(
+          //   `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
+          // );
           // Reset flag slightly after adjustment to allow scroll events again
           setTimeout(() => {
             isAdjustingScrollRef.current = false;
@@ -476,7 +440,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
 
   useEffect(() => {
-    const viewName = "IngredientView"; // For logging
+    // const viewName = "IngredientView"; // For logging
     const container = scrollContainerRef.current;
 
     if (container && selectedDate && isValidDate(selectedDate)) {
@@ -484,32 +448,22 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       const scrollTarget = CSS.escape(dateId);
 
       const attemptScroll = (attempt = 1) => {
-        // Use rAF for each attempt to ensure it runs after paint
         requestAnimationFrame(() => {
           const element = container.querySelector(`#${scrollTarget}`);
           if (element) {
-            console.log(
-              `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
-            );
+            // console.log(
+            //   `${viewName}: Scrolling to element #${scrollTarget} (Attempt ${attempt})`
+            // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "center",
+              block: "start",
               inline: "nearest",
             });
-          } else {
-            console.log(
-              `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
-            );
-            if (attempt < 3) {
-              // Retry up to 3 times
-              const delay = 100 * attempt; // Increase delay slightly each time
-              console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
-              setTimeout(() => attemptScroll(attempt + 1), delay);
-            } else {
-              console.log(
-                `${viewName}: Max scroll retries reached for #${scrollTarget}.`
-              );
-            }
+          } else if (attempt < 3) {
+            // Retry up to 3 times
+            const delay = 100 * attempt; // Increase delay slightly each time
+            // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
+            setTimeout(() => attemptScroll(attempt + 1), delay);
           }
         });
       };
@@ -517,35 +471,46 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       // Initial attempt
       attemptScroll();
     } else if (!container) {
-      console.log(
-        `${viewName}: Scroll effect skipped, container ref not available.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped, container ref not available.`
+      // );
     } else if (!selectedDate || !isValidDate(selectedDate)) {
-      console.log(
-        `${viewName}: Scroll effect skipped due to invalid selectedDate.`
-      );
+      // console.log(
+      //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
+      // );
     }
-  }, [selectedDate, scrollToTodayTrigger]);
+  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
 
-  console.log(
-    `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
-  );
+  // console.log(
+  //   `IngredientView: Rendering component. Dates to render: ${allAvailableDates.length}`
+  // );
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header for bins (categories) - This needs rethinking for vertical scroll */}
-      {/* We will render headers within each date row instead */}
+      {/* Fixed header */}
+      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
+          Date
+        </div>
+        {/* Header for the ingredients area */}
+        {/* Add right padding to this element as it's the last one */}
+        <div className="flex-1 p-3 text-left font-semibold text-[#6B4226] pr-[15px]">
+          Ingredients
+        </div>
+      </div>
 
       {/* Scrollable container for DATES (Vertical Scroll) */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-gray-50 relative"
+        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
+        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Past Loading Indicator */}
         {isFetchingPast && <LoadingIndicator position="top" />}
 
         {/* Render Date Rows */}
-        <div className="min-w-full divide-y divide-gray-200">
+        {/* Use divide-y for separation between date rows */}
+        <div className="min-w-full divide-y divide-[#E0E0E0]">
           {allAvailableDates.map((currentDate) => {
             const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
             if (!isValidDate(currentDate)) {
@@ -555,149 +520,99 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
               );
               return null;
             }
-            const isSelectedHighlight = isSameDay(
+            // Use the same variable name as MealView for clarity
+            const isSelected = isSameDay(
               normalizeDate(currentDate),
               normalizeDate(selectedDate)
             );
-            const { bins, displayBinNames, totalIngredients } =
-              organizeIngredientsIntoBins(currentDate);
+            // Get the combined list of ingredients for this date
+            const combinedIngredients =
+              getCombinedIngredientsForDate(currentDate);
+            const totalIngredients = combinedIngredients.length;
 
             return (
+              // Use flex-row for the main layout
               <div
                 key={currentDate.toISOString()}
                 id={dateId}
-                className={`flex flex-col min-h-[180px] ${
-                  isSelectedHighlight ? "bg-orange-50" : "bg-white"
+                // Apply consistent row background from MealView
+                className={`flex min-h-[60px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                  isSelected ? "bg-[#8B4513]/5" : "bg-white"
                 }`}
               >
-                {/* Row Header (Date + Categories) */}
+                {/* Cell 1: Date Information */}
                 <div
-                  className={`flex border-b sticky top-0 z-[5] ${
-                    isSelectedHighlight
-                      ? "bg-orange-100 border-orange-200"
-                      : "bg-gray-100 border-gray-200"
+                  // Apply consistent cell styling from MealView
+                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                    isSelected
+                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                      : "border-[#E0E0E0]"
                   }`}
                 >
-                  {/* Date Cell */}
                   <div
-                    className={`w-32 flex-shrink-0 p-4 border-r flex flex-col justify-start ${
-                      isSelectedHighlight
-                        ? "border-orange-200"
-                        : "border-gray-200"
+                    // Apply consistent text styling from MealView
+                    className={`font-semibold ${
+                      isSelected ? "text-[#8B4513]" : "text-gray-800"
                     }`}
                   >
-                    <div
-                      className={`font-semibold ${
-                        isSelectedHighlight
-                          ? "text-orange-800"
-                          : "text-gray-800"
-                      }`}
-                    >
-                      {format(currentDate, "EEE")}
-                    </div>
-                    <div
-                      className={`text-sm ${
-                        isSelectedHighlight
-                          ? "text-orange-600"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {format(currentDate, "MMM d")}
-                    </div>
-                    <div
-                      className={`text-xs ${
-                        isSelectedHighlight
-                          ? "text-orange-500"
-                          : "text-gray-400"
-                      }`}
-                    >
-                      {format(currentDate, "yyyy")} ({totalIngredients})
-                    </div>
+                    {format(currentDate, "EEE")}
                   </div>
-                  {/* Category Headers */}
-                  <div className="flex flex-1 overflow-x-auto">
-                    {displayBinNames.map((binName, index) => (
-                      <div
-                        key={`${currentDate.toISOString()}-header-${binName}`}
-                        className={`flex-1 p-4 text-center font-medium capitalize text-xs ${
-                          isSelectedHighlight
-                            ? "text-orange-700"
-                            : "text-gray-700"
-                        } ${index > 0 ? "border-l" : ""} ${
-                          isSelectedHighlight
-                            ? "border-orange-200"
-                            : "border-gray-200"
-                        }`}
-                        style={{ minWidth: "150px" }} // Ensure min-width for headers
-                      >
-                        {binName} ({bins[binName]?.length ?? 0})
-                      </div>
-                    ))}
+                  <div
+                    // Apply consistent text styling from MealView
+                    className={`text-sm ${
+                      isSelected ? "text-[#A0522D]" : "text-gray-500"
+                    }`}
+                  >
+                    {format(currentDate, "MMM d")}
+                  </div>
+                  <div
+                    // Apply consistent text styling from MealView
+                    className={`text-xs ${
+                      isSelected ? "text-[#A0522D]/80" : "text-gray-400"
+                    }`}
+                  >
+                    {format(currentDate, "yyyy")}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    ({totalIngredients} ingredient
+                    {totalIngredients !== 1 ? "s" : ""})
                   </div>
                 </div>
 
-                {/* Row Content (Ingredient Bins) */}
-                <div className="flex flex-1">
-                  {/* Sidebar (Optional) */}
-                  <div
-                    className={`w-32 flex-shrink-0 p-4 border-r ${
-                      isSelectedHighlight
-                        ? "border-orange-200"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    {/* Add summary info if needed */}
-                  </div>
-                  {/* Ingredient Bins */}
-                  <div className="flex flex-1 overflow-x-auto">
-                    {displayBinNames.map((binName, index) => {
-                      const binContent = bins[binName];
+                {/* Cell 2: Ingredients Area */}
+                <div
+                  className="flex-1 p-1.5 flex flex-wrap gap-1.5 items-start content-start" // Use flex-wrap, add padding and gap
+                >
+                  <AnimatePresence>
+                    {combinedIngredients.map((ingredient) => {
+                      const ingredientKey = getIngredientKey(ingredient);
+                      const selectedKey = selectedIngredient
+                        ? getIngredientKey(selectedIngredient)
+                        : null;
+                      const isCurrentlySelected =
+                        ingredientKey !== null && ingredientKey === selectedKey;
                       return (
-                        <div
-                          key={`${currentDate.toISOString()}-content-${binName}`}
-                          className={`flex-1 p-1.5 overflow-y-auto min-w-[150px] ${
-                            index > 0 ? "border-l" : ""
-                          } ${
-                            isSelectedHighlight
-                              ? "border-orange-200"
-                              : "border-gray-200"
-                          }`}
-                        >
-                          <AnimatePresence>
-                            {binContent?.map((ingredient) => {
-                              const ingredientKey =
-                                getIngredientKey(ingredient);
-                              const selectedKey = selectedIngredient
-                                ? getIngredientKey(selectedIngredient)
-                                : null;
-                              const isCurrentlySelected =
-                                ingredientKey !== null &&
-                                ingredientKey === selectedKey;
-                              return (
-                                <IngredientCard
-                                  key={`${ingredientKey}-${ingredient.isRecommended}`}
-                                  ingredient={ingredient}
-                                  isSelected={isCurrentlySelected}
-                                  isRecommended={ingredient.isRecommended}
-                                  onClick={() => {
-                                    onIngredientSelect(
-                                      isCurrentlySelected ? null : ingredient,
-                                      ingredient.isRecommended
-                                    );
-                                  }}
-                                />
-                              );
-                            })}
-                          </AnimatePresence>
-                          {(!binContent || binContent.length === 0) && (
-                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                              -
-                            </div>
-                          )}
-                        </div>
+                        <IngredientCard
+                          key={`${ingredientKey}-${ingredient.isRecommended}`}
+                          ingredient={ingredient}
+                          isSelected={isCurrentlySelected}
+                          isRecommended={ingredient.isRecommended}
+                          onClick={() => {
+                            onIngredientSelect(
+                              isCurrentlySelected ? null : ingredient,
+                              ingredient.isRecommended
+                            );
+                          }}
+                        />
                       );
                     })}
-                  </div>
+                  </AnimatePresence>
+                  {/* Show message if no ingredients */}
+                  {totalIngredients === 0 && (
+                    <div className="flex items-center justify-center text-center text-gray-400 text-xs p-2 w-full h-full min-h-[40px]">
+                      No ingredients logged for this day.
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -79,7 +79,7 @@ class AuthService {
 
       // Save the `_id` field to SessionStorage
       sessionStorage.setItem("user_id", response.data._id);
-      console.log(response.data._id);
+      // console.log(response.data._id);
 
       // Save the `plan_ids` list of strings to SessionStorage
       sessionStorage.setItem(

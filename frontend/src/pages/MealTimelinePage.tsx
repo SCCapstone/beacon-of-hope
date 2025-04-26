@@ -4,7 +4,6 @@ import {
   DayMeals,
   UserPreferences,
   UserAnthropometrics,
-  Meal,
   NutritionalGoals,
 } from "../components/MealTimeline/types";
 import { MainLayout } from "../components/Layouts/MainLayout";
@@ -31,12 +30,14 @@ import {
 import { useSelector } from "react-redux";
 import { RootState } from "../app/store";
 import { ApiError } from "../utils/errorHandling";
+import { CustomModal, ModalProps } from "../components/CustomModal";
 
+// Helper function to normalize dates consistently
 const normalizeDate = (date: Date | string | null | undefined): Date => {
   if (date === null || date === undefined) {
-    console.warn(
-      "MealTimeLinePage normalizeDate received null/undefined, returning current date."
-    );
+    // console.warn(
+    //   "MealTimeLinePage normalizeDate received null/undefined, returning current date."
+    // );
     const fallbackDate = new Date();
     fallbackDate.setHours(0, 0, 0, 0);
     return fallbackDate;
@@ -44,10 +45,10 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
   // Handle string parsing carefully, assuming 'yyyy-MM-dd' or ISO format
   const dateObj = typeof date === "string" ? parseISO(date) : date;
   if (!isValidDate(dateObj)) {
-    console.warn(
-      "MealTimeLinePage normalizeDate received invalid date, returning current date:",
-      date
-    );
+    // console.warn(
+    //   "MealTimeLinePage normalizeDate received invalid date, returning current date:",
+    //   date
+    // );
     const fallbackDate = new Date();
     fallbackDate.setHours(0, 0, 0, 0);
     return fallbackDate;
@@ -56,6 +57,42 @@ const normalizeDate = (date: Date | string | null | undefined): Date => {
   const normalized = new Date(dateObj);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
+};
+
+// Function to determine the initial selected date based on recommendations or today
+const getInitialSelectedDate = (): Date => {
+  const today = normalizeDate(new Date());
+  try {
+    const rawMealPlanString = localStorage.getItem("mealPlan");
+    if (rawMealPlanString) {
+      const mealPlan = JSON.parse(rawMealPlanString);
+      if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
+        const recommendationDates = Object.keys(mealPlan.days)
+          .map(normalizeDate) // Normalize date strings to Date objects
+          .filter(isValidDate); // Filter out any invalid dates
+
+        if (recommendationDates.length > 0) {
+          const firstRecommendationDate = minDate(recommendationDates);
+          // console.log(
+          //   "MealTimelinePage: Found recommendations, setting initial date to:",
+          //   format(firstRecommendationDate, "yyyy-MM-dd")
+          // );
+          return firstRecommendationDate;
+        }
+      }
+    }
+  } catch (e) {
+    console.error(
+      "MealTimelinePage: Error reading or parsing mealPlan from localStorage:",
+      e
+    );
+    // Fall through to return today's date if error occurs
+  }
+  // console.log(
+  //   "MealTimelinePage: No recommendations found or error, setting initial date to today:",
+  //   format(today, "yyyy-MM-dd")
+  // );
+  return today; // Default to today if no recommendations or error
 };
 
 // Type for the callback payload from Viz for fetching
@@ -78,12 +115,13 @@ export const MealTimelinePage: React.FC = () => {
   const [isFetchingMorePast, setIsFetchingMorePast] = useState(false); // Specific loading state for past
   const [isFetchingMoreFuture, setIsFetchingMoreFuture] = useState(false); // Specific loading state for future
   const [error, setError] = useState<string | null>(null);
+  // Use the helper function to initialize selectedDate
   const [selectedDate, setSelectedDate] = useState<Date>(
-    normalizeDate(new Date())
+    getInitialSelectedDate
   );
   const [nutritionalGoals, setNutritionalGoals] =
     useState<NutritionalGoals | null>(null); // State for goals
-
+  const [modalConfig, setModalConfig] = useState<ModalProps | null>(null);
   // Track the overall loaded range
   const loadedStartDateRef = useRef<Date | null>(null);
   const loadedEndDateRef = useRef<Date | null>(null);
@@ -122,44 +160,69 @@ export const MealTimelinePage: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      try {
-        const rawMealPlanString = localStorage.getItem("mealPlan");
-        if (rawMealPlanString) {
-          const mealPlan = JSON.parse(rawMealPlanString);
-          // Check if there are any days with meals in the plan
-          if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
-            const hasUnsavedMeals = Object.values(mealPlan.days).some(
-              (day: any) =>
-                day && Array.isArray(day.meals) && day.meals.length > 0
-            );
-            if (hasUnsavedMeals) {
-              console.log(
-                "Unsaved recommendations detected in localStorage. Prompting user."
-              );
-              event.preventDefault(); // Standard practice
-              event.returnValue =
-                "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For older browsers
-              return "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For modern browsers
-            }
-          }
-        }
-      } catch (e) {
-        console.error(
-          "Error checking localStorage for unsaved recommendations:",
-          e
-        );
-        // Don't block navigation if there's an error reading localStorage
-      }
-    };
+  const showModal = useCallback(
+    (config: Omit<ModalProps, "isOpen" | "onClose">) => {
+      setModalConfig({
+        ...config,
+        isOpen: true,
+        onClose: () => setModalConfig(null), // Default close action
+      });
+    },
+    []
+  );
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+  const showErrorModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "error" });
+    },
+    [showModal]
+  );
 
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+  const showSuccessModal = useCallback(
+    (title: string, message: string) => {
+      showModal({ title, message, type: "success" });
+    },
+    [showModal]
+  );
+
+  // useEffect(() => {
+  //   const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  //     try {
+  //       const rawMealPlanString = localStorage.getItem("mealPlan");
+  //       if (rawMealPlanString) {
+  //         const mealPlan = JSON.parse(rawMealPlanString);
+  //         // Check if there are any days with meals in the plan
+  //         if (mealPlan && mealPlan.days && typeof mealPlan.days === "object") {
+  //           const hasUnsavedMeals = Object.values(mealPlan.days).some(
+  //             (day: any) =>
+  //               day && Array.isArray(day.meals) && day.meals.length > 0
+  //           );
+  //           if (hasUnsavedMeals) {
+  //             console.log(
+  //               "Unsaved recommendations detected in localStorage. Prompting user."
+  //             );
+  //             event.preventDefault(); // Standard practice
+  //             event.returnValue =
+  //               "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For older browsers
+  //             return "You have unsaved meal recommendations. Are you sure you want to leave? They will be lost."; // For modern browsers
+  //           }
+  //         }
+  //       }
+  //     } catch (e) {
+  //       console.error(
+  //         "Error checking localStorage for unsaved recommendations:",
+  //         e
+  //       );
+  //       // Don't block navigation if there's an error reading localStorage
+  //     }
+  //   };
+
+  //   window.addEventListener("beforeunload", handleBeforeUnload);
+
+  //   return () => {
+  //     window.removeEventListener("beforeunload", handleBeforeUnload);
+  //   };
+  // }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
 
   // Fetch Nutritional Goals
   useEffect(() => {
@@ -167,10 +230,10 @@ export const MealTimelinePage: React.FC = () => {
       if (userId) {
         setIsLoadingGoals(true);
         try {
-          console.log("MealTimelinePage: Fetching nutritional goals...");
+          // console.log("MealTimelinePage: Fetching nutritional goals...");
           const goals = await fetchNutritionalGoals(userId);
           setNutritionalGoals(goals); // Set goals (can be null if not found)
-          console.log("MealTimelinePage: Goals fetched:", goals);
+          // console.log("MealTimelinePage: Goals fetched:", goals);
         } catch (err) {
           console.error(
             "MealTimelinePage: Error fetching nutritional goals:",
@@ -202,10 +265,10 @@ export const MealTimelinePage: React.FC = () => {
       );
 
       if (datesActuallyNeedingFetch.length === 0) {
-        console.log(
-          "Page Fetch skipped: Dates already being fetched or empty list.",
-          datesToFetchParam
-        );
+        // console.log(
+        //   "Page Fetch skipped: Dates already being fetched or empty list.",
+        //   datesToFetchParam
+        // );
         // Reset specific loading states if the trigger was for them but nothing fetched
         if (direction === "past") setIsFetchingMorePast(false);
         if (direction === "future") setIsFetchingMoreFuture(false);
@@ -218,10 +281,10 @@ export const MealTimelinePage: React.FC = () => {
       datesActuallyNeedingFetch.forEach((date) =>
         fetchingDatesRef.current.add(date)
       );
-      console.log(
-        `Page Fetching meal data for dates (${direction}):`,
-        datesActuallyNeedingFetch
-      );
+      // console.log(
+      //   `Page Fetching meal data for dates (${direction}):`,
+      //   datesActuallyNeedingFetch
+      // );
 
       // Set appropriate loading state based on direction
       if (direction === "initial") setIsLoading(true);
@@ -234,10 +297,10 @@ export const MealTimelinePage: React.FC = () => {
 
       try {
         const response = await fetchMealDays(userId, datesActuallyNeedingFetch);
-        console.log(
-          `Page API response received for (${direction}):`,
-          datesActuallyNeedingFetch.join(", ")
-        );
+        // console.log(
+        //   `Page API response received for (${direction}):`,
+        //   datesActuallyNeedingFetch.join(", ")
+        // );
 
         let transformedData: DayMeals[] = [];
         // Check if day_plans is an object and not empty
@@ -261,28 +324,28 @@ export const MealTimelinePage: React.FC = () => {
               minFetched < loadedStartDateRef.current
             ) {
               loadedStartDateRef.current = minFetched;
-              console.log(
-                "Page Updated loadedStartDateRef:",
-                format(minFetched, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedStartDateRef:",
+              //   format(minFetched, "yyyy-MM-dd")
+              // );
             }
             if (
               !loadedEndDateRef.current ||
               maxFetched > loadedEndDateRef.current
             ) {
               loadedEndDateRef.current = maxFetched;
-              console.log(
-                "Page Updated loadedEndDateRef:",
-                format(maxFetched, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedEndDateRef:",
+              //   format(maxFetched, "yyyy-MM-dd")
+              // );
             }
           }
           // --- End Update loaded range ---
         } else {
-          console.log(
-            `Page No meal history found in response for requested dates (${direction}):`,
-            datesActuallyNeedingFetch.join(", ")
-          );
+          // console.log(
+          //   `Page No meal history found in response for requested dates (${direction}):`,
+          //   datesActuallyNeedingFetch.join(", ")
+          // );
           // If no data found, still update the loaded range to prevent re-fetching these empty dates
           const requestedDates = datesActuallyNeedingFetch
             .map((d) => normalizeDate(d))
@@ -295,20 +358,20 @@ export const MealTimelinePage: React.FC = () => {
               minRequested < loadedStartDateRef.current
             ) {
               loadedStartDateRef.current = minRequested;
-              console.log(
-                "Page Updated loadedStartDateRef (no data):",
-                format(minRequested, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedStartDateRef (no data):",
+              //   format(minRequested, "yyyy-MM-dd")
+              // );
             }
             if (
               !loadedEndDateRef.current ||
               maxRequested > loadedEndDateRef.current
             ) {
               loadedEndDateRef.current = maxRequested;
-              console.log(
-                "Page Updated loadedEndDateRef (no data):",
-                format(maxRequested, "yyyy-MM-dd")
-              );
+              // console.log(
+              //   "Page Updated loadedEndDateRef (no data):",
+              //   format(maxRequested, "yyyy-MM-dd")
+              // );
             }
           }
         }
@@ -353,69 +416,27 @@ export const MealTimelinePage: React.FC = () => {
               .filter(([key]) => key !== "invalid") // Filter out invalid entries
           );
 
+          // Process the transformed data from the current fetch
           transformedData.forEach((newDayData) => {
             // newDayData is from the API response for the specific fetched dates
             const normalizedDayDate = normalizeDate(newDayData.date); // Normalize once
             if (isValidDate(normalizedDayDate)) {
               const dateKey = format(normalizedDayDate, "yyyy-MM-dd");
-              const existingDayData = dataMap.get(dateKey);
-
-              if (existingDayData) {
-                // Day exists: Merge meals carefully
-                const combinedMealsMap = new Map<string, Meal>();
-
-                // Add existing meals from the state first
-                (existingDayData.meals || []).forEach((meal) => {
-                  // Use meal.id which should be unique for each meal instance (trace or accepted rec)
-                  if (meal.id) {
-                    combinedMealsMap.set(meal.id, meal);
-                  } else {
-                    console.warn(
-                      "Existing meal missing ID during merge:",
-                      meal
-                    );
-                    // Handle fallback if needed, e.g., generate a temporary key, but ideally IDs are reliable
-                  }
-                });
-
-                // Add or update with new meals from the API response
-                (newDayData.meals || []).forEach((newMeal) => {
-                  if (newMeal.id) {
-                    // Check if a meal with this ID already exists in our map.
-                    // If it doesn't, add the new meal.
-                    // If it does, we keep the existing one to prevent overwrites due to potentially non-unique IDs
-                    // generated based on backend data. This assumes the backend returns all relevant meals.
-                    if (!combinedMealsMap.has(newMeal.id)) {
-                      combinedMealsMap.set(newMeal.id, newMeal);
-                      // console.log(`Page Merge: Added new meal ${newMeal.id} for date ${dateKey}`);
-                    } else {
-                      // Optional: Log that an overwrite was prevented.
-                      // console.log(`Page Merge: Meal with ID ${newMeal.id} already exists for date ${dateKey}. Keeping existing entry.`);
-                    }
-                  } else {
-                    console.warn("New meal missing ID during merge:", newMeal);
-                  }
-                });
-
-                // Create the updated day object with merged meals
-                const mergedDayData: DayMeals = {
-                  ...existingDayData, // Keep potential original day info like _id if relevant
-                  ...newDayData, // Overwrite with potentially new day info from API (if any, e.g., scores)
-                  date: normalizedDayDate, // Ensure normalized date
-                  meals: Array.from(combinedMealsMap.values()).sort((a, b) =>
-                    a.time.localeCompare(b.time)
-                  ), // Update meals list, sorted by time
-                };
-                dataMap.set(dateKey, mergedDayData);
-                // console.log(`Page Merged meals for date: ${dateKey}. Total meals: ${mergedDayData.meals.length}`);
-              } else {
-                // Day doesn't exist in map yet, just add the new data
-                dataMap.set(dateKey, {
-                  ...newDayData,
-                  date: normalizedDayDate,
-                });
-                // console.log(`Page Added new day data for date: ${dateKey}`);
-              }
+              // *** Replace the entire entry for this date with the newly fetched data ***
+              // This ensures optimistic entries are overwritten by the source of truth from the backend.
+              dataMap.set(dateKey, {
+                ...newDayData, // Use the structure from transformedData
+                date: normalizedDayDate, // Ensure normalized date
+                // Ensure meals are sorted if transformApiResponseToDayMeals doesn't already do it
+                meals: (newDayData.meals || []).sort((a, b) =>
+                  a.time.localeCompare(b.time)
+                ),
+              });
+              // console.log(
+              //   `Page: Updated/Set data for date: ${dateKey} with ${
+              //     newDayData.meals?.length || 0
+              //   } meals.`
+              // );
             } else {
               console.warn(
                 "Page Skipping invalid date object during merge:",
@@ -488,7 +509,7 @@ export const MealTimelinePage: React.FC = () => {
           !isFetchingMoreFuture
         ) {
           setIsLoading(false); // Ensure main loading is off if nothing is fetching
-          console.log("Page All fetches complete. isLoading set to false.");
+          // console.log("Page All fetches complete. isLoading set to false.");
         }
         // else {
         // console.log("Page Fetch complete for:", datesActuallyNeedingFetch.join(', '), "Remaining fetches:", Array.from(fetchingDatesRef.current));
@@ -502,11 +523,17 @@ export const MealTimelinePage: React.FC = () => {
   const handleDeleteMeal = useCallback(
     async (mealIdToDelete: string, mealDate: Date) => {
       if (!userId) {
-        setError("Cannot delete meal: User not logged in.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot delete meal: User not logged in."
+        );
         return;
       }
       if (!mealIdToDelete || !mealDate) {
-        setError("Cannot delete meal: Missing meal ID or date.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot delete meal: Missing meal ID or date."
+        );
         console.error("handleDeleteMeal missing data:", {
           mealIdToDelete,
           mealDate,
@@ -516,15 +543,12 @@ export const MealTimelinePage: React.FC = () => {
 
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
+      // console.log(
+      //   `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
+      // );
+      const originalWeekData = [...weekData];
 
-      console.log(
-        `Page: Attempting to delete meal ${mealIdToDelete} on ${dateStr}`
-      );
-
-      // Store original data for potential rollback
-      const originalWeekData = [...weekData]; // Shallow copy is enough here
-
-      // --- Optimistic UI Update ---
+      // Optimistic UI Update
       setWeekData((prevData) => {
         const newData = prevData.map((day) => {
           // Find the correct day
@@ -543,30 +567,30 @@ export const MealTimelinePage: React.FC = () => {
         // return newData.filter(day => day.meals.length > 0);
         return newData;
       });
-      console.log(
-        `Page: Optimistically removed meal ${mealIdToDelete} from UI.`
-      );
+      // console.log(
+      //   `Page: Optimistically removed meal ${mealIdToDelete} from UI.`
+      // );
       setError(null); // Clear previous errors
 
-      // --- Call Backend API ---
+      // Call Backend API
       try {
         await deleteMealFromTrace(userId, dateStr, mealIdToDelete);
-        console.log(
-          `Page: Successfully deleted meal ${mealIdToDelete} from backend.`
-        );
+        // console.log(
+        //   `Page: Successfully deleted meal ${mealIdToDelete} from backend.`
+        // );
         // UI is already updated, no further action needed on success
       } catch (err: any) {
         console.error(`Page: Error deleting meal ${mealIdToDelete}:`, err);
-        // --- Rollback UI on Failure ---
-        setWeekData(originalWeekData); // Restore previous state
-        if (err instanceof ApiError) {
-          setError(`Delete failed: ${err.message}`);
-        } else {
-          setError("An unexpected error occurred while deleting the meal.");
-        }
+        setWeekData(originalWeekData); // Rollback
+        const errorMsg =
+          err instanceof ApiError
+            ? `Delete failed: ${err.message}`
+            : "An unexpected error occurred while deleting the meal.";
+        showErrorModal("Deletion Error", errorMsg); // Use modal for error feedback
+        setError(errorMsg); // Also set state error if needed elsewhere
       }
     },
-    [userId, weekData] // Add weekData dependency for rollback
+    [userId, weekData, showErrorModal]
   );
 
   const handleRegeneratePartial = useCallback(
@@ -576,14 +600,14 @@ export const MealTimelinePage: React.FC = () => {
         return;
       }
       if (datesToRegenerate.length === 0) {
-        console.log("Page: No dates provided for regeneration.");
+        // console.log("Page: No dates provided for regeneration.");
         return;
       }
 
-      console.log(
-        "Page: handleRegeneratePartial called for dates:",
-        datesToRegenerate.join(", ")
-      );
+      // console.log(
+      //   "Page: handleRegeneratePartial called for dates:",
+      //   datesToRegenerate.join(", ")
+      // );
       setIsRegenerating(true);
       setError(null);
 
@@ -592,7 +616,7 @@ export const MealTimelinePage: React.FC = () => {
           userId,
           datesToRegenerate
         );
-        console.log("Page: Regeneration API response received.");
+        // console.log("Page: Regeneration API response received.");
 
         // Update localStorage["mealPlan"]
         const rawMealPlanString = localStorage.getItem("mealPlan");
@@ -673,9 +697,9 @@ export const MealTimelinePage: React.FC = () => {
               // item_coverage_score: undefined,
               // nutritional_constraint_score: undefined,
             };
-            console.log(
-              `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
-            );
+            // console.log(
+            //   `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
+            // );
           } else {
             console.warn(
               `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
@@ -685,9 +709,9 @@ export const MealTimelinePage: React.FC = () => {
 
         // Save the updated meal plan back to localStorage
         localStorage.setItem("mealPlan", JSON.stringify(currentMealPlan));
-        console.log(
-          "Page: Updated localStorage['mealPlan'] after regeneration."
-        );
+        // console.log(
+        //   "Page: Updated localStorage['mealPlan'] after regeneration."
+        // );
 
         // The MealCalendarViz component will automatically re-render and update
         // its recommendations based on the change to the 'mealPlan' prop derived from localStorage.
@@ -729,9 +753,9 @@ export const MealTimelinePage: React.FC = () => {
       try {
         const success = await saveMealToTrace(reqUserId, date, mealId);
         if (success) {
-          console.log(
-            `Page: Successfully initiated save for meal ${mealId} on ${date}.`
-          );
+          // console.log(
+          //   `Page: Successfully initiated save for meal ${mealId} on ${date}.`
+          // );
           // The Viz component handles localStorage removal *after* this succeeds.
           // The Viz component also triggers the refetch via onRequestFetch.
           return true;
@@ -764,11 +788,17 @@ export const MealTimelinePage: React.FC = () => {
   const handleFavoriteMeal = useCallback(
     async (mealIdToFavorite: string, mealDate: Date) => {
       if (!userId) {
-        setError("Cannot favorite meal: User not logged in.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: User not logged in."
+        ); // Use modal
         return;
       }
       if (!mealIdToFavorite || !mealDate) {
-        setError("Cannot favorite meal: Missing meal ID or date.");
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: Missing meal ID or date."
+        ); // Use modal
         console.error("handleFavoriteMeal missing data:", {
           mealIdToFavorite,
           mealDate,
@@ -779,20 +809,21 @@ export const MealTimelinePage: React.FC = () => {
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
 
-      console.log(
-        `Page: Attempting to favorite meal ${mealIdToFavorite} on ${dateStr}`
-      );
+      // console.log(
+      //   `Page: Attempting to favorite meal ${mealIdToFavorite} on ${dateStr}`
+      // );
       setError(null); // Clear previous errors
 
-      // --- Call Backend API ---
+      // Call Backend API
       try {
         await favoriteMealInTrace(userId, dateStr, mealIdToFavorite);
-        console.log(
-          `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
-        );
-        // Optional: Show a success toast/message to the user
-        alert(
-          `Meal marked as favorite! This will influence future recommendations.`
+        // console.log(
+        //   `Page: Successfully favorited meal ${mealIdToFavorite} on backend.`
+        // );
+        // Show success feedback using the modal
+        showSuccessModal(
+          "Meal Favorited",
+          "This meal has been marked as a favorite and will influence future recommendations."
         );
 
         // Optional: Optimistic UI update (if Meal type has isFavorited)
@@ -811,26 +842,28 @@ export const MealTimelinePage: React.FC = () => {
         // });
       } catch (err: any) {
         console.error(`Page: Error favoriting meal ${mealIdToFavorite}:`, err);
-        if (err instanceof ApiError) {
-          setError(`Favorite failed: ${err.message}`);
-        } else {
-          setError("An unexpected error occurred while favoriting the meal.");
-        }
-        // Optional: Show an error toast/message
-        alert(`Error: Could not mark meal as favorite. ${err.message || ""}`);
+        const errorMsg =
+          err instanceof ApiError
+            ? `Favorite failed: ${err.message}`
+            : "An unexpected error occurred while favoriting the meal.";
+        showErrorModal(
+          "Favorite Error",
+          `Could not mark meal as favorite. ${errorMsg}`
+        ); // Use modal for error
+        setError(errorMsg); // Set state error if needed
       }
     },
-    [userId] // Dependency on userId
+    [userId, showErrorModal, showSuccessModal]
   );
 
   // Callback for Viz to request fetching specific dates
   const handleFetchRequest = useCallback(
     (payload: FetchRequestPayload) => {
       const { datesToFetch, direction } = payload; // Destructure direction
-      console.log(
-        `Page handleFetchRequest received from Viz. Direction: ${direction}, Dates:`,
-        datesToFetch.join(", ") || "None"
-      );
+      // console.log(
+      //   `Page handleFetchRequest received from Viz. Direction: ${direction}, Dates:`,
+      //   datesToFetch.join(", ") || "None"
+      // );
       if (datesToFetch.length > 0) {
         fetchMealData(datesToFetch, direction); // Pass direction to fetch function
       }
@@ -852,9 +885,9 @@ export const MealTimelinePage: React.FC = () => {
             normalizedNewDate < loadedStartDateRef.current ||
             normalizedNewDate > loadedEndDateRef.current
           ) {
-            console.log(
-              "Page Selected date outside loaded range. Fetching surrounding data."
-            );
+            // console.log(
+            //   "Page Selected date outside loaded range. Fetching surrounding data."
+            // );
             const fetchStart = subDays(normalizedNewDate, 3); // Fetch a window around the new date
             const fetchEnd = addDays(normalizedNewDate, 3);
             const datesToFetch = generateDateRange(fetchStart, fetchEnd);
@@ -882,7 +915,7 @@ export const MealTimelinePage: React.FC = () => {
   useEffect(() => {
     // Ensure userId is present before initial load
     if (!initialLoadAttemptedRef.current && userId) {
-      console.log("Page Initial load effect running.");
+      // console.log("Page Initial load effect running.");
       initialLoadAttemptedRef.current = true; // Mark attempt even before fetch starts
       // Use the initial selectedDate state (already normalized)
       // Fetch a wider initial range for infinite scroll
@@ -919,7 +952,8 @@ export const MealTimelinePage: React.FC = () => {
     return (
       <MainLayout title="Meal Calendar" subtitle="Loading your data...">
         <div className="flex items-center justify-center h-[calc(100vh-150px)]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+          {/* Use primary color for spinner */}
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]" />
         </div>
       </MainLayout>
     );
@@ -930,11 +964,12 @@ export const MealTimelinePage: React.FC = () => {
     // Show login error prominently
     return (
       <MainLayout title="Meal Calendar" subtitle="Access Denied">
-        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-red-500">
+        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-[#D9534F]">
+          {" "}
+          {/* Accent Red */}
           <div className="text-center">
             <p className="text-xl mb-4">Login Required</p>
             <p>{error}</p>
-            {/* Add a login button? */}
           </div>
         </div>
       </MainLayout>
@@ -943,7 +978,9 @@ export const MealTimelinePage: React.FC = () => {
     // Show other errors
     return (
       <MainLayout title="Meal Calendar" subtitle="Error">
-        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-red-500">
+        <div className="flex items-center justify-center h-[calc(100vh-150px)] text-[#D9534F]">
+          {" "}
+          {/* Accent Red */}
           <div className="text-center">
             <p className="text-xl mb-4">Error Loading Data</p>
             <p>{error}</p>
@@ -961,9 +998,10 @@ export const MealTimelinePage: React.FC = () => {
                   fetchNutritionalGoals(userId).then(setNutritionalGoals);
                 }
               }}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="mt-4 px-4 py-2 bg-[#8B4513] text-white rounded-md hover:bg-[#A0522D]" // Primary color button
             >
-              Retry
+              {" "}
+              Retry{" "}
             </button>
           </div>
         </div>
@@ -1035,9 +1073,11 @@ export const MealTimelinePage: React.FC = () => {
       {/* Overlay loader uses combined logic */}
       {showOverlayLoader && (
         <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 pointer-events-none">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+          {/* Use primary color for spinner */}
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B4513]"></div>
         </div>
       )}
+      {modalConfig && <CustomModal {...modalConfig} />}
     </MainLayout>
   );
 };

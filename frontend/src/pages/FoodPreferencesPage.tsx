@@ -145,10 +145,10 @@ const FoodPreferencesPage: React.FC = () => {
     setMealPlanName(persona.mealPlanConfig.mealPlanName);
     setMealPlanStartDate(persona.mealPlanConfig.mealPlanStartDate);
     setMealConfigs(persona.mealSpecificOptions);
-    
+
     // Ensure current meal index is valid for the new number of meals
     setCurrentMealIndex(0); // Reset to first meal to avoid out-of-bounds errors
-    
+
     setSelectedPersona(personaKey);
   };
 
@@ -257,7 +257,7 @@ const FoodPreferencesPage: React.FC = () => {
         fiber: fiber,
       },
       user_id: userState.user?._id,
-    }
+    };
 
     // console.log("Request body:", JSON.stringify(requestBodyBandit, null, 2));
 
@@ -276,11 +276,14 @@ const FoodPreferencesPage: React.FC = () => {
     try {
       console.log(
         "Sending request to:",
-        "http://localhost:8000/beacon/recommendation/bandit"
+        "http://localhost:8000/beacon/recommendation/bandit:",
+        JSON.stringify(requestBodyBandit, null, 2)
       );
-      console.log("Request body to Bandit:", JSON.stringify(requestBodyBandit, null, 2));
-      console.log("Request body to Nutritional Goals:", JSON.stringify(requestBodyNutritionalGoals, null, 2));
-
+      console.log(
+        "Sending request to:",
+        "http://localhost:8000/beacon/user/nutritional-goals",
+        JSON.stringify(requestBodyNutritionalGoals, null, 2)
+      );
 
       // Simulate different loading stages with timeouts
       setTimeout(() => {
@@ -299,19 +302,20 @@ const FoodPreferencesPage: React.FC = () => {
         "http://localhost:8000/beacon/user/nutritional-goals",
         requestOptionsNutritionalGoals
       );
-      console.log("Response status:", responseNutritionalGoals.status);
+      // console.log("Response status from nutritional-goals: ", responseNutritionalGoals.status);
 
       if (!responseNutritionalGoals.ok) {
         const errorText = await responseNutritionalGoals.text();
         console.log("Error response body:", errorText);
-        throw new Error(`HTTP error! status: ${responseNutritionalGoals.status}`);
+        throw new Error(
+          `HTTP error! status: ${responseNutritionalGoals.status}`
+        );
       }
 
       const responseBandit = await fetch(
         "http://localhost:8000/beacon/recommendation/bandit",
         requestOptionsBandit
       );
-      console.log("Bandit Response status:", responseBandit.status);
 
       if (!responseBandit.ok) {
         const errorText = await responseBandit.text();
@@ -325,9 +329,9 @@ const FoodPreferencesPage: React.FC = () => {
       // Clear Session Cache BEFORE navigating
       try {
         let clearedCount = 0;
-        console.log(
-          "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
-        );
+        // console.log(
+        //   "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
+        // );
         Object.keys(sessionStorage).forEach((key) => {
           if (key.startsWith("recommendations-")) {
             sessionStorage.removeItem(key);
@@ -335,9 +339,9 @@ const FoodPreferencesPage: React.FC = () => {
             clearedCount++;
           }
         });
-        console.log(
-          `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
-        );
+        // console.log(
+        //   `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
+        // );
       } catch (cacheError) {
         console.error(
           "FoodPreferencesPage: Error clearing sessionStorage:",
@@ -350,7 +354,7 @@ const FoodPreferencesPage: React.FC = () => {
       setLoadingStage("Success! Your meal plan is ready.");
       setShowSuccess(true);
 
-      console.log("Successful response:", result);
+      // console.log("Successful response:", result);
 
       localStorage.setItem("mealPlan", JSON.stringify(result)); // Save the NEW plan
 
@@ -499,7 +503,6 @@ const FoodPreferencesPage: React.FC = () => {
         {/* Content Section with Grid Layout */}
         <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-
             {/* Persona Selection Section */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h2 className="text-2xl font-semibold text-gray-800 mb-6">
@@ -521,15 +524,18 @@ const FoodPreferencesPage: React.FC = () => {
                   />
                   <div className="ml-4">
                     <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Earl Jones</h3>
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Earl Jones
+                      </h3>
                       <p className="text-xs text-gray-500">Forklift Operator</p>
                     </div>
                     <p className="text-sm text-gray-600 text-left mt-2">
-                      Prefers culturally relevant meals, especially soul food, with focus on hearty, satisfying dishes.
+                      Prefers culturally relevant meals, especially soul food,
+                      with focus on hearty, satisfying dishes.
                     </p>
                   </div>
                 </button>
-                
+
                 <button
                   onClick={() => applyPersona("jessicaSmith")}
                   className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
@@ -545,11 +551,14 @@ const FoodPreferencesPage: React.FC = () => {
                   />
                   <div className="ml-4">
                     <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Jessica Smith</h3>
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Jessica Smith
+                      </h3>
                       <p className="text-xs text-gray-500">College Student</p>
                     </div>
                     <p className="text-sm text-gray-600 text-left mt-2">
-                      Type 1 diabetes-focused meal plan with low-glycemic foods and balanced nutrition.
+                      Type 1 diabetes-focused meal plan with low-glycemic foods
+                      and balanced nutrition.
                     </p>
                   </div>
                 </button>
