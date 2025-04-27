@@ -686,7 +686,7 @@ export async function transformApiResponseToDayMeals(
     for (const meal of dayData.meals) {
       // meal is from backend, meal._id is unique for this trace meal instance
       try {
-        const mealInstanceId = meal._id;
+        const mealInstanceId = meal._id; // Unique ID for this specific meal occurrence
         const mealFoodIds = new Set<string>();
         const foodItemsToTransform: { foodId: string; mealType: string }[] = [];
 
@@ -713,6 +713,7 @@ export async function transformApiResponseToDayMeals(
           foodItemsToTransform.map(({ foodId, mealType }) => {
             const fetchedInfo = foodInfoMap.get(foodId)!;
             // Pass the FetchedFoodInfo object AND mealInstanceId to transformFoodInfo
+            // transformFoodInfo returns the BASE Food object with the ORIGINAL foodId
             return transformFoodInfo(
               fetchedInfo,
               mealType,
@@ -729,12 +730,26 @@ export async function transformApiResponseToDayMeals(
 
         // Wait for all food transformations for this meal
         const transformedFoods = await Promise.all(foodTransformPromises);
-        const mealFoods: Food[] = transformedFoods.filter(
+        const baseMealFoods: Food[] = transformedFoods.filter(
           (food): food is Food => food !== null
         ); // Filter out nulls and ensure type correctness
 
+        // Generate unique instance IDs for foods within this meal
+        const mealFoodsWithInstanceIds: Food[] = baseMealFoods.map(
+          (baseFood) => ({
+            ...baseFood,
+            // Create a unique ID for this specific food instance within this meal
+            id: `${mealInstanceId}-${baseFood.id}`,
+            // Optionally store the original ID if needed elsewhere:
+            // originalFoodId: baseFood.id,
+          })
+        );
+
         // Calculate combined nutritional info for the meal (using potentially default values)
-        const mealNutritionalInfo = calculateCombinedNutritionalInfo(mealFoods);
+        // Use the foods with instance IDs, nutrition info remains the same
+        const mealNutritionalInfo = calculateCombinedNutritionalInfo(
+          mealFoodsWithInstanceIds
+        );
 
         // Get default meal time if not provided
         const mealTime = meal.meal_time || getDefaultMealTime(meal.meal_name);
@@ -753,14 +768,17 @@ export async function transformApiResponseToDayMeals(
           }`,
           time: mealTime,
           type: meal.meal_name as "breakfast" | "lunch" | "dinner" | "snack",
-          foods: mealFoods,
+          foods: mealFoodsWithInstanceIds, // Use the foods with unique instance IDs
           nutritionalInfo: mealNutritionalInfo,
           // Base diabetes friendliness on the actual foods (which might have default nutrition)
-          diabetesFriendly: mealFoods.every((food) => food.diabetesFriendly),
+          diabetesFriendly: mealFoodsWithInstanceIds.every(
+            (food) => food.diabetesFriendly
+          ),
           date: currentDate,
           varietyScore: varietyScore,
           coverageScore: coverageScore,
           constraintScore: constraintScore,
+          // Note: isFavorited status needs to be fetched/set separately if needed
         };
 
         dayMeal.meals.push(completeMeal);
