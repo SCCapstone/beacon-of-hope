@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-30"
+      className="fixed top-0 left-0 right-0 z-10"
       style={{ "--thickness": "4px" } as React.CSSProperties}
     >
       {/* Backdrop layers */}
@@ -74,22 +74,26 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       <div className="relative px-8 py-1 flex items-center justify-between bg-gradient-to-b from-white/80 to-white/60">
         {/* Logo and Title Section */}
         <div className="flex items-center space-x-6">
-          {!isGuest ? 
-          <Link to="/home" className="group relative">
+          {!isGuest ? (
+            <Link to="/home" className="group relative">
+              <div className="relative p-2 rounded-xl transform group-hover:scale-105 transition-transform">
+                <img src={Logo} alt="Logo" className="h-12 w-12" />
+              </div>
+            </Link>
+          ) : (
             <div className="relative p-2 rounded-xl transform group-hover:scale-105 transition-transform">
               <img src={Logo} alt="Logo" className="h-12 w-12" />
             </div>
-          </Link>
-          :
-          <div className="relative p-2 rounded-xl transform group-hover:scale-105 transition-transform">
-              <img src={Logo} alt="Logo" className="h-12 w-12" />
-          </div>
-          }
+          )}
 
           <div className="flex items-center space-x-8">
             <div>
-              <h1 className="text-[1.75vw] font-bold bg-gradient-to-r from-pink-900 to-orange-400 bg-clip-text text-transparent">{title}</h1>
-              <p className="text-[.8vw] font-medium text-[#1A1A1A]/70">{subtitle}</p>
+              <h1 className="text-[1.75vw] font-bold bg-gradient-to-r from-pink-900 to-orange-400 bg-clip-text text-transparent">
+                {title}
+              </h1>
+              <p className="text-[.8vw] font-medium text-[#1A1A1A]/70">
+                {subtitle}
+              </p>
             </div>
             <div className="text-[1vw] font-medium text-[#1A1A1A]">
               {!isGuest
@@ -151,43 +155,50 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     </Link>
                   )}
                   <button
-  onClick={async () => {
-    if (isGuest) {
-      window.location.href = "/";  
-  
-      try {
-        await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ user_id: userData._id }),
-        });
-      } catch (error) {
-        console.error("Error while exiting guest mode:", error);
-      }
-    } else {
-      window.location.href = "/"; 
-  
-      try {
-        await fetch(`${BACKEND_URL}/beacon/user/logout-user`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ user_id: userData._id }),
-        });
-      } catch (error) {
-        console.error("Error while logging out user:", error);
-      }
-    }
-  }}
-  
-  className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
->
-  {isGuest ? "Exit Guest Mode" : "Logout"}
-</button>
+                    onClick={async () => {
+                      if (isGuest) {
+                        window.location.href = "/";
 
+                        try {
+                          await fetch(
+                            `${BACKEND_URL}/beacon/user/exit-default`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ user_id: userData._id }),
+                            }
+                          );
+                        } catch (error) {
+                          console.error(
+                            "Error while exiting guest mode:",
+                            error
+                          );
+                        }
+                      } else {
+                        window.location.href = "/";
+
+                        try {
+                          await fetch(
+                            `${BACKEND_URL}/beacon/user/logout-user`,
+                            {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ user_id: userData?._id }),
+                            }
+                          );
+                        } catch (error) {
+                          console.error("Error while logging out user:", error);
+                        }
+                      }
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
+                  >
+                    {isGuest ? "Exit Guest Mode" : "Logout"}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>

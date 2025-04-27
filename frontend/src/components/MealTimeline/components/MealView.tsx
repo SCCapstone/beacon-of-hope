@@ -676,7 +676,7 @@ export const MealView: React.FC<MealViewProps> = ({
 
   // Generate the list of bin names to display in the header based on the calculated visible count
   const headerBinNames = Array.from({ length: currentVisibleBinCount }).map(
-    (_, i) => mealBinNames[i] || `Meal Slot ${i + 1}`
+    (_, i) => mealBinNames[i] || `Meal ${i + 1}`
   );
 
   return (

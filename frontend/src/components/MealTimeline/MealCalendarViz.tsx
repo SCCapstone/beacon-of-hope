@@ -34,6 +34,7 @@ import {
   ArrowPathIcon,
   CalendarDaysIcon,
   TrashIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
 import { Tooltip } from "react-tooltip";
@@ -82,6 +83,12 @@ const isSameNormalizedDay = (
   // Check if normalization resulted in valid dates before comparing
   if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false;
   return isSameDay(d1, d2);
+};
+
+type SaveMealPayload = {
+  userId: string;
+  date: string; // yyyy-MM-dd
+  mealId: string; // originalBackendId
 };
 
 type SaveMealHandler = (payload: {
@@ -450,7 +457,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const binCountForThisDate = Math.max(mealBinNames.length, maxBinsNeeded);
 
       for (let i = 0; i < binCountForThisDate; i++) {
-        const binName = mealBinNames[i] || `Meal Slot ${i + 1}`;
+        const binName = mealBinNames[i] || `Meal ${i + 1}`;
         bins[binName] = { meals: [], recommendations: [] };
         currentBinNames.push(binName);
       }
@@ -1227,6 +1234,251 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ? "Show Fewer Meal Slots"
     : "Show All Meal Slots";
 
+  const handleAcceptAllRecommendations = useCallback(async () => {
+    // 1. Collect all recommendations across all days currently in state
+    const allRecommendationsToAccept: MealRecommendation[] = [];
+    recommendationData.forEach((dayRec) => {
+      if (dayRec.recommendations && dayRec.recommendations.length > 0) {
+        allRecommendationsToAccept.push(...dayRec.recommendations);
+      }
+    });
+
+    if (allRecommendationsToAccept.length === 0) {
+      // console.log("Viz: No recommendations to accept.");
+      return; // Nothing to do
+    }
+
+    // 2. Show Confirmation Modal
+    showConfirmModal(
+      "Confirm Accept All",
+      `Are you sure you want to accept all ${allRecommendationsToAccept.length} current meal recommendations? This will save them to your meal history.`,
+      async () => {
+        // --- Confirmation Logic ---
+        // console.log(
+        //   `Viz: User confirmed accepting ${allRecommendationsToAccept.length} recommendations.`
+        // );
+
+        // 3. Prepare Data for Optimistic Updates and API Calls
+        const payloadsToSave: SaveMealPayload[] = [];
+        const mealsToAddOptimistically: Meal[] = [];
+        const acceptedRecMealIds = new Set<string>(); // Store IDs of meals being accepted
+
+        allRecommendationsToAccept.forEach((rec) => {
+          const backendId = rec.meal.originalBackendId;
+          const mealDate = normalizeDate(rec.meal.date || selectedDate);
+          const mealDateStr = format(mealDate, "yyyy-MM-dd");
+
+          if (backendId && userId) {
+            payloadsToSave.push({
+              userId,
+              date: mealDateStr,
+              mealId: backendId,
+            });
+            // Prepare meal for optimistic trace update
+            const traceMealToAdd: Meal = {
+              ...rec.meal,
+              id: `trace-optimistic-${rec.meal.id}-${Date.now()}`, // Unique optimistic ID
+              date: mealDate,
+            };
+            delete traceMealToAdd.originalBackendId; // Remove backend ID from trace version
+            mealsToAddOptimistically.push(traceMealToAdd);
+            acceptedRecMealIds.add(rec.meal.id); // Add the recommendation's meal ID
+          } else {
+            console.warn(
+              "Viz: Skipping recommendation in 'Accept All' due to missing backend ID or user ID:",
+              rec.meal.name
+            );
+          }
+        });
+
+        if (payloadsToSave.length === 0) {
+          showErrorModal(
+            "Action Failed",
+            "Could not prepare any recommendations for saving."
+          );
+          return;
+        }
+
+        // Store original state for potential rollback (though refetch is preferred)
+        const originalRecommendationData = recommendationData;
+        const originalTraceData = traceDataRef.current; // Use ref for trace data
+
+        // 4. Perform Optimistic UI Updates (Batch)
+        // Remove all accepted recommendations
+        setRecommendationData([]); // Simplest approach: clear all recommendations optimistically
+        // Add all accepted meals to trace data
+        setTraceData((prevTraceData) => {
+          const newDataMap = new Map<string, DayMeals>(
+            prevTraceData.map((day) => [
+              format(normalizeDate(day.date), "yyyy-MM-dd"),
+              day,
+            ])
+          );
+
+          mealsToAddOptimistically.forEach((mealToAdd) => {
+            const dateKey = format(
+              normalizeDate(mealToAdd.date!),
+              "yyyy-MM-dd"
+            );
+            const existingDay = newDataMap.get(dateKey);
+            if (existingDay) {
+              existingDay.meals = [
+                ...(existingDay.meals || []),
+                mealToAdd,
+              ].sort((a, b) => a.time.localeCompare(b.time));
+            } else {
+              newDataMap.set(dateKey, {
+                date: normalizeDate(mealToAdd.date!),
+                meals: [mealToAdd],
+              });
+            }
+          });
+
+          const sortedData = Array.from(newDataMap.values()).sort(
+            (a, b) => a.date.getTime() - b.date.getTime()
+          );
+          traceDataRef.current = sortedData; // Update ref
+          return sortedData;
+        });
+
+        // Clear selections
+        setSelectedRecommendation(null);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedIngredient(null);
+
+        // 5. Call Backend API Concurrently
+        // console.log(
+        //   `Viz: Sending ${payloadsToSave.length} save requests concurrently...`
+        // );
+        const savePromises = payloadsToSave.map(
+          (payload) =>
+            onSaveMeal(payload)
+              .then(() => ({ success: true, payload })) // Return success status and payload
+              .catch((error) => ({ success: false, error, payload })) // Catch individual errors
+        );
+
+        const results = await Promise.all(savePromises);
+
+        // 6. Process Results
+        const successfulSaves = results.filter((r) => r.success);
+        const failedSaves = results.filter((r) => !r.success);
+        const successfullySavedPayloads = successfulSaves.map((r) => r.payload);
+        const successfullySavedBackendIds = new Set(
+          successfullySavedPayloads.map((p) => p.mealId)
+        );
+
+        // console.log(
+        //   `Viz: Save results - Success: ${successfulSaves.length}, Failed: ${failedSaves.length}`
+        // );
+
+        // 7. Handle Failures (Show Error Message)
+        if (failedSaves.length > 0) {
+          console.error(
+            "Viz: Some recommendations failed to save:",
+            failedSaves
+          );
+          // Find names of failed meals for better error message
+          const failedMealNames = allRecommendationsToAccept
+            .filter((rec) =>
+              failedSaves.some(
+                (f) => f.payload.mealId === rec.meal.originalBackendId
+              )
+            )
+            .map((rec) => rec.meal.name)
+            .join(", ");
+
+          showErrorModal(
+            "Partial Failure",
+            `Failed to save ${failedSaves.length} recommendation(s): ${failedMealNames}. Successfully saved meals are added. Failed ones might reappear after refresh or were not removed.`
+          );
+          // Note: We are NOT rolling back the optimistic UI updates here.
+          // The refetch below will correct the state based on the backend truth.
+        }
+
+        // 8. Update LocalStorage (Batch - based on successful saves)
+        try {
+          const rawMealPlanString = localStorage.getItem("mealPlan");
+          if (rawMealPlanString) {
+            let rawMealPlan = JSON.parse(rawMealPlanString);
+            let changed = false;
+            if (rawMealPlan.days && typeof rawMealPlan.days === "object") {
+              Object.keys(rawMealPlan.days).forEach((dateKey) => {
+                const day = rawMealPlan.days[dateKey];
+                if (day && Array.isArray(day.meals)) {
+                  const initialLength = day.meals.length;
+                  // Filter out meals whose backend IDs were successfully saved
+                  day.meals = day.meals.filter(
+                    (rawMeal: any) =>
+                      !successfullySavedBackendIds.has(rawMeal._id)
+                  );
+                  if (day.meals.length < initialLength) {
+                    changed = true;
+                  }
+                  // Optional: Remove day if it becomes empty
+                  // if (day.meals.length === 0) {
+                  //   delete rawMealPlan.days[dateKey];
+                  // }
+                }
+              });
+            }
+            if (changed) {
+              localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
+              // console.log(
+              //   "Viz: Updated localStorage['mealPlan'] removing successfully accepted recommendations."
+              // );
+            }
+          }
+        } catch (e) {
+          console.error(
+            "Viz: Failed to update localStorage['mealPlan'] after 'Accept All':",
+            e
+          );
+        }
+
+        // 9. Trigger Re-fetch (Batch - for dates of successful saves)
+        if (successfullySavedPayloads.length > 0) {
+          const datesToRefetch = Array.from(
+            new Set(successfullySavedPayloads.map((p) => p.date))
+          );
+          // console.log(
+          //   "Viz: Triggering refetch for successfully saved dates:",
+          //   datesToRefetch
+          // );
+          onRequestFetch({
+            datesToFetch: datesToRefetch,
+            direction: "specific",
+          });
+        }
+
+        // 10. Show Final Success Message (if no failures)
+        if (failedSaves.length === 0) {
+          showSuccessModal(
+            "Recommendations Accepted",
+            `All ${successfulSaves.length} recommendations have been saved to your meal history.`
+          );
+        }
+        // End Confirmation Logic
+      } // End async confirmation callback
+    ); // End showConfirmModal call
+  }, [
+    recommendationData,
+    userId,
+    selectedDate,
+    onSaveMeal,
+    onRequestFetch,
+    setTraceData,
+    setRecommendationData,
+    setSelectedRecommendation,
+    setSelectedMeal,
+    setSelectedFood,
+    setSelectedIngredient,
+    showConfirmModal,
+    showSuccessModal,
+    showErrorModal,
+    traceData,
+  ]);
+
   return (
     <div
       className="w-screen flex flex-col overflow-hidden bg-[#FFFBF5]"
@@ -1253,18 +1505,18 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {!isRegenerating && hasRecommendationsInView && (
                 <button
                   onClick={handleRegenerateClick}
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-pink-900 hover:bg-pink-800 text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-pink-300 text-pink-700 bg-pink-50 hover:bg-pink-100"
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
-                  Regenerate Plans
+                  Regenerate All
                 </button>
               )}
               {/* Show loading indicator if regenerating */}
               {isRegenerating && (
                 <button
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-300 text-gray-500 cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed"
                   disabled={true}
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={regenerateButtonTooltip}
@@ -1277,13 +1529,25 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {/* Clear Recommendations Button - Conditionally Rendered */}
               {hasRecommendationsInView && (
                 <button
-                  onClick={handleClearAllRecommendations} // Use the new handler
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-700 hover:bg-red-600 text-white"
+                  onClick={handleAcceptAllRecommendations}
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100"
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={clearButtonTooltip}
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
-                  Clear Recommendations
+                  Clear All
+                </button>
+              )}
+
+              {hasRecommendationsInView && (
+                <button
+                  onClick={handleAcceptAllRecommendations}
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-tooltip-id="global-tooltip"
+                  data-tooltip-content="Accept all current recommendations"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-2" />
+                  Accept All
                 </button>
               )}
             </div>
@@ -1439,7 +1703,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         id="global-tooltip"
         delayShow={150}
         delayHide={50}
-        className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg" 
+        className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
         // place="top" // Default position, can be changed
         // effect="solid" // Default effect
       />
