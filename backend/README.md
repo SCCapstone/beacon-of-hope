@@ -102,6 +102,7 @@ poetry run coverage report
    - JSON Schema:
    ```json
    {
+      "meal_plan_name": "",
       "starting_date": "2025-03-08",
       "meal_plan_config": {
         "num_days": 3,
@@ -308,6 +309,7 @@ poetry run coverage report
    - JSON Schema:
    ```python
     {
+      "meal_plan_name" : "",
       "user_id":"67eeda155888fbf4e77f55dc",
       "dates_to_regenerate":["2025-04-02", "2025-04-03"]
     }
