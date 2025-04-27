@@ -16,6 +16,7 @@ import {
   saveMealToTrace,
   deleteMealFromTrace,
   favoriteMealInTrace,
+  unfavoriteMealInTrace,
 } from "../services/recipeService";
 import {
   subDays,
@@ -312,7 +313,7 @@ export const MealTimelinePage: React.FC = () => {
           transformedData = await transformApiResponseToDayMeals(response);
           // console.log("Page Data transformed:", transformedData.length, "days");
 
-          // --- Update loaded range based on successfully transformed data ---
+          // Update loaded range based on successfully transformed data
           const fetchedDates = transformedData
             .map((d) => normalizeDate(d.date))
             .filter(isValidDate);
@@ -340,7 +341,7 @@ export const MealTimelinePage: React.FC = () => {
               // );
             }
           }
-          // --- End Update loaded range ---
+          // End Update loaded range
         } else {
           // console.log(
           //   `Page No meal history found in response for requested dates (${direction}):`,
@@ -787,7 +788,24 @@ export const MealTimelinePage: React.FC = () => {
 
   const handleFavoriteMeal = useCallback(
     async (mealIdToFavorite: string, mealDate: Date) => {
-      // ... (existing checks for userId, mealId, mealDate) ...
+      if (!userId) {
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: User not logged in."
+        );
+        return;
+      }
+      if (!mealIdToFavorite || !mealDate) {
+        showErrorModal(
+          "Action Failed",
+          "Cannot favorite meal: Missing meal ID or date."
+        );
+        console.error("handleFavoriteMeal missing data:", {
+          mealIdToFavorite,
+          mealDate,
+        });
+        return;
+      }
 
       const normalizedMealDate = normalizeDate(mealDate);
       const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
@@ -798,7 +816,7 @@ export const MealTimelinePage: React.FC = () => {
       // );
       setError(null);
 
-      // --- Optimistic UI Update (Optional but recommended for responsiveness) ---
+      // Optimistic UI Update (Optional but recommended for responsiveness)
       setWeekData((prevData) => {
         return prevData.map((day) => {
           if (isSameDay(normalizeDate(day.date), normalizedMealDate)) {
@@ -814,7 +832,7 @@ export const MealTimelinePage: React.FC = () => {
           return day;
         });
       });
-      // --- End Optimistic Update ---
+      // End Optimistic Update
 
       // Call Backend API
       try {
@@ -827,7 +845,7 @@ export const MealTimelinePage: React.FC = () => {
           "This meal has been marked as a favorite and will influence future recommendations."
         );
 
-        // --- Confirm State Update (if not done optimistically, or to ensure consistency) ---
+        // Confirm State Update (if not done optimistically, or to ensure consistency)
         // This ensures the state matches the backend even if optimistic update wasn't done
         setWeekData((prevData) => {
           return prevData.map((day) => {
@@ -849,12 +867,12 @@ export const MealTimelinePage: React.FC = () => {
             return day;
           });
         });
-        // --- End State Confirmation ---
+        // End State Confirmation
       } catch (err: any) {
         console.error(`Page: Error favoriting meal ${mealIdToFavorite}:`, err);
-        // --- Rollback Optimistic Update on Error ---
+        // Rollback Optimistic Update on Error
         setWeekData(originalWeekData);
-        // --- End Rollback ---
+        // End Rollback
         const errorMsg =
           err instanceof ApiError
             ? `Favorite failed: ${err.message}`
@@ -867,6 +885,109 @@ export const MealTimelinePage: React.FC = () => {
       }
     },
     [userId, weekData, showErrorModal, showSuccessModal] // Add weekData dependency for rollback
+  );
+
+  const handleUnfavoriteMeal = useCallback(
+    async (mealIdToUnfavorite: string, mealDate: Date) => {
+      if (!userId) {
+        showErrorModal(
+          "Action Failed",
+          "Cannot unfavorite meal: User not logged in."
+        );
+        return;
+      }
+      if (!mealIdToUnfavorite || !mealDate) {
+        showErrorModal(
+          "Action Failed",
+          "Cannot unfavorite meal: Missing meal ID or date."
+        );
+        console.error("handleUnfavoriteMeal missing data:", {
+          mealIdToUnfavorite,
+          mealDate,
+        });
+        return;
+      }
+
+      const normalizedMealDate = normalizeDate(mealDate);
+      const dateStr = format(normalizedMealDate, "yyyy-MM-dd");
+      const originalWeekData = [...weekData]; // Store for potential rollback
+
+      // console.log(
+      //   `Page: Attempting to unfavorite meal ${mealIdToUnfavorite} on ${dateStr}`
+      // );
+      setError(null);
+
+      // Optimistic UI Update
+      setWeekData((prevData) => {
+        return prevData.map((day) => {
+          if (isSameDay(normalizeDate(day.date), normalizedMealDate)) {
+            return {
+              ...day,
+              meals: day.meals.map((meal) =>
+                meal.id === mealIdToUnfavorite
+                  ? { ...meal, isFavorited: false } // Set isFavorited to false
+                  : meal
+              ),
+            };
+          }
+          return day;
+        });
+      });
+      // End Optimistic Update
+
+      // Call Backend API
+      try {
+        await unfavoriteMealInTrace(userId, dateStr, mealIdToUnfavorite);
+        // console.log(
+        //   `Page: Successfully unfavorited meal ${mealIdToUnfavorite} on backend.`
+        // );
+        showSuccessModal(
+          "Meal Unfavorited",
+          "This meal is no longer marked as a favorite."
+        );
+
+        // Confirm State Update
+        setWeekData((prevData) => {
+          return prevData.map((day) => {
+            if (isSameDay(normalizeDate(day.date), normalizedMealDate)) {
+              const mealExists = day.meals.some(
+                (m) => m.id === mealIdToUnfavorite
+              );
+              if (mealExists) {
+                return {
+                  ...day,
+                  meals: day.meals.map((meal) =>
+                    meal.id === mealIdToUnfavorite
+                      ? { ...meal, isFavorited: false } // Ensure it's false
+                      : meal
+                  ),
+                };
+              }
+            }
+            return day;
+          });
+        });
+        // End State Confirmation
+      } catch (err: any) {
+        console.error(
+          `Page: Error unfavoriting meal ${mealIdToUnfavorite}:`,
+          err
+        );
+        // Rollback Optimistic Update on Error
+        setWeekData(originalWeekData);
+        // End Rollback
+        const errorMsg =
+          err instanceof ApiError
+            ? `Unfavorite failed: ${err.message}`
+            : "An unexpected error occurred while unfavoriting the meal.";
+        showErrorModal(
+          "Unfavorite Error",
+          `Could not remove favorite status. ${errorMsg}`
+        );
+        setError(errorMsg);
+      }
+    },
+    [userId, weekData, showErrorModal, showSuccessModal] // Add weekData dependency
   );
 
   // Callback for Viz to request fetching specific dates
@@ -1075,6 +1196,7 @@ export const MealTimelinePage: React.FC = () => {
         onSaveMeal={handleSaveMeal}
         onDeleteMeal={handleDeleteMeal}
         onFavoriteMeal={handleFavoriteMeal}
+        onUnfavoriteMeal={handleUnfavoriteMeal}
         userId={userId}
         // Pass loading states for infinite scroll indicators
         isFetchingPast={isFetchingMorePast}

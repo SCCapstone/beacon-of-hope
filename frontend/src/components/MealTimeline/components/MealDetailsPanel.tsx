@@ -44,7 +44,8 @@ interface MealDetailsPanelProps {
   };
   selectedDate: Date;
   currentLevel: VisualizationLevel["type"];
-  onFavoriteToggle?: (mealId: string, date: Date) => void;
+  onFavoriteMeal?: (mealId: string, date: Date) => void;
+  onUnfavoriteMeal?: (mealId: string, date: Date) => void;
   onShowRecipe: (food: Food) => void;
 }
 
@@ -56,6 +57,7 @@ interface DetailHeaderProps {
   isFavorited?: boolean;
   onClose: () => void;
   onFavoriteClick?: () => void;
+  onUnfavoriteClick?: () => void;
   mealId?: string;
   mealDate?: Date;
 }
@@ -68,22 +70,39 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
   isFavorited,
   onClose,
   onFavoriteClick,
+  onUnfavoriteClick,
   mealId,
   mealDate,
 }) => {
   // Update tooltip based on isFavorited status
   const favoriteTooltip = isFavorited
-    ? "Favorited! (Unfavorite action not implemented in panel)"
-    : "Favorite this meal! This will inform future recommendations! You are more likely to be recommended this item in the future.";
+    ? "Remove from favorites"
+    : "Favorite this meal! This will inform future recommendations!";
 
   const handleFavClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent other clicks
-    if (onFavoriteClick) {
-      onFavoriteClick(); // Call the handler passed down
+    if (isFavorited) {
+      // If currently favorited, call the unfavorite handler
+      if (onUnfavoriteClick) {
+        onUnfavoriteClick();
+      } else {
+        console.warn("onUnfavoriteClick handler is missing in DetailHeader");
+      }
     } else {
-      console.warn("onFavoriteClick handler is missing in DetailHeader");
+      // If not currently favorited, call the favorite handler
+      if (onFavoriteClick) {
+        onFavoriteClick();
+      } else {
+        console.warn("onFavoriteClick handler is missing in DetailHeader");
+      }
     }
   };
+
+  // Determine if the button should be disabled
+  const isFavButtonDisabled =
+    !mealId ||
+    !mealDate ||
+    (isFavorited ? !onUnfavoriteClick : !onFavoriteClick); // Disable if the required handler is missing
 
   return (
     <div className="p-5 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
@@ -101,12 +120,11 @@ const DetailHeader: React.FC<DetailHeaderProps> = ({
       >
         <XMarkIcon className="w-5 h-5" />
       </button>
-      {/* Favorite Button for Trace Meals */}
+      {/* Favorite/Unfavorite Button for Trace Meals */}
       {isTraceMeal && (
         <button
-          onClick={handleFavClick} // <-- Use the internal handler
-          // Disable button if needed info is missing or if action not provided
-          disabled={!onFavoriteClick || !mealId || !mealDate}
+          onClick={handleFavClick} // <-- Use the combined handler
+          disabled={isFavButtonDisabled} // <-- Use dynamic disabled state
           className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
           data-tooltip-id="global-tooltip"
@@ -484,11 +502,11 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   onClose,
   nutritionalGoals, // Can be null
   currentNutritionalValues,
-  baseNutritionalValues,
   selectedDate,
   currentLevel,
   onShowRecipe,
-  onFavoriteToggle,
+  onFavoriteMeal,
+  onUnfavoriteMeal,
 }) => {
   // Determine what to display based on selection priority:
   // If a specific food/ingredient is selected, prioritize it.
@@ -572,11 +590,22 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
 
         // Define the click handler for the favorite button
         const handleFavoriteClick = () => {
-          if (onFavoriteToggle && m.id && mealDate) {
-            onFavoriteToggle(m.id, mealDate); // Call the passed handler
+          if (onFavoriteMeal && m.id && mealDate) {
+            onFavoriteMeal(m.id, mealDate);
           } else {
             console.error("Missing data or handler for favorite toggle", {
-              handlerExists: !!onFavoriteToggle,
+              handlerExists: !!onFavoriteMeal,
+              mealId: m.id,
+              mealDate: mealDate,
+            });
+          }
+        };
+        const handleUnfavoriteClick = () => {
+          if (onUnfavoriteMeal && m.id && mealDate) {
+            onUnfavoriteMeal(m.id, mealDate);
+          } else {
+            console.error("Missing data or handler for unfavorite toggle", {
+              handlerExists: !!onUnfavoriteMeal,
               mealId: m.id,
               mealDate: mealDate,
             });
@@ -597,6 +626,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isFavorited={m.isFavorited}
               onClose={onClose}
               onFavoriteClick={handleFavoriteClick}
+              onUnfavoriteClick={handleUnfavoriteClick}
               mealId={m.id}
               mealDate={mealDate}
             />
