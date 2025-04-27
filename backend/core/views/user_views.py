@@ -172,7 +172,7 @@ def update_user(request: HttpRequest, user_id: str):
             for attr in ["ethnicity", "race", "gender", "height", "weight", "age"]:
                 if attr in demographicsInfo:
                     msg, status = firebaseManager.update_user_attr(
-                        user_id, f"demographicInfo.{attr}", demographicsInfo[attr]
+                        user_id, f"demographicsInfo.{attr}", demographicsInfo[attr]
                     )
                     if status != 200:
                         logger.info(msg)
