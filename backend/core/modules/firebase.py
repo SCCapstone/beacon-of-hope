@@ -373,7 +373,8 @@ class FirebaseManager:
                     day_plan, status = self._get_document("day_plans", day_plan_id)
                     if status != 200:
                         return (day_plan, status)
-                    day_plans[date] = day_plan
+                    if day_plan["meals"]:
+                        day_plans[date] = day_plan
             # return the day_plans
             return (day_plans, status)
         except Exception as e:
@@ -448,7 +449,7 @@ class FirebaseManager:
             return (f"Day Plan Object Already Exists, {msg}", 200)
 
         # if dayplan doesn't exist
-        day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": []}
+        day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": {}}
         msg, status = self._add_document("day_plans", day_plan_id, day_plan)
         if status != 200:
             return msg, status
@@ -466,7 +467,9 @@ class FirebaseManager:
         return self._get_document("day_plans", day_plan_id)
 
     def store_meal_in_dayplan(self, day_plan_id: str, meal: Dict):
-        return self._update_document_list_attr("day_plans", day_plan_id, "meals", meal)
+        return self._update_document_dict_attr(
+            "day_plans", day_plan_id, "meals", meal["_id"], meal
+        )
 
     def get_meal_items(self, meal_id: str, day_plan_id: str) -> Dict:
         day_plan, status = self.get_dayplan_by_id(day_plan_id)
@@ -515,19 +518,20 @@ class FirebaseManager:
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
 
-    def remove_meal_from_dayplan(self, meal_id, dayplan_id):
+    def remove_meal_from_dayplan(self, meal_id_to_delete, dayplan_id):
         day_plan, status = self.get_dayplan_by_id(dayplan_id)
         if status != 200:
             return (
                 f"There was an error in retrieving the previously stored meal plan: {day_plan}",
                 status,
             )
-        meals = []
 
-        # skip over requested meal and updates
-        for meal in day_plan["meals"]:
-            if meal["_id"] != meal_id:
-                meals.append(meal)
+        meals = {
+            id: meal
+            for id, meal in day_plan["meals"].items()
+            if id != meal_id_to_delete
+        }
+
         return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
 
     def add_favorite_items(self, user_id: str, new_favorite_items: Dict[str, int]):
@@ -563,6 +567,59 @@ class FirebaseManager:
             for key, val in new_favorite_items.items():
                 new_items = set(permanent_favorite_items[key] + [val])
                 permanent_favorite_items[key] = list(new_items)
+
+            msg, status = self.update_user_attr(
+                user_id, "permanent_favorite_items", permanent_favorite_items
+            )
+            if status != 200:
+                return (
+                    f"There was an error in updating the new favorite items field in the user: {msg}",
+                    status,
+                )
+            return (msg, status)
+        except Exception as e:
+            return (
+                f"There was an error in favoriting the item (firebase.py): {e}",
+                500,
+            )
+
+
+    def remove_favorite_items(self, user_id: str, to_remove_favorite_items: Dict[str, int]):
+        # create the permanent favorite items if the field doesn't already exist
+        try:
+            if not self._exists_field_in_document(
+                "users", user_id, "permanent_favorite_items"
+            ):
+                favorite_items = {
+                    "Main Course": [],
+                    "Side": [],
+                    "Beverage": [],
+                    "Dessert": [],
+                }
+                msg, status = self.update_user_attr(
+                    user_id, "permanent_favorite_items", favorite_items
+                )
+                if status != 200:
+                    return (
+                        f"There was an error in creating a new favorite items field in the user: {msg}",
+                        status,
+                    )
+
+            # get the current permanent favorite items
+            permanent_favorite_items, status = self.get_user_attr(
+                user_id, "permanent_favorite_items"
+            )
+            if status != 200:
+                return (
+                    f"There was some error in retrieving the permanent favorite items from the user: {permanent_favorite_items}",
+                    status,
+                )
+            for key, val in to_remove_favorite_items.items():
+                old_items = set(permanent_favorite_items[key])
+                if val in old_items:
+                    old_items.remove(val)
+
+                permanent_favorite_items[key] = list(old_items)
 
             msg, status = self.update_user_attr(
                 user_id, "permanent_favorite_items", permanent_favorite_items
