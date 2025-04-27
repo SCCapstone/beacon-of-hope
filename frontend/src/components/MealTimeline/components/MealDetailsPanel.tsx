@@ -381,7 +381,7 @@ const RecommendationReasons: React.FC<{
           <h4 className="text-sm font-medium text-gray-700 mb-2">
             Why Recommended?
           </h4>
-          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-[#8B4513]">
+          <ul className="space-y-1 text-sm list-disc list-inside pl-2 text-pink-900">
             {" "}
             {/* Primary color */}
             {reasons.map((reason, index) => (
@@ -722,7 +722,7 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               <div className="p-4 border-t border-[#E0E0E0]">
                 <button
                   onClick={() => onShowRecipe(f)} // Call the new prop
-                  className="w-full px-4 py-2 bg-[#8B4513] text-white rounded-md hover:bg-[#A0522D] transition-colors text-sm font-medium"
+                  className="w-full px-4 py-2 bg-pink-900 text-white rounded-md hover:bg-[#A0522D] transition-colors text-sm font-medium"
                 >
                   View Full Recipe
                 </button>

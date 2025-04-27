@@ -1241,7 +1241,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {!isRegenerating && hasRecommendationsInView && (
                 <button
                   onClick={handleRegenerateClick}
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-[#8B4513] hover:bg-[#A0522D] text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-pink-900 hover:bg-pink-800 text-white"
                   title={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />

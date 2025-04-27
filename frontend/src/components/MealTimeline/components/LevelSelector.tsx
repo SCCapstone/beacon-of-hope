@@ -40,7 +40,7 @@ export const LevelSelector: React.FC<LevelSelectorProps> = ({
           {currentLevel === level && (
             <motion.div
               layoutId="activeLevelBackground" // Animate background separately
-              className="absolute inset-0 bg-[#8B4513] rounded-md z-0" // Primary color background
+              className="absolute inset-0 bg-pink-900 rounded-md z-0" // Primary color background
               initial={{ borderRadius: 6 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             />

@@ -998,7 +998,7 @@ export const MealTimelinePage: React.FC = () => {
                   fetchNutritionalGoals(userId).then(setNutritionalGoals);
                 }
               }}
-              className="mt-4 px-4 py-2 bg-[#8B4513] text-white rounded-md hover:bg-[#A0522D]" // Primary color button
+              className="mt-4 px-4 py-2 bg-pink-900 text-white rounded-md hover:bg-[#A0522D]" // Primary color button
             >
               {" "}
               Retry{" "}

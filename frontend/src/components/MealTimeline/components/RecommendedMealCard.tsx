@@ -122,7 +122,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#8B4513]/80 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm whitespace-nowrap z-10" // Primary color indicator
+          className="absolute -top-2.5 left-8 transform -translate-x-1/2 bg-pink-900/80 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm whitespace-nowrap z-10" // Primary color indicator
         >
           Simulating Impact
         </motion.div>

@@ -179,7 +179,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       className={`meal-card relative p-3 rounded-lg cursor-pointer transition-all duration-300
         bg-white shadow-md hover:shadow-lg
         ${
-          isSelected ? "ring-2 ring-[#8B4513]" : "border border-[#E0E0E0]"
+          isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"
         } // Primary ring, neutral border
         ${
           optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
@@ -636,7 +636,7 @@ export const MealView: React.FC<MealViewProps> = ({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-900 mb-4" />
           <p className="text-gray-500">Loading your meal data...</p>
         </div>
       </div>

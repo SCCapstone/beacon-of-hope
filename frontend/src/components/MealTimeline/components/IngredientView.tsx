@@ -191,7 +191,7 @@ const LoadingIndicator = ({
         : "h-full"
     }`}
   >
-    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B4513]"></div>{" "}
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-900"></div>{" "}
     {/* Primary color */}
   </div>
 );
@@ -537,9 +537,8 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                 <div
                   key={currentDate.toISOString()}
                   id={dateId}
-                  // Apply consistent row background from MealView
                   className={`flex min-h-[60px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
-                    isSelected ? "bg-[#8B4513]/5" : "bg-white"
+                    isSelected ? "bg-pink-900/5" : "bg-white"
                   }`}
                 >
                   {/* Cell 1: Date Information */}
@@ -552,9 +551,8 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                     }`}
                   >
                     <div
-                      // Apply consistent text styling from MealView
                       className={`font-semibold ${
-                        isSelected ? "text-[#8B4513]" : "text-gray-800"
+                        isSelected ? "text-pink-900" : "text-gray-800"
                       }`}
                     >
                       {format(currentDate, "EEE")}
