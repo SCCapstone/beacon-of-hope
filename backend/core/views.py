@@ -209,6 +209,7 @@ def bandit_recommendation(request: HttpRequest):
                 num_days,
                 meal_configs,
                 starting_date,
+                dietary_conditions,
             )
             # Construct meal plan object
             meal_plan = {
@@ -752,20 +753,12 @@ def create_user(request: HttpRequest):
         # generate new user id for the user
         user_id = str(ObjectId())
 
-        for key in ["first_name", "last_name", "email", "password", "demographicsInfo"]:
-            continue
-            if key not in data:
-                logger.info(f"Request missing '{key}' attribute")
-                return JsonResponse(
-                    {"Error": f"Request missing '{key}' attribute"}, status=401
-                )
-
         user = {
             "_id": user_id,
-            "first_name": data["first_name"],
-            "last_name": data["last_name"],
-            "email": data["email"],
-            "password": data["password"],
+            "first_name": data.get("first_name", ""),
+            "last_name": data.get("last_name", ""),
+            "email": data.get("email", ""),
+            "password": data.get("password", ""),
             "plan_ids": [],
             "dietary_preferences": {
                 "preferences": [""],
@@ -792,6 +785,12 @@ def create_user(request: HttpRequest):
                 "Side": [],
                 "Dessert": [],
                 "Beverage": [],
+            },
+            "nutritional_goals": {
+                "calories": 0,
+                "carbs": 0,
+                "protein": 0,
+                "fiber": 0,
             },
         }
         logger.info(f"Creating user {user_id}")
@@ -869,37 +868,49 @@ def update_user(request: HttpRequest, user_id: str):
                 return JsonResponse({"Error": msg}, status=500)
 
         # Update Dietary Preferences
-        if "dietaryRestrictions" in data:
+        if "dietaryPreferences" in data:
             logger.info("Updating Dietary Preferences")
-            preferences = data["dietaryRestrictions"]
-            msg, status = firebaseManager.update_user_attr(
-                user_id, "dietary_preferences.preferences", preferences
-            )
-            if status != 200:
-                logger.info(msg)
-                return JsonResponse({"Error": msg}, status=500)
+            dietaryPreferences = data["dietaryPreferences"]
 
-        if "ethnicity" in data:
-            logger.info("Updating Ethnicity")
-            ethnicity = data["ethnicity"]
-            msg, status = firebaseManager.update_user_attr(
-                user_id, "demographicInfo.ethnicity", ethnicity
-            )
-            if status != 200:
-                logger.info(msg)
-                return JsonResponse({"Error": msg}, status=500)
+            for attr in ["preferences", "numerical_preferences"]:
+                if attr in dietaryPreferences:
+                    dietaryPreferences
 
-            # demographicsInfo
+                    msg, status = firebaseManager.update_user_attr(
+                        user_id,
+                        f"dietary_preferences.{attr}",
+                        dietaryPreferences[attr],
+                    )
+                    if status != 200:
+                        logger.info(msg)
+                        return JsonResponse({"Error": msg}, status=500)
 
-        if "race" in data:
-            logger.info("Updating Race")
-            race = data["race"]
-            msg, status = firebaseManager.update_user_attr(
-                user_id, "demographicInfo.race", race
-            )
-            if status != 200:
-                logger.info(colored(msg, "red"))
-                return JsonResponse({"Error": msg}, status=500)
+        if "demographicsInfo" in data:
+            logger.info("Updating Demographics Info")
+            demographicsInfo = data["demographicsInfo"]
+            for attr in ["ethnicity", "race", "gender", "height", "weight", "age"]:
+                if attr in demographicsInfo:
+                    msg, status = firebaseManager.update_user_attr(
+                        user_id, f"demographicInfo.{attr}", demographicsInfo[attr]
+                    )
+                    if status != 200:
+                        logger.info(msg)
+                        return JsonResponse({"Error": msg}, status=500)
+
+        if "dietary_conditions" in data:
+            logger.info("Updating Dietary Conditions")
+            dietary_conditions = data["dietary_conditions"]
+            for attr in ["diabetes", "gluten_free", "vegan", "vegetarian"]:
+                if attr in dietary_conditions:
+                    msg, status = firebaseManager.update_user_attr(
+                        user_id, f"dietary_conditions.{attr}", dietary_conditions[attr]
+                    )
+                    if status != 200:
+                        logger.info(msg)
+                        return JsonResponse({"Error": msg}, status=500)
+
+        if "nutritional_goals" in data:
+            ...
 
         # Update Last Updated Timestamp
         logger.info("Updating Timestamp")
@@ -1162,7 +1173,6 @@ def exit_default(request: HttpRequest):
             )
 
         user_id = data["user_id"]
-
         default_user = {
             "first_name": "",
             "last_name": "",
@@ -1177,16 +1187,18 @@ def exit_default(request: HttpRequest):
                     "meat": 0,
                 },
             },
-            "health_info": {
-                "allergies": [""],
-                "conditions": [""],
+            "dietary_conditions": {
+                "diabetes": True,
+                "gluten_free": True,
+                "vegan": True,
+                "vegetarian": True,
             },
             "demographicsInfo": {},
             "meal_plan_config": {},
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-            "day_plans": {},
-            "bandit_counter": 1,
+            "temp_day_plans": {},
+            "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
                 "Main Course": [],
                 "Side": [],

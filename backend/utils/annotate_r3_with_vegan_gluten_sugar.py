@@ -123,10 +123,17 @@ for i, r3 in r3_dict.items():
 
     ingredients = set([el["name"] for el in r3["ingredients"]])
 
-    r3["isVegan"] = not ingredients.intersection(not_vegan)
-    r3["isGlutenFree"] = not ingredients.intersection(glutenous)
-    r3["isLowSugar"] = not ingredients.intersection(high_sugar)
+    if r3["isVegan"]:
+        print("vegan")
+    if r3["isGlutenFree"]:
+        print("gluten free")
+    if r3["isLowSugar"]:
+        print("low sugar")
+
+    # r3["isVegan"] = not ingredients.intersection(not_vegan)
+    # r3["isGlutenFree"] = not ingredients.intersection(glutenous)
+    # r3["isLowSugar"] = not ingredients.intersection(high_sugar)
 
 
-for i, r3 in tqdm(r3_dict.items(), total=len(r3_dict)):
-    fb_man._add_document("food-recipes", i, r3)
+# for i, r3 in tqdm(r3_dict.items(), total=len(r3_dict)):
+#     fb_man._add_document("food-recipes", i, r3)

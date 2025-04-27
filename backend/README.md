@@ -546,6 +546,37 @@ poetry run coverage report
   - Update user profile in database
   - Parameters
     - user_id: PyMongo ObjectId type
+    - Content-type: application/json
+    - ```python
+      {
+        "name": "", # First Last
+        "email" : "", # email_address@domain.com
+        "dietaryPreferences" : {
+          "preferences": [""],
+          "numerical_preferences": {
+              "dairy": 0,
+              "nuts": 0,
+              "meat": 0,
+          },
+        },
+        "demographicsInfo" : {
+          "ethnicity" : "",
+          "race" : "",
+          "gender": "",
+          "height" : "",
+          "weight": "",
+          "age" : "",
+        },
+        "dietary_conditions": {
+            "diabetes": True,
+            "gluten_free": True,
+            "vegan": True,
+            "vegetarian": True,
+        },
+        "nutritional_goals": {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0}
+      }
+
+    ```
 
 
 - #### `<backend_ip>/beacon/user/delete/<str:user_id>`

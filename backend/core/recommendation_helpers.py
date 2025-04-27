@@ -81,6 +81,42 @@ def filter_based_on_dietary_conditions(
     return food_ids, list(filtered_bevs)
 
 
+def get_food_items_with_dietary_conditions(dietary_conditions):
+    logger.info(colored("Copying Food Items", "green"))
+    # create deepcopy to avoid altering original dictionaries by reference
+    filtered_foods = copy.deepcopy(food_items)
+
+    logger.info(colored("Filtering dietary conditions", "green"))
+    # get list of user's dietary conditions, subset of ["diabetes", "vegan", "vegetarian", "gluten_free"]
+    dietary_conditions = [
+        condition
+        for condition, hasCondition in dietary_conditions.items()
+        if hasCondition
+    ]
+
+    logger.info("Filtering foods")
+    for condition in dietary_conditions:
+        if condition == "diabetes":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isLowSugar"]
+            }
+        elif condition == "gluten_free":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isGlutenFree"]
+            }
+        elif condition == "vegan":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if r3["isVegan"]
+            }
+
+        elif condition == "vegetarian":
+            filtered_foods = {
+                i: r3 for i, r3 in filtered_foods.items() if not r3["hasMeat"]
+            }
+
+    return list(filtered_foods)
+
+
 def get_highest_prob_foods(items_probs, num_users):
     """Group together the highest probability food items in each role (dessert, main course, etc.).
 
@@ -614,6 +650,7 @@ def gen_bandit_rec(
     num_days: int,
     meal_configs: List[Dict],
     starting_date: datetime,
+    dietary_conditions,
 ) -> Dict:
     """Take Bandit Output and generate a meal plan
 
@@ -663,6 +700,9 @@ def gen_bandit_rec(
     mains = favorite_items["Main Course"]
     sides = favorite_items["Side"]
     desserts = favorite_items["Dessert"]
+
+    backup_foods = get_food_items_with_dietary_conditions(dietary_conditions)
+
     bevs = favorite_items["Beverage"]
     for day_rec in days.values():
         # iterate over meals
@@ -671,20 +711,32 @@ def gen_bandit_rec(
             meal = meal["meal_types"]
             if "beverage" in meal:
                 try:
-                    meal["beverage"] = beverages[random.choice(bevs)]["bev-id"]
+                    # meal["beverage"] = beverages[random.choice(bevs)]["bev-id"]
+                    meal["beverage"] = random.choice(bevs)
                 except:
                     bev_num = random.choice(list(beverages.keys()))
                     meal["beverage"] = beverages[bev_num]
 
             if "main_course" in meal:
-                meal["main_course"] = food_items[random.choice(mains)]["recipe-id"]
+                try:
+                    # meal["main_course"] = food_items[random.choice(mains)]["recipe-id"]
+                    meal["main_course"] = random.choice(mains)
+                except:
+                    meal["main_course"] = random.choice(backup_foods)
 
             if "side" in meal:
-                meal["side"] = food_items[random.choice(sides)]["recipe-id"]
+                try:
+                    # meal["side"] = food_items[random.choice(sides)]["recipe-id"]
+                    meal["side"] = random.choice(sides)
+                except:
+                    meal["side"] = random.choice(backup_foods)
 
             if "dessert" in meal:
-                meal["dessert"] = food_items[random.choice(desserts)]["recipe-id"]
-
+                try:
+                    # meal["dessert"] = food_items[random.choice(desserts)]["recipe-id"]
+                    meal["dessert"] = random.choice(desserts)
+                except:
+                    meal["dessert"] = random.choice(backup_foods)
     return days
 
 
