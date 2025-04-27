@@ -1405,6 +1405,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
                       scrollToTodayTrigger={scrollToTodayTrigger}
+                      organizeMealsIntoBins={organizeMealsIntoBins}
+                      isExpanded={isExpanded}
+                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                      defaultBinCount={DEFAULT_BIN_COUNT}
                     />
                   </div>
                 )}
