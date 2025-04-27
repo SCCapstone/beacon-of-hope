@@ -659,9 +659,10 @@ poetry run coverage report
   - Parameters:
     - ```json
       {
-        "user_id":"67cbasdflsdafj293",
-        "date:":"2025-04-08",
-        "meal_id":"67cbasdfls324433"
+        "user_id" : "67cbasdflsdafj293",
+        "date:" : "2025-04-08",
+        "meal_id" : "67cbasdfls324433",
+        "nl_recommendations" : []
       }
   - Response:
     - (200) Successfully saved meal
