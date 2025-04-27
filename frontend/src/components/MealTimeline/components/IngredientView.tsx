@@ -19,6 +19,7 @@ import {
   addDays,
 } from "date-fns";
 import { generateDateRange } from "../../../services/recipeService";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -80,6 +81,9 @@ interface IngredientViewProps {
   isExpanded: boolean;
   maxBinsAcrossAllDates: number;
   defaultBinCount: number;
+  setIsExpanded: (isExpanded: boolean) => void;
+  showExpansionButton: boolean;
+  expandButtonTooltip: string;
 }
 
 const getPrimaryNutrient = (
@@ -225,6 +229,9 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   isExpanded,
   maxBinsAcrossAllDates,
   defaultBinCount,
+  setIsExpanded,
+  showExpansionButton,
+  expandButtonTooltip,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300;
@@ -441,7 +448,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "start",
+              block: "center",
               inline: "nearest",
             });
           } else if (attempt < 3) {
@@ -485,7 +492,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
         style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Inner container to enforce consistent width */}
-        <div className="inline-block min-w-full align-top">
+        <div className="inline-block min-w-full align-top relative">
           {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
           <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
             <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
@@ -503,6 +510,15 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                 {binName}
               </div>
             ))}
+            {/* Header Cell for Button Column (conditional) */}
+            {showExpansionButton && (
+              <div
+                className="flex-shrink-0 w-12 p-3 border-l border-[#D3B89F] bg-[#FADFBB]" // Consistent header style
+                aria-hidden="true"
+              >
+                {/* Empty header cell */}
+              </div>
+            )}
           </div>
           {/* Past Loading Indicator */}
           {isFetchingPast && <LoadingIndicator position="top" />}
@@ -524,6 +540,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
               );
               // Get the ingredient assignments for this date using the new helper
               const ingredientsByBin = extractIngredientsForBins(currentDate);
+              const visibleBinCountForThisDate = currentVisibleBinCount;
 
               return (
                 // Use flex-row for the main layout
@@ -569,7 +586,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                   </div>
 
                   {/* Ingredient Bins */}
-                  {Array.from({ length: currentVisibleBinCount }).map(
+                  {Array.from({ length: visibleBinCountForThisDate }).map(
                     (_, index) => {
                       // Get the correct bin name for this column index
                       const binName = headerBinNames[index];
@@ -623,13 +640,40 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                       );
                     }
                   )}
-                </div> // End date row
+
+                  {/* Expansion Button Column (conditional) */}
+                  {showExpansionButton && (
+                    <div
+                      className={`flex-shrink-0 w-12 border-l border-[#E0E0E0] bg-gray-50`} // Consistent background
+                      aria-hidden="true"
+                    >
+                      {/* Empty div */}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
-          {/* End Content Rows Container */}
-          {/* Future Loading Indicator */}
           {isFetchingFuture && <LoadingIndicator position="bottom" />}
+
+          {/* Single Expansion Button */}
+          {showExpansionButton && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="absolute top-1/2 -translate-y-1/2 right-1 z-20 p-2 rounded-full bg-white/70 backdrop-blur-sm shadow-lg text-gray-600 hover:text-pink-900 hover:bg-pink-50/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={expandButtonTooltip}
+              aria-label={
+                isExpanded ? "Collapse meal slots" : "Expand meal slots"
+              }
+            >
+              {isExpanded ? (
+                <ChevronLeftIcon className="w-5 h-5" />
+              ) : (
+                <ChevronRightIcon className="w-5 h-5" />
+              )}
+            </button>
+          )}
         </div>
         {/* End Inner container */}
       </div>

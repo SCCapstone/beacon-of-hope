@@ -33,9 +33,7 @@ import {
 import {
   ArrowPathIcon,
   CalendarDaysIcon,
-  ChevronLeftIcon,
   TrashIcon,
-  ChevronRightIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
 import { Tooltip } from "react-tooltip";
@@ -1288,28 +1286,6 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   Clear Recommendations
                 </button>
               )}
-
-              {currentLevel === "meal" &&
-                showExpansionButton && ( // Only show for Meal View and if needed
-                  <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                    data-tooltip-id="global-tooltip"
-                    data-tooltip-content={expandButtonTooltip}
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronLeftIcon className="w-4 h-4 mr-1.5" />
-                        <span>Collapse Slots</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronRightIcon className="w-4 h-4 mr-1.5" />
-                        <span>Expand Slots</span>
-                      </>
-                    )}
-                  </button>
-                )}
             </div>
 
             {/* Right Side: Date Controls */}
@@ -1364,6 +1340,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       loadedEndDate={loadedEndDate}
                       scrollToTodayTrigger={scrollToTodayTrigger}
                       isExpanded={isExpanded}
+                      setIsExpanded={setIsExpanded}
+                      showExpansionButton={showExpansionButton}
+                      expandButtonTooltip={expandButtonTooltip}
                       maxBinsAcrossAllDates={maxBinsAcrossAllDates}
                       defaultBinCount={DEFAULT_BIN_COUNT}
                       getMealsForDate={getMealsForDate}
@@ -1393,6 +1372,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       organizeMealsIntoBins={organizeMealsIntoBins}
                       allAvailableDates={allAvailableDates}
                       isExpanded={isExpanded}
+                      setIsExpanded={setIsExpanded}
+                      showExpansionButton={showExpansionButton}
+                      expandButtonTooltip={expandButtonTooltip}
                       maxBinsAcrossAllDates={maxBinsAcrossAllDates}
                       defaultBinCount={DEFAULT_BIN_COUNT}
                     />
@@ -1417,6 +1399,9 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       scrollToTodayTrigger={scrollToTodayTrigger}
                       organizeMealsIntoBins={organizeMealsIntoBins}
                       isExpanded={isExpanded}
+                      setIsExpanded={setIsExpanded}
+                      showExpansionButton={showExpansionButton}
+                      expandButtonTooltip={expandButtonTooltip}
                       maxBinsAcrossAllDates={maxBinsAcrossAllDates}
                       defaultBinCount={DEFAULT_BIN_COUNT}
                     />

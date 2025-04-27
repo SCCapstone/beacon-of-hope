@@ -19,6 +19,8 @@ import { FoodTypeIcon } from "./FoodTypeIcon";
 import {
   XMarkIcon,
   StarIcon as StarIconSolid,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/20/solid";
 import { formatScore } from "../utils";
 import {
@@ -69,6 +71,9 @@ interface MealViewProps {
     currentBinNames: string[];
   };
   allAvailableDates: Date[];
+  setIsExpanded: (isExpanded: boolean) => void;
+  showExpansionButton: boolean;
+  expandButtonTooltip: string;
 }
 
 // Helper function
@@ -383,6 +388,9 @@ export const MealView: React.FC<MealViewProps> = ({
   defaultBinCount,
   organizeMealsIntoBins,
   allAvailableDates,
+  setIsExpanded,
+  showExpansionButton,
+  expandButtonTooltip,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300; // Pixels from top/bottom edge to trigger fetch
@@ -560,7 +568,7 @@ export const MealView: React.FC<MealViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "start",
+              block: "center",
               inline: "nearest",
             });
           } else if (attempt < 3) {
@@ -673,15 +681,17 @@ export const MealView: React.FC<MealViewProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Scroll Wrapper: Handles both vertical and horizontal scrolling */}
+      {/* Scroll Wrapper - Make it relative for absolute positioning of the button */}
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-auto bg-[#FFFBF5] relative"
         style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
-        {/* Inner container to enforce consistent width */}
-        <div className="inline-block min-w-full align-top">
-          {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
+        {/* Inner container for content width */}
+        <div className="inline-block min-w-full align-top relative">
+          {" "}
+          {/* Added relative positioning */}
+          {/* Sticky Header */}
           <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
             {/* Removed min-w-max */}
             {/* Date Header Cell */}
@@ -700,12 +710,20 @@ export const MealView: React.FC<MealViewProps> = ({
                 {binName}
               </div>
             ))}
+            {/* Header Cell for Button Column (conditional) */}
+            {showExpansionButton && (
+              <div
+                // Use the same background and border as other header cells
+                className="flex-shrink-0 w-12 p-3 border-l border-[#D3B89F] bg-[#FADFBB]"
+                aria-hidden="true"
+              >
+                {/* Empty header cell for alignment */}
+              </div>
+            )}
           </div>
           {isFetchingPast && <LoadingIndicator position="top" />}
           {/* Content Rows Container */}
           <div className="divide-y divide-[#E0E0E0]">
-            {" "}
-            {/* Removed min-w-full */}
             {allAvailableDates.map((currentDate) => {
               // Use prop allAvailableDates
               const isSelected = isSameDay(
@@ -823,18 +841,46 @@ export const MealView: React.FC<MealViewProps> = ({
                       );
                     }
                   )}
+
+                  {/* Empty Column Div for Button Space (conditional) */}
+                  {showExpansionButton && (
+                    <div
+                      // Apply consistent background and border
+                      className={`flex-shrink-0 w-12 border-l border-[#E0E0E0] bg-gray-50`}
+                      aria-hidden="true"
+                    >
+                      {/* This div is intentionally empty to create the column space */}
+                    </div>
+                  )}
                 </div> /* End date row */
               );
             })}
-            {/* End map over allAvailableDates */}
-          </div>{" "}
-          {/* End Content Rows Container */}
+          </div>
           {isFetchingFuture && <LoadingIndicator position="bottom" />}
+          {/* Single Expansion Button (Positioned Absolutely near right edge) */}
+          {showExpansionButton && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              // Position it vertically centered, slightly offset from the right edge
+              className="absolute top-1/2 -translate-y-1/2 right-1 z-20 p-2 rounded-full bg-white/70 backdrop-blur-sm shadow-lg text-gray-600 hover:text-pink-900 hover:bg-pink-50/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={expandButtonTooltip}
+              aria-label={
+                isExpanded ? "Collapse meal slots" : "Expand meal slots"
+              }
+            >
+              {isExpanded ? (
+                <ChevronLeftIcon className="w-5 h-5" />
+              ) : (
+                <ChevronRightIcon className="w-5 h-5" />
+              )}
+            </button>
+          )}
         </div>{" "}
         {/* End Inner container */}
       </div>{" "}
       {/* End Scroll Wrapper */}
       {modalConfig && <CustomModal {...modalConfig} />}
-    </div> /* End main component div */
+    </div>
   );
 };
