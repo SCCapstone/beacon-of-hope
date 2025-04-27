@@ -151,43 +151,43 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     </Link>
                   )}
                   <button
-                    onClick={async () => {
-                      if (isGuest) {
-                        try {
-                          const response = await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ user_id: userData._id }),
-                          });
-                          
-                          if (!response.ok) {
-                            const errorData = await response.json();
-                            console.error("Error while exiting guest mode:", errorData);
-                            alert("Failed to exit guest mode. Please try again.");
-                            return;
-                          }
-                          
-                          const data = await response.json();
-                          if (data.success) {
-                            window.location.href = "/";
-                          } else {
-                            alert("Failed to exit guest mode. Please try again.");
-                          }
-                        } catch (error) {
-                          console.error("Error while exiting guest mode:", error);
-                          alert("Failed to exit guest mode. Please try again.");
-                        }
-                      } else {
-                        console.log("Logout clicked");
-                        window.location.href = "/";
-                      }
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
-                  >
-                    {isGuest ? "Exit Guest Mode" : "Logout"}
-                  </button>
+  onClick={async () => {
+    if (isGuest) {
+      window.location.href = "/";  
+  
+      try {
+        await fetch(`${BACKEND_URL}/beacon/user/exit-default`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user_id: userData._id }),
+        });
+      } catch (error) {
+        console.error("Error while exiting guest mode:", error);
+      }
+    } else {
+      window.location.href = "/"; 
+  
+      try {
+        await fetch(`${BACKEND_URL}/beacon/user/logout-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ user_id: userData._id }),
+        });
+      } catch (error) {
+        console.error("Error while logging out user:", error);
+      }
+    }
+  }}
+  
+  className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
+>
+  {isGuest ? "Exit Guest Mode" : "Logout"}
+</button>
+
                 </motion.div>
               )}
             </AnimatePresence>
