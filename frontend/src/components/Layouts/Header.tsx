@@ -38,40 +38,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const isGuest = userData?._id === "67ee9325af31921234bf1241";
 
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-10"
-      style={{ "--thickness": "4px" } as React.CSSProperties}
-    >
-      {/* Backdrop layers */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          height: "200%",
-          WebkitBackdropFilter: "blur(16px)",
-          backdropFilter: "blur(16px)",
-          background:
-            "linear-gradient(to bottom, hsl(33deg 100% 95%), transparent 50%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, black 0% 50%, transparent 50% 100%)",
-          maskImage:
-            "linear-gradient(to bottom, black 0% 50%, transparent 50% 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          WebkitBackdropFilter: "blur(12px) brightness(0.96)",
-          backdropFilter: "blur(12px) brightness(0.96)",
-          background: "hsla(33deg, 100%, 95%, 0.1)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, black 0, black var(--thickness), transparent var(--thickness))",
-          maskImage:
-            "linear-gradient(to bottom, black 0, black var(--thickness), transparent var(--thickness))",
-        }}
-      />
-
+    <header className="fixed top-0 left-0 right-0 z-30">
       {/* Header Content */}
-      <div className="relative px-8 py-1 flex items-center justify-between bg-gradient-to-b from-white/80 to-white/60">
+      <div className="relative px-8 py-1 flex items-center justify-between bg-white shadow-sm">
         {/* Logo and Title Section */}
         <div className="flex items-center space-x-6">
           {!isGuest ? (
@@ -144,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 mt-2 w-48 py-2 bg-white/90 rounded-xl shadow-lg"
+                  className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-xl shadow-lg border border-gray-100"
                 >
                   {!isGuest && (
                     <Link
@@ -195,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                         }
                       }
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 transition-colors"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     {isGuest ? "Exit Guest Mode" : "Logout"}
                   </button>
