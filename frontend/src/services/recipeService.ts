@@ -468,9 +468,10 @@ function normalizeAndValidateDate(dateInput: Date | string): Date {
 
 // Helper function to transform food information
 export async function transformFoodInfo(
-  fetchedInfo: FetchedFoodInfo, // Use the new type
-  mealType: string, // Keep mealType for defaults
-  foodId: string // Keep original ID for reference
+  fetchedInfo: FetchedFoodInfo,
+  mealType: string,
+  foodId: string,
+  mealInstanceId: string
 ): Promise<Food> {
   let nutritionalInfo: NutritionalInfo;
   let ingredients: Ingredient[] = [];
@@ -480,8 +481,7 @@ export async function transformFoodInfo(
   let instructions: string[] = [];
   let culturalOrigin: string[] = [];
   let allergens: string[] = [];
-  let diabetesFriendly = false; // Default to false if info is missing
-
+  let diabetesFriendly = false;
   // Check if there was an error fetching or if data is missing
   if (
     fetchedInfo.error ||
@@ -510,14 +510,16 @@ export async function transformFoodInfo(
       foodData.ingredients?.map((ing: any, index: number) => {
         const ingName =
           ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
-        const ingId =
-          ing.id ||
-          `${foodId}-ing-${ingName
-            .toLowerCase()
-            .replace(/\s+/g, "-")}-${index}}`;
+
+        // Generate a globally unique ID for this ingredient instance
+        // Incorporates mealInstanceId, foodId (recipe/beverage ID), name, and index
+        const uniqueIngredientId = `${mealInstanceId}-${foodId}-ing-${ingName
+          .toLowerCase()
+          .replace(/\s+/g, "-")}-${index}`;
+
         const ingNutritionalInfo = calculateNutritionalInfo(ing);
         return {
-          id: ingId,
+          id: uniqueIngredientId,
           name: ingName,
           amount: parseFloat(ing.quantity?.measure) || 1,
           unit: ing.quantity?.unit || "unit",
@@ -682,7 +684,9 @@ export async function transformApiResponseToDayMeals(
 
     // Process each meal in the day
     for (const meal of dayData.meals) {
+      // meal is from backend, meal._id is unique for this trace meal instance
       try {
+        const mealInstanceId = meal._id;
         const mealFoodIds = new Set<string>();
         const foodItemsToTransform: { foodId: string; mealType: string }[] = [];
 
@@ -690,9 +694,8 @@ export async function transformApiResponseToDayMeals(
         for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
           if (typeof foodId !== "string" || foodId.trim() === "") continue;
 
-          const fetchedInfo = foodInfoMap.get(foodId); // Get FetchedFoodInfo
+          const fetchedInfo = foodInfoMap.get(foodId);
           if (!fetchedInfo) {
-            // This shouldn't happen if the map is populated correctly
             console.error(
               `Internal Error: No fetched info found for ${foodId} (type: ${mealType}) in meal ${meal.meal_name} on ${dateStr}. Skipping.`
             );
@@ -701,27 +704,27 @@ export async function transformApiResponseToDayMeals(
 
           if (!mealFoodIds.has(foodId)) {
             mealFoodIds.add(foodId);
-            // Pass the mealType along, as fetchedInfo might just be an error placeholder
             foodItemsToTransform.push({ foodId, mealType: fetchedInfo.type });
-          } else {
-            // Optional: Log duplicate
           }
         }
 
         // Asynchronously transform unique food info for this meal
         const foodTransformPromises: Promise<Food | null>[] =
           foodItemsToTransform.map(({ foodId, mealType }) => {
-            const fetchedInfo = foodInfoMap.get(foodId)!; // We know it exists
-            // Pass the FetchedFoodInfo object to transformFoodInfo
-            return transformFoodInfo(fetchedInfo, mealType, foodId).catch(
-              (error) => {
-                console.error(
-                  `Error transforming food info for ${foodId} (type: ${mealType}):`,
-                  error
-                );
-                return null; // Return null on error to filter out later
-              }
-            );
+            const fetchedInfo = foodInfoMap.get(foodId)!;
+            // Pass the FetchedFoodInfo object AND mealInstanceId to transformFoodInfo
+            return transformFoodInfo(
+              fetchedInfo,
+              mealType,
+              foodId,
+              mealInstanceId
+            ).catch((error) => {
+              console.error(
+                `Error transforming food info for ${foodId} (type: ${mealType}):`,
+                error
+              );
+              return null;
+            });
           });
 
         // Wait for all food transformations for this meal
@@ -743,7 +746,7 @@ export async function transformApiResponseToDayMeals(
 
         // Create the Meal object
         const completeMeal: Meal = {
-          id: meal._id,
+          id: mealInstanceId, // Use mealInstanceId (which is meal._id from backend)
           originalBackendId: meal._id,
           name: `${
             meal.meal_name.charAt(0).toUpperCase() + meal.meal_name.slice(1)

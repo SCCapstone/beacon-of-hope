@@ -56,14 +56,6 @@ const isSameNormalizedDay = (
   return isSameDay(d1, d2);
 };
 
-// Helper to get a unique key for an ingredient
-const getIngredientKey = (ingredient: Ingredient): string | null => {
-  if (ingredient.id) return ingredient.id;
-  if (ingredient.name) return ingredient.name.toLowerCase().trim();
-  console.warn("Ingredient missing both id and name:", ingredient);
-  return null; // Cannot generate a reliable key
-};
-
 // Define the type for the callback to parent for fetching
 type FetchRequestHandler = (payload: {
   datesToFetch: string[];
@@ -125,9 +117,12 @@ const IngredientCard: React.FC<{
     ] || "#cccccc";
   const primaryNutrient = getPrimaryNutrient(ingredient.nutritionalInfo);
 
+  // Use ingredient.id directly for the key, assuming it's unique
+  const uniqueKey = ingredient.id || `${ingredient.name}-${Math.random()}`;
+
   return (
     <motion.div
-      key={`ingredient-${getIngredientKey(ingredient)}-${isRecommended}`}
+      key={`ingredient-${uniqueKey}-${isRecommended}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -269,72 +264,60 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
       const normalizedTargetDate = normalizeDate(targetDate);
       if (!isValidDate(normalizedTargetDate)) return [];
 
-      // 1. Get Trace Ingredients from allData for the target date
-      const dayData = getDataForDate(normalizedTargetDate); // Use helper
-      const traceIngredients: Ingredient[] = [];
+      const combinedIngredientMap = new Map<
+        string, // Use the ingredient's unique ID as the key
+        Ingredient & { isRecommended: boolean }
+      >();
+
+      // Process Trace Ingredients
+      const dayData = getDataForDate(normalizedTargetDate);
       if (dayData) {
         (dayData.meals || []).forEach((meal) => {
           (meal.foods || []).forEach((food) => {
             (food.ingredients || []).forEach((ingredient) => {
-              const key = getIngredientKey(ingredient);
-              if (
-                key &&
-                !traceIngredients.some((t) => getIngredientKey(t) === key)
-              ) {
-                traceIngredients.push(ingredient);
+              // Use ingredient.id directly - assuming it's unique from transformation
+              if (ingredient.id && !combinedIngredientMap.has(ingredient.id)) {
+                combinedIngredientMap.set(ingredient.id, {
+                  ...ingredient,
+                  isRecommended: false,
+                });
+              } else if (!ingredient.id) {
+                console.warn("Trace ingredient missing ID:", ingredient);
               }
             });
           });
         });
       }
 
-      // 2. Get Recommended Ingredients for the target date
+      // Process Recommended Ingredients
       const dayRecommendations = recommendationData.find((dayRec) =>
         isSameNormalizedDay(dayRec.date, normalizedTargetDate)
       );
-      const recommendedIngredients: Ingredient[] = [];
       if (dayRecommendations) {
         (dayRecommendations.recommendations || []).forEach((rec) => {
           (rec.meal.foods || []).forEach((food) => {
             (food.ingredients || []).forEach((ing) => {
-              const key = getIngredientKey(ing);
-              if (
-                key &&
-                !recommendedIngredients.some((r) => getIngredientKey(r) === key)
-              ) {
-                recommendedIngredients.push(ing);
+              if (ing.id) {
+                if (combinedIngredientMap.has(ing.id)) {
+                  const existing = combinedIngredientMap.get(ing.id)!;
+                  combinedIngredientMap.set(ing.id, {
+                    ...existing, // Keep original ingredient data
+                    isRecommended: true, // Mark as recommended
+                  });
+                } else {
+                  combinedIngredientMap.set(ing.id, {
+                    ...ing,
+                    isRecommended: true,
+                  });
+                }
+              } else if (!ing.id) {
+                console.warn("Recommended ingredient missing ID:", ing);
               }
             });
           });
         });
       }
 
-      // 3. Combine using a Map
-      const combinedIngredientMap = new Map<
-        string,
-        Ingredient & { isRecommended: boolean }
-      >();
-      traceIngredients.forEach((ing) => {
-        const key = getIngredientKey(ing);
-        if (key)
-          combinedIngredientMap.set(key, { ...ing, isRecommended: false });
-      });
-      recommendedIngredients.forEach((ing) => {
-        const key = getIngredientKey(ing);
-        if (key) {
-          if (combinedIngredientMap.has(key)) {
-            const existing = combinedIngredientMap.get(key)!;
-            combinedIngredientMap.set(key, {
-              ...existing,
-              isRecommended: true,
-            });
-          } else {
-            combinedIngredientMap.set(key, { ...ing, isRecommended: true });
-          }
-        }
-      });
-
-      // 4. Convert map back to array and sort
       const combinedIngredients = Array.from(combinedIngredientMap.values());
       combinedIngredients.sort((a, b) => {
         if (a.category !== b.category)
@@ -420,24 +403,17 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
 
       if (currentScrollHeight > previousScrollHeight) {
         const scrollOffset = currentScrollHeight - previousScrollHeight;
-        // Use requestAnimationFrame to ensure adjustment happens after paint
-        isAdjustingScrollRef.current = true; // Set flag before adjustment
+        isAdjustingScrollRef.current = true;
         requestAnimationFrame(() => {
           container.scrollTop += scrollOffset;
-          // console.log(
-          //   `IngredientView: Adjusted scroll top by ${scrollOffset} after past data load.`
-          // );
-          // Reset flag slightly after adjustment to allow scroll events again
           setTimeout(() => {
             isAdjustingScrollRef.current = false;
-          }, 50); // Small delay
+          }, 50);
         });
       }
     }
-
-    // Update the previous start date ref for the next check
     prevLoadedStartDateRef.current = loadedStartDate;
-  }, [allData, loadedStartDate, isFetchingPast]); // Depend on data, range start, and fetching state
+  }, [allData, loadedStartDate, isFetchingPast]);
 
   useEffect(() => {
     // const viewName = "IngredientView"; // For logging
@@ -578,27 +554,21 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
                       {totalIngredients !== 1 ? "s" : ""})
                     </div>
                   </div>
-
-                  {/* Cell 2: Ingredients Area */}
-                  <div
-                    className="flex-1 p-1.5 flex flex-wrap gap-1.5 items-start content-start" // Use flex-wrap, add padding and gap
-                  >
+                  <div className="flex-1 p-1.5 flex flex-wrap gap-1.5 items-start content-start">
                     <AnimatePresence>
                       {combinedIngredients.map((ingredient) => {
-                        const ingredientKey = getIngredientKey(ingredient);
-                        const selectedKey = selectedIngredient
-                          ? getIngredientKey(selectedIngredient)
-                          : null;
+                        // *** Use direct ID comparison ***
                         const isCurrentlySelected =
-                          ingredientKey !== null &&
-                          ingredientKey === selectedKey;
+                          selectedIngredient?.id === ingredient.id;
                         return (
                           <IngredientCard
-                            key={`${ingredientKey}-${ingredient.isRecommended}`}
+                            // Use ingredient.id for the key
+                            key={`${ingredient.id}-${ingredient.isRecommended}`}
                             ingredient={ingredient}
                             isSelected={isCurrentlySelected}
                             isRecommended={ingredient.isRecommended}
                             onClick={() => {
+                              // Toggle based on direct ID comparison
                               onIngredientSelect(
                                 isCurrentlySelected ? null : ingredient,
                                 ingredient.isRecommended

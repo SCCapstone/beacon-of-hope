@@ -1273,7 +1273,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {hasRecommendationsInView && (
                 <button
                   onClick={handleClearAllRecommendations} // Use the new handler
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-600 hover:bg-red-700 text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-700 hover:bg-red-600 text-white"
                   title="Clear all current recommendations"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
