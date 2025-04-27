@@ -209,6 +209,7 @@ def bandit_recommendation(request: HttpRequest):
                 num_days,
                 meal_configs,
                 starting_date,
+                dietary_conditions,
             )
             # Construct meal plan object
             meal_plan = {
