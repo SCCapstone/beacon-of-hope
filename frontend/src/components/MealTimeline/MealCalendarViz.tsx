@@ -38,6 +38,7 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
+import { Tooltip } from "react-tooltip";
 
 const mealTypePriority = {
   breakfast: 0,
@@ -1220,6 +1221,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ? "No recommendations to regenerate"
     : "Regenerate all current recommendations";
 
+  const clearButtonTooltip = hasRecommendationsInView
+    ? "Clear all current recommendations"
+    : "No recommendations to clear";
+
   const expandButtonTooltip = isExpanded
     ? "Show Fewer Meal Slots"
     : "Show All Meal Slots";
@@ -1251,7 +1256,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 <button
                   onClick={handleRegenerateClick}
                   className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-pink-900 hover:bg-pink-800 text-white"
-                  title={regenerateButtonTooltip}
+                  data-tooltip-id="global-tooltip"
+                  data-tooltip-content={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
                   Regenerate Plans
@@ -1262,7 +1268,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 <button
                   className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-300 text-gray-500 cursor-not-allowed"
                   disabled={true}
-                  title={regenerateButtonTooltip}
+                  data-tooltip-id="global-tooltip"
+                  data-tooltip-content={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
                   Regenerating...
@@ -1274,7 +1281,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 <button
                   onClick={handleClearAllRecommendations} // Use the new handler
                   className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-700 hover:bg-red-600 text-white"
-                  title="Clear all current recommendations"
+                  data-tooltip-id="global-tooltip"
+                  data-tooltip-content={clearButtonTooltip}
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
                   Clear Recommendations
@@ -1286,7 +1294,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                   <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                    title={expandButtonTooltip}
+                    data-tooltip-id="global-tooltip"
+                    data-tooltip-content={expandButtonTooltip}
                   >
                     {isExpanded ? (
                       <>
@@ -1308,7 +1317,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               <button
                 onClick={handleGoToToday}
                 className="px-3 py-1.5 rounded-md text-sm flex items-center border border-[#E0E0E0] text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                title="Go to Today"
+                data-tooltip-id="global-tooltip"
+                data-tooltip-content="Go to Today"
               >
                 <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
                 Today
@@ -1439,6 +1449,16 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           </div>
         </div>
       </div>
+
+      <Tooltip
+        id="global-tooltip"
+        delayShow={150}
+        delayHide={50}
+        className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg" 
+        // place="top" // Default position, can be changed
+        // effect="solid" // Default effect
+      />
+
       {/* Render the Modal */}
       {modalConfig && <CustomModal {...modalConfig} />}
     </div>

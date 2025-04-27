@@ -40,6 +40,7 @@
     "react-pro-sidebar": "^1.1.0",
     "react-redux": "^9.2.0",
     "react-slider": "^2.0.6",
+    "react-tooltip": "^5.28.1",
     "recharts": "^2.13.3",
     "shadcn": "^2.1.6",
     "tailwind-merge": "^2.5.5",

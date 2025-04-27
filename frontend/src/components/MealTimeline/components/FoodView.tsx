@@ -89,12 +89,11 @@ const FoodCard: React.FC<{
   const totalTime = food.preparationTime + food.cookingTime;
   const timeIndicator =
     totalTime <= 15
-      ? { text: "<15m", color: "bg-[#5CB85C]/20 text-[#3C763D]" } // Accent Green Light
+      ? { text: "<15m", color: "bg-[#5CB85C]/20 text-[#3C763D]" }
       : totalTime <= 30
-      ? { text: "15-30m", color: "bg-[#FFC107]/20 text-[#8A6D3B]" } // Accent Yellow Light
-      : { text: ">30m", color: "bg-[#D9534F]/20 text-[#A94442]" }; // Accent Red Light
+      ? { text: "15-30m", color: "bg-[#FFC107]/20 text-[#8A6D3B]" }
+      : { text: ">30m", color: "bg-[#D9534F]/20 text-[#A94442]" };
 
-  // Defensive check for nutritionalInfo
   const calories = food.nutritionalInfo?.calories ?? 0;
 
   return (
@@ -116,7 +115,11 @@ const FoodCard: React.FC<{
       onClick={onClick}
     >
       {isRecommended && (
-        <span className="absolute -top-1.5 -left-1.5 text-[9px] bg-[#5CB85C] text-white px-1.5 py-0.5 rounded-full z-10 shadow-sm">
+        <span
+          className="absolute -top-1.5 -left-1.5 text-[9px] bg-[#5CB85C] text-white px-1.5 py-0.5 rounded-full z-10 shadow-sm"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Recommended Food"
+        >
           Rec
         </span>
       )}
@@ -136,7 +139,8 @@ const FoodCard: React.FC<{
           {food.diabetesFriendly && (
             <span
               className="inline-block px-1 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] text-[10px] rounded-full"
-              title="Diabetes Friendly"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content="Diabetes Friendly"
             >
               DF
             </span>
@@ -144,7 +148,8 @@ const FoodCard: React.FC<{
           {totalTime > 0 && (
             <span
               className={`inline-block px-1 py-0.5 ${timeIndicator.color} text-[10px] rounded-full`}
-              title={`Prep+Cook: ${totalTime}min`}
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={`Prep+Cook: ${totalTime}min`}
             >
               {timeIndicator.text}
             </span>

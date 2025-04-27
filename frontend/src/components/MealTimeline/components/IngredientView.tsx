@@ -114,11 +114,10 @@ const IngredientCard: React.FC<{
   const categoryColor =
     COLOR_SCHEMES.ingredient[
       ingredient.category as keyof typeof COLOR_SCHEMES.ingredient
-    ] || "#A0AEC0"; // Default to a neutral gray
+    ] || "#A0AEC0";
   const primaryNutrient = getPrimaryNutrient(ingredient.nutritionalInfo);
-
-  // Use ingredient.id directly for the key, assuming it's unique
   const uniqueKey = ingredient.id || `${ingredient.name}-${Math.random()}`;
+  const cardTooltip = `${ingredient.name} (${ingredient.amount} ${ingredient.unit}) - Category: ${ingredient.category}`;
 
   return (
     <motion.div
@@ -140,13 +139,15 @@ const IngredientCard: React.FC<{
         }
       `}
       onClick={onClick}
-      title={`${ingredient.name} (${ingredient.amount} ${ingredient.unit}) - Category: ${ingredient.category}`} // More informative title
+      data-tooltip-id="global-tooltip"
+      data-tooltip-content={cardTooltip}
     >
       {/* Recommendation Badge */}
       {isRecommended && (
         <span
           className="absolute -top-1.5 -left-1.5 text-[8px] bg-emerald-500 text-white px-1 py-0.5 rounded-full z-10 shadow"
-          title="Recommended Ingredient"
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content="Recommended Ingredient"
         >
           REC
         </span>
@@ -155,7 +156,8 @@ const IngredientCard: React.FC<{
       <div
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: categoryColor }}
-        title={`Category: ${ingredient.category}`}
+        data-tooltip-id="global-tooltip"
+        data-tooltip-content={`Category: ${ingredient.category}`}
       ></div>
 
       {/* Ingredient Name and Amount */}
@@ -176,7 +178,8 @@ const IngredientCard: React.FC<{
           {/* Ensure it doesn't wrap */}
           <span
             className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-medium rounded-full whitespace-nowrap"
-            title={`Primary Nutrient: ${primaryNutrient}`}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={`Primary Nutrient: ${primaryNutrient}`}
           >
             {primaryNutrient}
           </span>
