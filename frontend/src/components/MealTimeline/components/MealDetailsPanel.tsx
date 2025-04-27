@@ -799,7 +799,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
     const { dailyCalories, carbohydrates, protein, fiber } = nutritionalGoals;
     const calcProgress = (current: number, target: number) => {
       if (target <= 0) return 0;
-      return Math.min(Math.max((current / target) * 100, 0), 100); // Cap at 100%
+      // Return raw progress, potentially over 100
+      return Math.max((current / target) * 100, 0);
     };
 
     const goals = [
@@ -853,40 +854,52 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           </div>
 
           <div className="space-y-3">
-            {goals.map((goal) => (
-              <div key={goal.label} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className={`font-medium ${goal.textColor}`}>
-                    {goal.label}
-                  </span>
-                  <span className="text-gray-500">
-                    {goal.current.toFixed(0)} / {goal.target.toFixed(0)}{" "}
-                    {goal.unit}
-                  </span>
+            {goals.map((goal) => {
+              const rawProgress = calcProgress(goal.current, goal.target);
+              // Cap progress at 100% for the visual bar width
+              const cappedProgress = Math.min(rawProgress, 100);
+
+              return (
+                <div key={goal.label} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className={`font-medium ${goal.textColor}`}>
+                      {goal.label}
+                    </span>
+                    <span className="text-gray-500">
+                      {goal.current.toFixed(0)} / {goal.target.toFixed(0)}{" "}
+                      {goal.unit}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full ${goal.color}`}
+                      initial={{ width: "0%" }}
+                      animate={{
+                        width: `${cappedProgress}%`, // Use capped progress for bar width
+                      }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full ${goal.color}`}
-                    initial={{ width: "0%" }}
-                    animate={{
-                      width: `${calcProgress(goal.current, goal.target)}%`,
-                    }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-4 gap-2 pt-2">
-            {goals.map((goal) => (
-              <div key={goal.label + "-stat"} className="text-center">
-                <div className={`text-lg font-bold ${goal.textColor}`}>
-                  {Math.round(calcProgress(goal.current, goal.target))}%
+            {goals.map((goal) => {
+              const rawProgress = calcProgress(goal.current, goal.target);
+              const displayPercentage =
+                rawProgress > 100 ? ">100%" : `${Math.round(rawProgress)}%`;
+
+              return (
+                <div key={goal.label + "-stat"} className="text-center">
+                  <div className={`text-lg font-bold ${goal.textColor}`}>
+                    {displayPercentage} {/* Display modified percentage */}
+                  </div>
+                  <div className="text-xs text-gray-500">{goal.label}</div>
                 </div>
-                <div className="text-xs text-gray-500">{goal.label}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
