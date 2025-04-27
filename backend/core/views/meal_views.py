@@ -64,10 +64,13 @@ def save_meal(request: HttpRequest):
             if key == "nl_recommendations":
                 data["nl_recommendations"] = []
             if key not in data:
-                return JsonResponse(
-                    {"Error": f"Request Body missing required attribute: {key}"},
-                    status=403,
-                )
+                if key == "nl_recommendations":
+                    data["nl_recommendations"] = []
+                else:
+                    return JsonResponse(
+                        {"Error": f"Request Body missing required attribute: {key}"},
+                        status=403,
+                    )
 
         date, user_id, meal_id, nl_recommendations = [data[key] for key in keys]
         user, status = firebaseManager.get_user_by_id(user_id)
@@ -243,7 +246,6 @@ def favorite_meal(request: HttpRequest):
 
         logger.info(colored("Getting day plan from FB", "green"))
 
-
         day_plan_id = day_plans[date]
         day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
         if status != 200:
@@ -257,7 +259,12 @@ def favorite_meal(request: HttpRequest):
         logger.info(colored("Getting the meal items from meal", "green"))
         for meal_id, meal in day_plan["meals"].items():
             if meal_id == to_favorite_meal_id:
-                logger.info(colored(f"Favorited meal {to_favorite_meal_id} in day plan {day_plan_id}", "green"))
+                logger.info(
+                    colored(
+                        f"Favorited meal {to_favorite_meal_id} in day plan {day_plan_id}",
+                        "green",
+                    )
+                )
                 meal["favorited"] = True
                 msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
                 meal_items = meal["meal_types"]
@@ -326,7 +333,6 @@ def unfavorite_meal(request: HttpRequest):
 
         logger.info(colored("Getting day plan from FB", "green"))
 
-
         day_plan_id = day_plans[date]
         day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
         if status != 200:
@@ -340,7 +346,12 @@ def unfavorite_meal(request: HttpRequest):
         logger.info(colored("Getting the meal items from meal", "green"))
         for meal_id, meal in day_plan["meals"].items():
             if meal_id == to_favorite_meal_id:
-                logger.info(colored(f"Unavorited meal {to_favorite_meal_id} in day plan {day_plan_id}", "red"))
+                logger.info(
+                    colored(
+                        f"Unavorited meal {to_favorite_meal_id} in day plan {day_plan_id}",
+                        "red",
+                    )
+                )
                 meal["favorited"] = False
                 msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
                 meal_items = meal["meal_types"]
