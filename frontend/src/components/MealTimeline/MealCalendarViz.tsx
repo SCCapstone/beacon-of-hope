@@ -126,9 +126,9 @@ interface MealCalendarVizProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
-  getMealsForDate: (date: Date) => Meal[];
-  getRecommendationsForDate: (date: Date) => MealRecommendation[];
-  organizeMealsIntoBins: (date: Date) => {
+  getMealsForDate?: (date: Date) => Meal[];
+  getRecommendationsForDate?: (date: Date) => MealRecommendation[];
+  organizeMealsIntoBins?: (date: Date) => {
     bins: Record<
       string,
       { meals: Meal[]; recommendations: MealRecommendation[] }
@@ -136,7 +136,7 @@ interface MealCalendarVizProps {
     maxBinsNeeded: number;
     currentBinNames: string[];
   };
-  allAvailableDates: Date[];
+  allAvailableDates?: Date[];
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -1108,6 +1108,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   const handleRegenerateClick = useCallback(() => {
     if (isRegenerating || !hasRecommendationsInView) return;
+
     const datesWithRecsSet = new Set<string>();
     recommendationData.forEach((dayRec) => {
       if (dayRec.recommendations && dayRec.recommendations.length > 0) {
@@ -1119,12 +1120,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     });
     const datesToRegenerate = Array.from(datesWithRecsSet);
     if (datesToRegenerate.length === 0) return;
-    onRegeneratePartial(datesToRegenerate);
+
+    showConfirmModal(
+      "Confirm Regeneration",
+      "Are you sure you want to regenerate all current meal recommendations? This will create new recommendations for the selected days.",
+      () => {
+        onRegeneratePartial(datesToRegenerate);
+      }
+    );
   }, [
     recommendationData,
     onRegeneratePartial,
     isRegenerating,
     hasRecommendationsInView,
+    showConfirmModal,
   ]);
 
   const handleShowRecipe = useCallback(
@@ -1241,7 +1250,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {!isRegenerating && hasRecommendationsInView && (
                 <button
                   onClick={handleRegenerateClick}
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-[#8B4513] hover:bg-[#A0522D] text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-pink-900 hover:bg-pink-800 text-white"
                   title={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
@@ -1264,7 +1273,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {hasRecommendationsInView && (
                 <button
                   onClick={handleClearAllRecommendations} // Use the new handler
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-600 hover:bg-red-700 text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-700 hover:bg-red-600 text-white"
                   title="Clear all current recommendations"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
@@ -1396,6 +1405,10 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       loadedStartDate={loadedStartDate}
                       loadedEndDate={loadedEndDate}
                       scrollToTodayTrigger={scrollToTodayTrigger}
+                      organizeMealsIntoBins={organizeMealsIntoBins}
+                      isExpanded={isExpanded}
+                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                      defaultBinCount={DEFAULT_BIN_COUNT}
                     />
                   </div>
                 )}

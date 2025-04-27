@@ -382,19 +382,21 @@ export async function transformMealPlanToRecommendations(
 
     if (!dayData || !Array.isArray(dayData.meals)) continue;
 
-    // Use Promise.all to process meals concurrently for better performance if many meals per day
+    // Use Promise.all to process meals concurrently
     const mealPromises = dayData.meals.map(
       async (mealData): Promise<MealRecommendation | null> => {
-        // Ensure unique foods per meal
+        // mealData is BanditMealData, mealData._id is the original backend ID of the recommendation meal item
+        // Generate the unique frontend ID for this recommendation meal instance *before* transforming foods
+        const mealInstanceId = `rec-${dateStr}-${mealData.meal_name}-${mealData._id}`;
+
         const mealFoodIds = new Set<string>();
         const foodItemsToTransform: { foodId: string; mealType: string }[] = [];
 
         // Collect unique food items for this specific meal
         for (const [mealType, foodId] of Object.entries(mealData.meal_types)) {
           if (typeof foodId === "string" && foodId.trim() !== "") {
-            const fetchedInfo = foodInfoMap.get(foodId); // Get pre-fetched info (FetchedFoodInfo)
+            const fetchedInfo = foodInfoMap.get(foodId);
             if (fetchedInfo) {
-              // Check if info exists (even if it's an error placeholder)
               if (!mealFoodIds.has(foodId)) {
                 mealFoodIds.add(foodId);
                 // Pass the type from the fetchedInfo object
@@ -402,12 +404,8 @@ export async function transformMealPlanToRecommendations(
                   foodId,
                   mealType: fetchedInfo.type,
                 });
-              } else {
-                // Log duplicate within recommendation meal
-                // console.log(`Skipping duplicate food ID '${foodId}' within recommendation meal '${mealData.meal_name}' on ${dateStr}.`);
               }
             } else {
-              // This case should ideally not happen if the map is populated correctly
               console.error(
                 `Internal Error: No fetched info found for recommended food ${foodId} (${mealType}). Skipping.`
               );
@@ -418,38 +416,55 @@ export async function transformMealPlanToRecommendations(
         // Asynchronously transform unique food info for this meal
         const foodTransformPromises: Promise<Food | null>[] =
           foodItemsToTransform.map(({ foodId, mealType }) => {
-            const fetchedInfo = foodInfoMap.get(foodId)!; // We know it exists
-            // Use the transformFoodInfo helper from recipeService, passing FetchedFoodInfo
-            return transformFoodInfo(fetchedInfo, mealType, foodId).catch(
-              (error) => {
-                console.error(
-                  `Error transforming recommended food ${foodId} (${mealType}):`,
-                  error
-                );
-                return null; // Handle transformation error for individual food
-              }
-            );
+            const fetchedInfo = foodInfoMap.get(foodId)!;
+            // Use the transformFoodInfo helper from recipeService, passing FetchedFoodInfo AND mealInstanceId
+            // transformFoodInfo returns the BASE Food object with the ORIGINAL foodId
+            return transformFoodInfo(
+              fetchedInfo,
+              mealType,
+              foodId,
+              mealInstanceId
+            ).catch((error) => {
+              console.error(
+                `Error transforming recommended food ${foodId} (${mealType}):`,
+                error
+              );
+              return null; // Handle transformation error for individual food
+            });
           });
 
         // Wait for all food transformations for *this meal*
         const fetchedFoods = await Promise.all(foodTransformPromises);
-        const mealFoods: Food[] = fetchedFoods.filter(
+        const baseMealFoods: Food[] = fetchedFoods.filter(
           (food): food is Food => food !== null
         ); // Filter out nulls
 
-        if (mealFoods.length === 0) {
+        if (baseMealFoods.length === 0) {
           console.warn(
             `Skipping recommendation for ${mealData.meal_name} on ${dateStr} as no valid food items were transformed.`
           );
           return null; // Return null if no foods for this meal
         }
 
+        // Generate unique instance IDs for foods within this recommendation meal
+        const mealFoodsWithInstanceIds: Food[] = baseMealFoods.map(
+          (baseFood) => ({
+            ...baseFood,
+            // Create a unique ID for this specific food instance within this meal
+            id: `${mealInstanceId}-${baseFood.id}`,
+            // Optionally store the original ID if needed elsewhere:
+            // originalFoodId: baseFood.id,
+          })
+        );
+
         // Calculate combined nutritional info for the entire meal (using potentially default values)
-        const combinedNutritionalInfo =
-          calculateCombinedMealNutritionalInfo(mealFoods);
+        // Use the foods with instance IDs, nutrition info remains the same
+        const combinedNutritionalInfo = calculateCombinedMealNutritionalInfo(
+          mealFoodsWithInstanceIds
+        );
 
         // Determine overall meal diabetes friendliness based on potentially default values
-        const mealDiabetesFriendly = mealFoods.every(
+        const mealDiabetesFriendly = mealFoodsWithInstanceIds.every(
           (food) => food.diabetesFriendly
         );
 
@@ -466,8 +481,7 @@ export async function transformMealPlanToRecommendations(
         const reasons: string[] = [];
         const healthBenefits: string[] = [];
 
-        // Add reasons based on scores
-        const avgScore = (varietyScore + coverageScore + constraintScore) / 3; // Example simple average for general comments
+        const avgScore = (varietyScore + coverageScore + constraintScore) / 3;
         if (avgScore >= 0.8) reasons.push("Excellent match for your profile!");
         else if (avgScore >= 0.6)
           reasons.push("Good match for your preferences.");
@@ -515,9 +529,8 @@ export async function transformMealPlanToRecommendations(
 
         // Create the complete Meal object
         const completeMeal: Meal = {
-          // Generate a unique ID for this recommendation instance
-          id: `rec-${dateStr}-${mealData.meal_name}-${mealData._id}`,
-          originalBackendId: mealData._id, // Store the original backend ID for accept/reject actions
+          id: mealInstanceId, // Unique ID for this recommendation meal instance
+          originalBackendId: mealData._id, // Store the original backend ID
           name: `${
             mealData.meal_name.charAt(0).toUpperCase() +
             mealData.meal_name.slice(1)
@@ -528,7 +541,7 @@ export async function transformMealPlanToRecommendations(
             | "lunch"
             | "dinner"
             | "snack", // Ensure type safety
-          foods: mealFoods,
+          foods: mealFoodsWithInstanceIds, // Use the foods with unique instance IDs
           nutritionalInfo: combinedNutritionalInfo,
           diabetesFriendly: mealDiabetesFriendly,
           date: currentDate,
@@ -537,7 +550,6 @@ export async function transformMealPlanToRecommendations(
           constraintScore: constraintScore,
         };
 
-        // Create the MealRecommendation object
         const recommendationItem: MealRecommendation = {
           meal: completeMeal,
           reasons: reasons,
@@ -552,8 +564,7 @@ export async function transformMealPlanToRecommendations(
           coverageScore: coverageScore,
           constraintScore: constraintScore,
         };
-
-        return recommendationItem; // Return the successfully created recommendation
+        return recommendationItem;
       }
     );
 

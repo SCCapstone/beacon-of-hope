@@ -80,12 +80,12 @@ export const CustomModal: React.FC<ModalProps> = ({
         ) {
           return "bg-red-600 hover:bg-red-700 focus-visible:outline-red-600";
         }
-        return "bg-[#8B4513] hover:bg-[#A0522D] focus-visible:outline-[#8B4513]"; // Default confirm is primary color
+        return "bg-pink-900 hover:bg-[#A0522D] focus-visible:outline-pink-900";
       case "success":
         return "bg-green-600 hover:bg-green-700 focus-visible:outline-green-600";
       case "info":
       default:
-        return "bg-[#8B4513] hover:bg-[#A0522D] focus-visible:outline-[#8B4513]"; // Primary color
+        return "bg-pink-900 hover:bg-[#A0522D] focus-visible:outline-pink-900";
     }
   };
 
