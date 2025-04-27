@@ -125,30 +125,9 @@ const SignUpPage: React.FC = () => {
             }}
           >
             Join us to start your personalized healthy eating journey
-            <br />
-            <br />
           </p>
 
-          <button
-            className="google-login-button"
-            style={{
-              opacity: 0.6,
-              cursor: "not-allowed",
-            }}
-            title="Coming soon!" // Basic tooltip
-          >
-            <img src="../../google-logo.png" />
-            <p
-              style={{
-                fontWeight: "700",
-                fontSize: ".9vw",
-                color: "#828282",
-                fontFamily: "Nunito Sans",
-              }}
-            >
-              Sign up with Google
-            </p>
-          </button>
+          
           <div
             style={{
               position: "absolute",
@@ -164,7 +143,6 @@ const SignUpPage: React.FC = () => {
             }}
             className="tooltip"
           >
-            Coming soon!
           </div>
 
           <p
@@ -180,7 +158,6 @@ const SignUpPage: React.FC = () => {
               marginTop: "1.1%",
             }}
           >
-            ------------or Sign up with Email------------
           </p>
         </div>
 
