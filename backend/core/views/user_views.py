@@ -1,5 +1,9 @@
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from firebase_admin import firestore
+
 
 from ..modules.firebase import FirebaseManager
 
@@ -9,7 +13,9 @@ import logging
 import json
 from termcolor import colored
 
-firebaseManager = FirebaseManager()  # DB manager
+firebaseManager = FirebaseManager()
+db = firestore.client()
+  # DB manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -375,3 +381,34 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
     except Exception as e:
         logger.exception("get_nutritional_goals failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
+# @csrf_exempt
+@api_view(['POST'])
+def logout_user(request):
+    try:
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({"error": "Missing user_id"}, status=400)
+
+        user_ref = db.collection('users').document(user_id)
+        user_doc = user_ref.get()
+
+        if not user_doc.exists:
+            return Response({"error": "User not found"}, status=404)
+
+        user_data = user_doc.to_dict()
+        temp_day_plans = user_data.get('temp_day_plans', {})
+
+        for day, temp_plan_id in temp_day_plans.items():
+            temp_day_plan_ref = db.collection('temp_day_plans').document(temp_plan_id)
+            temp_day_plan_ref.delete()
+
+        user_ref.update({
+            'temp_day_plans': {}
+        })
+
+        return Response({"message": "Successfully logged out and cleared temp day plans."}, status=200)
+    
+    except Exception as e:
+        print("🔥🔥🔥 ERROR:", e)
+        return Response({"error": str(e)}, status=500)
