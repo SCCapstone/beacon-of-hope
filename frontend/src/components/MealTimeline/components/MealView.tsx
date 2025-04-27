@@ -560,7 +560,7 @@ export const MealView: React.FC<MealViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "start",
+              block: "center",
               inline: "nearest",
             });
           } else if (attempt < 3) {

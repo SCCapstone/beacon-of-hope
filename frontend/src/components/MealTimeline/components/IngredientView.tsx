@@ -441,7 +441,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "start",
+              block: "center",
               inline: "nearest",
             });
           } else if (attempt < 3) {

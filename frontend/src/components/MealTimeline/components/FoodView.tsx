@@ -406,7 +406,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
             // );
             element.scrollIntoView({
               behavior: "instant",
-              block: "start",
+              block: "center",
               inline: "nearest",
             });
           } else if (attempt < 3) {
