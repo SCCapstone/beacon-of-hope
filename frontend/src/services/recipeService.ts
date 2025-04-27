@@ -37,28 +37,14 @@ const DEFAULT_NUTRITIONAL_VALUES: Record<string, NutritionalInfo> = {
   dessert: {
     calories: 200,
     fiber: 0,
-    carbs: 100, // Note: Original had "100", parsed to number
+    carbs: 100,
     protein: 5,
   },
   beverage: {
     calories: 50,
     fiber: 0,
-    carbs: 50, // Note: Original had "50", parsed to number
+    carbs: 50,
     protein: 0,
-  },
-  // Add a default for snack or a general fallback if needed
-  snack: {
-    calories: 150,
-    fiber: 1,
-    carbs: 25,
-    protein: 8,
-  },
-  unknown: {
-    // Fallback for unknown types
-    calories: 150,
-    fiber: 2,
-    carbs: 25,
-    protein: 10,
   },
 };
 
@@ -473,6 +459,7 @@ export async function transformFoodInfo(
   foodId: string,
   mealInstanceId: string
 ): Promise<Food> {
+  // Initialize variables that might be set in either branch
   let nutritionalInfo: NutritionalInfo;
   let ingredients: Ingredient[] = [];
   let foodName = "Unknown Food";
@@ -481,19 +468,21 @@ export async function transformFoodInfo(
   let instructions: string[] = [];
   let culturalOrigin: string[] = [];
   let allergens: string[] = [];
-  let diabetesFriendly = false;
-  // Check if there was an error fetching or if data is missing
+  let diabetesFriendly = false; // Default to false
+
+  // Check if there was an error fetching or if data is missing/empty
   if (
     fetchedInfo.error ||
     !fetchedInfo.data ||
     Object.keys(fetchedInfo.data).length === 0
   ) {
     console.warn(
-      `transformFoodInfo: Using default values for ${mealType} ID ${foodId} due to fetch error or missing data.`
+      `transformFoodInfo: Using default values for ${mealType} ID ${foodId} due to fetch error or missing/empty data.`
     );
     nutritionalInfo = getDefaultNutritionalInfo(mealType);
     foodName = `Unavailable ${mealType.replace("_", " ")}`;
-    // Keep other fields as defaults (empty arrays, 0 times)
+    // Keep other fields as defaults (empty arrays, 0 times, false boolean)
+    // Note: diabetesFriendly is already defaulted to false above
   } else {
     // Data exists, process it as before
     const foodData = fetchedInfo.data;
@@ -503,15 +492,33 @@ export async function transformFoodInfo(
       `Unnamed ${mealType.replace("_", " ")}`;
 
     // Calculate nutritional info from the fetched data
-    nutritionalInfo = calculateNutritionalInfo(foodData);
+    const calculatedNutritionalInfo = calculateNutritionalInfo(foodData);
 
-    // Transform ingredients if they exist
+    // Check if the calculated nutritional info is effectively zero
+    const calculatedIsZero =
+      calculatedNutritionalInfo.calories === 0 &&
+      calculatedNutritionalInfo.protein === 0 &&
+      calculatedNutritionalInfo.carbs === 0 &&
+      calculatedNutritionalInfo.fiber === 0;
+
+    // *** MODIFIED LOGIC START ***
+    // If calculated info is zero, apply defaults for this type.
+    // This handles cases where API returns data but no/zero nutrition.
+    if (calculatedIsZero) {
+      console.warn(
+        `transformFoodInfo: Calculated nutrition for ${foodName} (ID ${foodId}) is zero. Applying defaults for type '${mealType}'.`
+      );
+      nutritionalInfo = getDefaultNutritionalInfo(mealType); // Apply defaults
+    } else {
+      nutritionalInfo = calculatedNutritionalInfo; // Use calculated non-zero values
+    }
+
+    // Transform ingredients if they exist (using foodData)
     ingredients =
       foodData.ingredients?.map((ing: any, index: number) => {
         const ingName =
           ing.name || ing.ingredient_name || `Unknown Ingredient ${index + 1}`;
 
-        // Generate a globally unique ID for this ingredient instance
         // Incorporates mealInstanceId, foodId (recipe/beverage ID), name, and index
         const uniqueIngredientId = `${mealInstanceId}-${foodId}-ing-${ingName
           .toLowerCase()
@@ -531,7 +538,7 @@ export async function transformFoodInfo(
         };
       }) || [];
 
-    // Calculate overall diabetes friendliness based on fetched nutrition
+    // Calculate overall diabetes friendliness based on the *final* nutritionalInfo (calculated or default)
     diabetesFriendly = isDiabetesFriendly(nutritionalInfo);
     preparationTime = parseInt(foodData.prep_time?.split(" ")[0] || "0");
     cookingTime = parseInt(foodData.cook_time?.split(" ")[0] || "0");
@@ -614,10 +621,12 @@ export async function transformApiResponseToDayMeals(
   for (const dayData of Object.values(apiResponse.day_plans)) {
     if (!dayData || !Array.isArray(dayData.meals)) continue;
     for (const meal of dayData.meals) {
-      for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
+      for (const [rawMealType, foodId] of Object.entries(meal.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
+          // Map "side" key from backend data to "side_dish" type used internally
+          const mealType = rawMealType === "side" ? "side_dish" : rawMealType;
           if (!foodIdsToFetch.has(foodId)) {
-            foodIdsToFetch.set(foodId, { type: mealType });
+            foodIdsToFetch.set(foodId, { type: mealType }); // Use the potentially mapped mealType
           }
         }
       }
@@ -740,15 +749,32 @@ export async function transformApiResponseToDayMeals(
             ...baseFood,
             // Create a unique ID for this specific food instance within this meal
             id: `${mealInstanceId}-${baseFood.id}`,
-            // Optionally store the original ID if needed elsewhere:
-            // originalFoodId: baseFood.id,
           })
         );
+
+        const sideDishFood = mealFoodsWithInstanceIds.find(
+          (f) => f.type === "side_dish"
+        ); // Find any side dish
+        if (sideDishFood) {
+          console.log(
+            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
+            JSON.stringify(sideDishFood.nutritionalInfo)
+          );
+        } else {
+          console.log(
+            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
+          );
+        }
 
         // Calculate combined nutritional info for the meal (using potentially default values)
         // Use the foods with instance IDs, nutrition info remains the same
         const mealNutritionalInfo = calculateCombinedNutritionalInfo(
           mealFoodsWithInstanceIds
+        );
+
+        console.log(
+          `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
+          JSON.stringify(mealNutritionalInfo)
         );
 
         // Get default meal time if not provided

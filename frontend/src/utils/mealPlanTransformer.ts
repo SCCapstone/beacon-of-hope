@@ -318,11 +318,13 @@ export async function transformMealPlanToRecommendations(
   Object.values(mealPlan.days).forEach((dayData) => {
     if (!dayData || !Array.isArray(dayData.meals)) return;
     dayData.meals.forEach((meal) => {
-      Object.entries(meal.meal_types).forEach(([mealType, foodId]) => {
+      Object.entries(meal.meal_types).forEach(([rawMealType, foodId]) => {
+        // Renamed key to rawMealType
         if (typeof foodId === "string" && foodId.trim() !== "") {
+          // Map "side" key from backend data to "side_dish" type used internally
+          const mealType = rawMealType === "side" ? "side_dish" : rawMealType;
           if (!foodIdsToFetch.has(foodId)) {
-            // Store the type ('beverage', 'main_course', etc.)
-            foodIdsToFetch.set(foodId, { type: mealType });
+            foodIdsToFetch.set(foodId, { type: mealType }); // Use the potentially mapped mealType
           }
         }
       });
@@ -452,18 +454,34 @@ export async function transformMealPlanToRecommendations(
             ...baseFood,
             // Create a unique ID for this specific food instance within this meal
             id: `${mealInstanceId}-${baseFood.id}`,
-            // Optionally store the original ID if needed elsewhere:
-            // originalFoodId: baseFood.id,
           })
         );
 
-        // Calculate combined nutritional info for the entire meal (using potentially default values)
-        // Use the foods with instance IDs, nutrition info remains the same
+        const sideDishFood = mealFoodsWithInstanceIds.find(
+          (f) => f.type === "side_dish"
+        ); // Find any side dish
+        if (sideDishFood) {
+          console.log(
+            `DEBUG (Rec): Before combining meal '${mealData.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
+            JSON.stringify(sideDishFood.nutritionalInfo)
+          );
+        } else {
+          console.log(
+            `DEBUG (Rec): Before combining meal '${mealData.meal_name}' on ${dateStr} - No side dish found.`
+          );
+        }
+
+        // Calculate combined nutritional info for the entire meal
         const combinedNutritionalInfo = calculateCombinedMealNutritionalInfo(
           mealFoodsWithInstanceIds
         );
 
-        // Determine overall meal diabetes friendliness based on potentially default values
+        console.log(
+          `DEBUG (Rec): After combining meal '${mealData.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
+          JSON.stringify(combinedNutritionalInfo)
+        );
+
+        // Determine overall meal diabetes friendliness
         const mealDiabetesFriendly = mealFoodsWithInstanceIds.every(
           (food) => food.diabetesFriendly
         );

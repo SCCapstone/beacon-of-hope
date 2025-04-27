@@ -802,15 +802,16 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         current: displayValues.calories,
         target: dailyCalories,
         unit: "kcal",
-        color: "bg-gradient-to-r from-black-400 to-black-500",
-        textColor: "text-black-600",
+        color: "bg-gradient-to-r from-gray-400 to-gray-600", // Existing gradient
+        textColor: "text-gray-800",
       },
       {
         label: "Carbs",
         current: displayValues.carbs,
         target: carbohydrates.daily,
         unit: carbohydrates.unit,
-        color: "bg-gradient-to-r from-[#20B2AA]/100 to-[#20B2AA]",
+        // Gradient from 50% opacity to full color
+        color: "bg-gradient-to-r from-[#20B2AA]/50 to-[#20B2AA]",
         textColor: "text-[#20B2AA]",
       },
       {
@@ -818,7 +819,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         current: displayValues.protein,
         target: protein.daily,
         unit: protein.unit,
-        color: "bg-gradient-to-r from-[#8B4513]/100 to-[#8B4513]",
+        // Gradient from 50% opacity to full color
+        color: "bg-gradient-to-r from-[#8B4513]/50 to-[#8B4513]",
         textColor: "text-[#8B4513]",
       },
       {
@@ -826,7 +828,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
         current: displayValues.fiber,
         target: fiber.daily,
         unit: fiber.unit,
-        color: "bg-gradient-to-r from-[#DAA520]/100 to-[#DAA520]",
+        // Gradient from 50% opacity to full color
+        color: "bg-gradient-to-r from-[#DAA520]/50 to-[#DAA520]",
         textColor: "text-[#DAA520]",
       },
     ];
