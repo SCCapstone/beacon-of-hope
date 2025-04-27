@@ -147,7 +147,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         whileTap={{ scale: 0.9 }}
         onClick={handleAcceptClick}
         className="absolute -top-2 -right-2 p-0.5 rounded-full text-white bg-[#5CB85C] shadow-md z-20 transition-colors" // Accent Green
-        title="Accept Recommendation"
+        data-tooltip-id="global-tooltip"
+        data-tooltip-content="Accept Recommendation"
       >
         <CheckIcon className="w-4 h-4" />
       </motion.button>
@@ -157,7 +158,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
         whileTap={{ scale: 0.9 }}
         onClick={handleRejectClick}
         className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-[#D9534F] shadow-md z-20 transition-colors" // Accent Red
-        title="Reject Recommendation"
+        data-tooltip-id="global-tooltip" // <-- Add tooltip attributes
+        data-tooltip-content="Reject Recommendation"
       >
         <XMarkIcon className="w-4 h-4" />
       </motion.button>
@@ -176,41 +178,52 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
           {/* Darker Maroon */}
           <span className="text-[#B8860B]">
             Fiber {Math.round(fiberPercent)}%
-          </span>{" "}
+          </span>
           {/* Darker Gold */}
         </div>
 
         {/* Macro Visualization */}
         <div className="flex h-2.5 rounded-full overflow-hidden mb-3">
-          {" "}
           {/* Thicker bar */}
           <div
             className="bg-[#20B2AA]"
             style={{ width: `${carbPercent}%` }}
-            title={`Carbs: ${safeNutritionalInfo.carbs}g`}
-          />{" "}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={`Carbs: ${safeNutritionalInfo.carbs.toFixed(
+              1
+            )}g`}
+          />
           {/* Nutrient Teal */}
           <div
             className="bg-[#8B4513]"
             style={{ width: `${proteinPercent}%` }}
-            title={`Protein: ${safeNutritionalInfo.protein}g`}
-          />{" "}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={`Protein: ${safeNutritionalInfo.protein.toFixed(
+              1
+            )}g`}
+          />
           {/* Nutrient Maroon */}
           <div
             className="bg-[#DAA520]"
             style={{ width: `${fiberPercent}%` }}
-            title={`Fiber: ${safeNutritionalInfo.fiber}g`}
-          />{" "}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={`Fiber: ${safeNutritionalInfo.fiber.toFixed(
+              1
+            )}g`}
+          />
           {/* Nutrient Gold */}
         </div>
 
         {/* Food Type Icons */}
         {foodTypes.length > 0 && (
           <div className="flex items-center mt-1 mb-2 space-x-1">
-            {" "}
             {/* Added space */}
             {foodTypes.map((type, index) => (
-              <div key={`${type}-${index}`} title={type.replace("_", " ")}>
+              <div
+                key={`${type}-${index}`}
+                data-tooltip-id="global-tooltip"
+                data-tooltip-content={type.replace("_", " ")}
+              >
                 <FoodTypeIcon type={type} className="w-4 h-4 text-gray-500" />
               </div>
             ))}
@@ -225,7 +238,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             </span>
             <InformationCircleIcon
               className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-              title={scoreDescriptions.variety}
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={scoreDescriptions.variety}
             />
           </div>
           <div className="flex items-center space-x-1">
@@ -234,7 +248,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             </span>
             <InformationCircleIcon
               className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-              title={scoreDescriptions.coverage}
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={scoreDescriptions.coverage}
             />
           </div>
           <div className="flex items-center space-x-1">
@@ -243,7 +258,8 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             </span>
             <InformationCircleIcon
               className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-              title={scoreDescriptions.nutrition}
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={scoreDescriptions.nutrition}
             />
           </div>
         </div>

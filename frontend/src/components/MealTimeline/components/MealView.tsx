@@ -168,6 +168,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       "Measures how well the recommended items fit the requested user preferences (dairy, meat, and nuts)",
   };
 
+  const favoriteTooltip = optimisticFavorite
+    ? "Favorited Meal"
+    : "Favorite meal";
+
   return (
     <motion.div
       key={`meal-${meal.id}`}
@@ -192,7 +196,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         whileTap={{ scale: 0.9 }}
         onClick={handleDeleteButtonClick}
         className="absolute -top-2 -left-2 p-0.5 rounded-full text-white bg-[#D9534F] shadow-md z-20 transition-colors" // Accent Red
-        title="Remove meal"
+        data-tooltip-id="global-tooltip" // <-- Add tooltip attributes
+        data-tooltip-content="Remove meal"
       >
         <XMarkIcon className="w-4 h-4" />
       </motion.button>
@@ -211,7 +216,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
                         ? "bg-yellow-600 animate-pulse"
                         : "bg-[#FFC107] hover:bg-[#FFA000]"
                     }`} // Accent Yellow
-        title={optimisticFavorite ? "Favorited Meal" : "Favorite meal"}
+        data-tooltip-id="global-tooltip"
+        data-tooltip-content={favoriteTooltip}
       >
         {isFavoriting ? (
           <svg
@@ -276,19 +282,28 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         <div
           className="bg-[#20B2AA]"
           style={{ width: `${carbPercent}%` }}
-          title={`Carbs: ${safeNutritionalInfo.carbs}g`}
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content={`Carbs: ${safeNutritionalInfo.carbs.toFixed(
+            1
+          )}g`}
         />{" "}
         {/* Nutrient Teal */}
         <div
           className="bg-[#8B4513]"
           style={{ width: `${proteinPercent}%` }}
-          title={`Protein: ${safeNutritionalInfo.protein}g`}
+          data-tooltip-id="global-tooltip" // <-- Add tooltip attributes
+          data-tooltip-content={`Protein: ${safeNutritionalInfo.protein.toFixed(
+            1
+          )}g`}
         />{" "}
         {/* Nutrient Maroon */}
         <div
           className="bg-[#DAA520]"
           style={{ width: `${fiberPercent}%` }}
-          title={`Fiber: ${safeNutritionalInfo.fiber}g`}
+          data-tooltip-id="global-tooltip" // <-- Add tooltip attributes
+          data-tooltip-content={`Fiber: ${safeNutritionalInfo.fiber.toFixed(
+            1
+          )}g`}
         />{" "}
         {/* Nutrient Gold */}
       </div>
@@ -297,7 +312,12 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       {foodTypes.length > 0 && (
         <div className="flex items-center mt-1 mb-2">
           {foodTypes.map((type, index) => (
-            <div key={`${type}-${index}`} className="mr-1" title={type}>
+            <div
+              key={`${type}-${index}`}
+              className="mr-1"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={type.replace("_", " ")}
+            >
               <FoodTypeIcon type={type} className="w-4 h-4 text-gray-500" />
             </div>
           ))}
@@ -310,7 +330,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           <span className="text-[#20B2AA]">V: {formatScore(varietyScore)}</span>
           <InformationCircleIcon
             className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-            title={scoreDescriptions.variety}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={scoreDescriptions.variety}
           />
         </div>
         <div className="flex items-center space-x-1">
@@ -319,7 +340,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           </span>
           <InformationCircleIcon
             className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-            title={scoreDescriptions.coverage}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={scoreDescriptions.coverage}
           />
         </div>
         <div className="flex items-center space-x-1">
@@ -328,7 +350,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           </span>
           <InformationCircleIcon
             className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help"
-            title={scoreDescriptions.nutrition}
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content={scoreDescriptions.nutrition}
           />
         </div>
       </div>

@@ -66,48 +66,53 @@ const DetailHeader: React.FC<{
   onClose,
   // onFavoriteClick,
   // isFavorited
-}) => (
-  <div className="p-5 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
-    {/* Recommendation Badge */}
-    {isRecommendation && (
-      <span className="absolute top-3 left-3 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-xs font-semibold z-10 shadow-sm">
-        Recommended
-      </span>
-    )}
-    {/* Close Button */}
-    <button
-      onClick={onClose}
-      className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-pink-900 hover:bg-pink-100 rounded-full transition-colors duration-150 z-10"
-      aria-label="Close details"
-    >
-      <XMarkIcon className="w-5 h-5" />
-    </button>
-    {/* Favorite Button for Trace Meals */}
-    {isTraceMeal && (
+}) => {
+  const favoriteTooltip = isFavorited
+    ? "Favorited (Click to Unfavorite - Not Implemented)"
+    : "Favorite (Not Implemented)";
+
+  return (
+    <div className="p-5 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
+      {/* Recommendation Badge */}
+      {isRecommendation && (
+        <span className="absolute top-3 left-3 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-xs font-semibold z-10 shadow-sm">
+          Recommended
+        </span>
+      )}
+      {/* Close Button */}
       <button
-        // onClick={onFavoriteClick} // Not implemented
-        onClick={() => console.warn("Favorite click not implemented in panel")}
-        className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10"
-        aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
-        title={
-          isFavorited
-            ? "Favorited (Click to Unfavorite - Not Implemented)"
-            : "Favorite (Not Implemented)"
-        }
+        onClick={onClose}
+        className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-pink-900 hover:bg-pink-100 rounded-full transition-colors duration-150 z-10"
+        aria-label="Close details"
       >
-        {/* Use isFavorited prop to show solid or outline star */}
-        {isFavorited ? (
-          <StarIconSolid className="w-5 h-5" />
-        ) : (
-          <StarIconOutline className="w-5 h-5" />
-        )}
+        <XMarkIcon className="w-5 h-5" />
       </button>
-    )}
-    {/* Title and Subtitle */}
-    <h3 className="text-xl font-bold text-pink-900 mt-6 pr-16">{title}</h3>
-    {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
-  </div>
-);
+      {/* Favorite Button for Trace Meals */}
+      {isTraceMeal && (
+        <button
+          // onClick={onFavoriteClick} // Not implemented
+          onClick={() =>
+            console.warn("Favorite click not implemented in panel")
+          }
+          className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10"
+          aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
+          data-tooltip-id="global-tooltip"
+          data-tooltip-content={favoriteTooltip}
+        >
+          {/* Use isFavorited prop to show solid or outline star */}
+          {isFavorited ? (
+            <StarIconSolid className="w-5 h-5" />
+          ) : (
+            <StarIconOutline className="w-5 h-5" />
+          )}
+        </button>
+      )}
+      {/* Title and Subtitle */}
+      <h3 className="text-xl font-bold text-pink-900 mt-6 pr-16">{title}</h3>
+      {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
+    </div>
+  );
+};
 
 const NutritionalBreakdown: React.FC<{
   info: NutritionalInfo | undefined;
@@ -411,7 +416,8 @@ const ScoreDisplay: React.FC<{
               <span>{score.label}</span>
               <InformationCircleIcon
                 className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help"
-                title={score.desc}
+                data-tooltip-id="global-tooltip"
+                data-tooltip-content={score.desc}
               />
             </div>
           </div>
