@@ -39,15 +39,8 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
 
         logger.info(colored("Restructuring the meals in the dayplan object", "green"))
 
-        print(day_plans.keys())
         for dayplan in day_plans.values():
-            print("-------------------------------------------")
-            print(f"Is meals in dayplan: {"meals" in dayplan}")
-            pprint.pp(type(dayplan["meals"]))
-            pprint.pp(dayplan["meals"])
             dayplan["meals"] = [meal for meal in dayplan["meals"].values()]
-
-        logger.info(colored("Returning", "green"))
 
         return JsonResponse({"day_plans": day_plans}, status=status)
 
@@ -145,7 +138,7 @@ def delete_meal(request: HttpRequest):
     if request.method != "DELETE":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
-        logger.info("Delete Meal API Endpoint Called ...")
+        logger.info(colored("Delete Meal API Endpoint Called ...", "green"))
         logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
 
@@ -170,6 +163,8 @@ def delete_meal(request: HttpRequest):
                 },
                 status=status,
             )
+
+        logger.info("Retrieving day plans")
         try:
             day_plans = user.get_day_plans()
         except:
@@ -182,6 +177,8 @@ def delete_meal(request: HttpRequest):
                 {"Error": f"The provided date: {date} is not in the recorded plans"},
                 status=403,
             )
+
+        logger.info(f"Removing meal from dayplan: {date}")
         day_plan_id = day_plans[date]
 
         msg, status = firebaseManager.remove_meal_from_dayplan(meal_id, day_plan_id)
@@ -202,7 +199,7 @@ def delete_meal(request: HttpRequest):
 
 @csrf_exempt
 def favorite_meal(request: HttpRequest):
-    """Deleting a meal from permanent storage"""
+    """Favoriting a meal"""
     if request.method != "POST":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
@@ -218,7 +215,7 @@ def favorite_meal(request: HttpRequest):
                     status=403,
                 )
 
-        date, user_id, to_save_meal_id = [data[key] for key in keys]
+        date, user_id, to_favorite_meal_id = [data[key] for key in keys]
 
         logger.info(
             f"Getting corresponding day plan id for date {date} for user {user_id}"
@@ -246,6 +243,7 @@ def favorite_meal(request: HttpRequest):
 
         logger.info(colored("Getting day plan from FB", "green"))
 
+
         day_plan_id = day_plans[date]
         day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
         if status != 200:
@@ -258,13 +256,97 @@ def favorite_meal(request: HttpRequest):
 
         logger.info(colored("Getting the meal items from meal", "green"))
         for meal_id, meal in day_plan["meals"].items():
-            if meal_id == to_save_meal_id:
+            if meal_id == to_favorite_meal_id:
+                logger.info(colored(f"Favorited meal {to_favorite_meal_id} in day plan {day_plan_id}", "green"))
                 meal["favorited"] = True
                 msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
                 meal_items = meal["meal_types"]
 
         logger.info(f"Updating Permanent Items with {meal_items}...")
-        msg, status = user.update_permanent_favorite_items(meal_items)
+        msg, status = user.add_permanent_favorite_items(meal_items)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was an error in updating the permanent favorite items {msg}"
+                },
+                status=status,
+            )
+
+        return JsonResponse({"Message": msg}, status=status)
+
+    except Exception as e:
+        return JsonResponse(
+            {"Error": f"There was an error favoriting the meal: {e}"}, status=500
+        )
+
+
+@csrf_exempt
+def unfavorite_meal(request: HttpRequest):
+    """Unfavoriting a meal"""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    try:
+        logger.info("Unfavorite Meal API Endpoint Called ...")
+        logger.info("Parsing Request Body ...")
+        data = json.loads(request.body)
+
+        keys = ["date", "user_id", "meal_id"]
+        for key in keys:
+            if key not in data:
+                return JsonResponse(
+                    {"Error": f"Request Body missing required attribute: {key}"},
+                    status=403,
+                )
+
+        date, user_id, to_favorite_meal_id = [data[key] for key in keys]
+
+        logger.info(
+            f"Getting corresponding day plan id for date {date} for user {user_id}"
+        )
+        user, status = firebaseManager.get_user_by_id(user_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was some error in retrieving the user from Firebase: {user}"
+                },
+                status=status,
+            )
+        try:
+            day_plans = user.get_day_plans()
+        except:
+            return JsonResponse(
+                {"Error": "There was an error in retrieving the user's day plans"},
+                status=500,
+            )
+        if date not in day_plans:
+            return JsonResponse(
+                {"Error": f"The provided date: {date} is not in the recorded plans"},
+                status=403,
+            )
+
+        logger.info(colored("Getting day plan from FB", "green"))
+
+
+        day_plan_id = day_plans[date]
+        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {
+                    "Error": f"There was an error in retrieving the meal plan: {day_plan}"
+                },
+                status=status,
+            )
+
+        logger.info(colored("Getting the meal items from meal", "green"))
+        for meal_id, meal in day_plan["meals"].items():
+            if meal_id == to_favorite_meal_id:
+                logger.info(colored(f"Unavorited meal {to_favorite_meal_id} in day plan {day_plan_id}", "red"))
+                meal["favorited"] = False
+                msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
+                meal_items = meal["meal_types"]
+
+        logger.info(f"Updating Permanent Items with {meal_items}...")
+        msg, status = user.remove_permanent_favorite_items(meal_items)
         if status != 200:
             return JsonResponse(
                 {
