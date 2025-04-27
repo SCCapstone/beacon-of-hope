@@ -494,22 +494,23 @@ export async function transformFoodInfo(
     // Calculate nutritional info from the fetched data
     const calculatedNutritionalInfo = calculateNutritionalInfo(foodData);
 
-    // Added Check for Missing Nutrition in Successful Fetch
-    // Check if calculated info is zero AND the source data lacked nutrition keys
-    const hasNutritionKeys = foodData.macronutrients || foodData.nutrition;
+    // Check if the calculated nutritional info is effectively zero
     const calculatedIsZero =
       calculatedNutritionalInfo.calories === 0 &&
       calculatedNutritionalInfo.protein === 0 &&
       calculatedNutritionalInfo.carbs === 0 &&
       calculatedNutritionalInfo.fiber === 0;
 
-    if (calculatedIsZero && !hasNutritionKeys) {
+    // *** MODIFIED LOGIC START ***
+    // If calculated info is zero, apply defaults for this type.
+    // This handles cases where API returns data but no/zero nutrition.
+    if (calculatedIsZero) {
       console.warn(
-        `transformFoodInfo: Fetched data for ${foodName} (ID ${foodId}) exists but lacks nutritional info. Applying defaults.`
+        `transformFoodInfo: Calculated nutrition for ${foodName} (ID ${foodId}) is zero. Applying defaults for type '${mealType}'.`
       );
       nutritionalInfo = getDefaultNutritionalInfo(mealType); // Apply defaults
     } else {
-      nutritionalInfo = calculatedNutritionalInfo; // Use calculated values (even if zero, if keys were present)
+      nutritionalInfo = calculatedNutritionalInfo; // Use calculated non-zero values
     }
 
     // Transform ingredients if they exist (using foodData)
@@ -620,10 +621,12 @@ export async function transformApiResponseToDayMeals(
   for (const dayData of Object.values(apiResponse.day_plans)) {
     if (!dayData || !Array.isArray(dayData.meals)) continue;
     for (const meal of dayData.meals) {
-      for (const [mealType, foodId] of Object.entries(meal.meal_types)) {
+      for (const [rawMealType, foodId] of Object.entries(meal.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
+          // Map "side" key from backend data to "side_dish" type used internally
+          const mealType = rawMealType === "side" ? "side_dish" : rawMealType;
           if (!foodIdsToFetch.has(foodId)) {
-            foodIdsToFetch.set(foodId, { type: mealType });
+            foodIdsToFetch.set(foodId, { type: mealType }); // Use the potentially mapped mealType
           }
         }
       }
@@ -746,15 +749,32 @@ export async function transformApiResponseToDayMeals(
             ...baseFood,
             // Create a unique ID for this specific food instance within this meal
             id: `${mealInstanceId}-${baseFood.id}`,
-            // Optionally store the original ID if needed elsewhere:
-            // originalFoodId: baseFood.id,
           })
         );
+
+        const sideDishFood = mealFoodsWithInstanceIds.find(
+          (f) => f.type === "side_dish"
+        ); // Find any side dish
+        if (sideDishFood) {
+          console.log(
+            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
+            JSON.stringify(sideDishFood.nutritionalInfo)
+          );
+        } else {
+          console.log(
+            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
+          );
+        }
 
         // Calculate combined nutritional info for the meal (using potentially default values)
         // Use the foods with instance IDs, nutrition info remains the same
         const mealNutritionalInfo = calculateCombinedNutritionalInfo(
           mealFoodsWithInstanceIds
+        );
+
+        console.log(
+          `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
+          JSON.stringify(mealNutritionalInfo)
         );
 
         // Get default meal time if not provided
