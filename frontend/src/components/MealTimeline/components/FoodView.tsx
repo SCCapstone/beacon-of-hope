@@ -448,7 +448,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
 
   // Generate header names based on visible count
   const headerBinNames = Array.from({ length: currentVisibleBinCount }).map(
-    (_, i) => mealBinNames[i] || `Meal Slot ${i + 1}`
+    (_, i) => mealBinNames[i] || `Meal ${i + 1}`
   );
 
   // console.log(

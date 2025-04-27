@@ -804,7 +804,7 @@ export async function transformApiResponseToDayMeals(
           varietyScore: varietyScore,
           coverageScore: coverageScore,
           constraintScore: constraintScore,
-          // Note: isFavorited status needs to be fetched/set separately if needed
+          isFavorited: meal.favorited ?? false,
         };
 
         dayMeal.meals.push(completeMeal);
@@ -981,6 +981,81 @@ export async function favoriteMealInTrace(
     }
     // Handle non-Axios errors
     console.error(`Unexpected error favoriting meal ${mealId}:`, error);
+    throw error; // Re-throw unexpected errors
+  }
+}
+
+export async function unfavoriteMealInTrace(
+  userId: string,
+  date: string, // Expecting "yyyy-MM-dd" format
+  mealId: string // The backend ID (_id) of the trace meal record
+): Promise<boolean> {
+  if (!userId || !date || !mealId) {
+    console.error("unfavoriteMealInTrace: Missing required parameters.", {
+      userId,
+      date,
+      mealId,
+    });
+    throw new Error(
+      "User ID, date, and meal ID are required to unfavorite a meal."
+    );
+  }
+
+  try {
+    console.log(
+      `Calling unfavorite-meal API for user ${userId}, date ${date}, meal ${mealId}`
+    );
+    const response = await axios.post(
+      `${BACKEND_URL}/beacon/user/unfavorite-meal`, // Use the correct endpoint
+      {
+        user_id: userId,
+        date: date,
+        meal_id: mealId,
+      }
+    );
+
+    // Rely primarily on the HTTP status code for success indication.
+    if (response.status === 200) {
+      // Note: The API spec has a typo "favoritd". We'll log the actual message but rely on status 200.
+      console.log(
+        `Successfully unfavorited meal ${mealId} for date ${date} (Status 200). Response data:`,
+        response.data
+      );
+      return true;
+    } else {
+      // This block handles cases where the status might be 2xx but not 200,
+      // or if Axios is configured not to throw on non-2xx errors.
+      console.warn(
+        `unfavorite-meal API returned unexpected status for meal ${mealId}:`,
+        response.status,
+        response.data
+      );
+      throw new ApiError(
+        `Failed to unfavorite meal: Server responded with status ${response.status}`,
+        response.status,
+        response.data
+      );
+    }
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `Error unfavoriting meal ${mealId}: ${error.message}`,
+        error.response?.status,
+        error.response?.data
+      );
+      // Throw a more specific error for handling upstream
+      throw new ApiError(
+        `Failed to unfavorite meal: ${
+          error.response?.data?.detail || // Use backend detail if available
+          error.response?.data?.Message || // Use backend Message if available (handle potential typo)
+          error.message // Fallback to Axios message
+        }`,
+        error.response?.status,
+        error.response?.data
+      );
+    }
+    // Handle non-Axios errors
+    console.error(`Unexpected error unfavoriting meal ${mealId}:`, error);
     throw error; // Re-throw unexpected errors
   }
 }

@@ -51,6 +51,7 @@ export interface BanditMealData {
   nutritional_constraint_score?: number;
   // meal_time might be missing, handle this
   meal_time?: string;
+  favorited?: boolean;
 }
 
 interface R3Nutrient {
