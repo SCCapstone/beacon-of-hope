@@ -6,6 +6,7 @@ from ..modules.firebase import FirebaseManager
 from termcolor import colored
 import logging
 import json
+import pprint
 
 firebaseManager = FirebaseManager()  # DB manager
 
@@ -30,12 +31,23 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
             )
         dates = data["dates"]
         day_plans, status = firebaseManager.get_day_plans(user_id, dates)
-
         if status != 200:
             return JsonResponse(
                 {"Error": f"There was an error retrieving the day plans: {day_plans}"},
                 status,
             )
+
+        logger.info(colored("Restructuring the meals in the dayplan object", "green"))
+
+        print(day_plans.keys())
+        for dayplan in day_plans.values():
+            print("-------------------------------------------")
+            print(f"Is meals in dayplan: {"meals" in dayplan}")
+            pprint.pp(type(dayplan["meals"]))
+            pprint.pp(dayplan["meals"])
+            dayplan["meals"] = [meal for meal in dayplan["meals"].values()]
+
+        logger.info(colored("Returning", "green"))
 
         return JsonResponse({"day_plans": day_plans}, status=status)
 
@@ -54,9 +66,10 @@ def save_meal(request: HttpRequest):
         logger.info("Save Meal API Endpoint Called ...")
         logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
-
         keys = ["date", "user_id", "meal_id", "nl_recommendations"]
         for key in keys:
+            if key == "nl_recommendations":
+                data["nl_recommendations"] = []
             if key not in data:
                 return JsonResponse(
                     {"Error": f"Request Body missing required attribute: {key}"},
@@ -205,7 +218,7 @@ def favorite_meal(request: HttpRequest):
                     status=403,
                 )
 
-        date, user_id, meal_id = [data[key] for key in keys]
+        date, user_id, to_save_meal_id = [data[key] for key in keys]
 
         logger.info(
             f"Getting corresponding day plan id for date {date} for user {user_id}"
@@ -244,15 +257,10 @@ def favorite_meal(request: HttpRequest):
             )
 
         logger.info(colored("Getting the meal items from meal", "green"))
-        for meal in day_plan["meals"]:
-            if meal["_id"] == meal_id:
+        for meal_id, meal in day_plan["meals"].items():
+            if meal_id == to_save_meal_id:
                 meal["favorited"] = True
-
-                # TODO, change meals to be stored in dayplan object as a dictionary not as a list
-                # as a result, change all areas where meals are iterated over
-                # therefore, we don't append meals again, we can just alter based on id
-
-                # msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
+                msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
                 meal_items = meal["meal_types"]
 
         logger.info(f"Updating Permanent Items with {meal_items}...")
