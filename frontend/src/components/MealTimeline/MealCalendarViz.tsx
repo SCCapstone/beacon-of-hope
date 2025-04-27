@@ -1108,6 +1108,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   const handleRegenerateClick = useCallback(() => {
     if (isRegenerating || !hasRecommendationsInView) return;
+
     const datesWithRecsSet = new Set<string>();
     recommendationData.forEach((dayRec) => {
       if (dayRec.recommendations && dayRec.recommendations.length > 0) {
@@ -1119,12 +1120,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     });
     const datesToRegenerate = Array.from(datesWithRecsSet);
     if (datesToRegenerate.length === 0) return;
-    onRegeneratePartial(datesToRegenerate);
+
+    showConfirmModal(
+      "Confirm Regeneration",
+      "Are you sure you want to regenerate all current meal recommendations? This will create new recommendations for the selected days.",
+      () => {
+        onRegeneratePartial(datesToRegenerate);
+      }
+    );
   }, [
     recommendationData,
     onRegeneratePartial,
     isRegenerating,
     hasRecommendationsInView,
+    showConfirmModal,
   ]);
 
   const handleShowRecipe = useCallback(
