@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from ..modules.firebase import FirebaseManager
 
-
+from termcolor import colored
 import logging
 import json
 
@@ -230,15 +230,30 @@ def favorite_meal(request: HttpRequest):
                 {"Error": f"The provided date: {date} is not in the recorded plans"},
                 status=403,
             )
-        day_plan_id = day_plans[date]
 
-        logger.info("Getting Meal Items ...")
-        meal_items, status = firebaseManager.get_meal_items(meal_id, day_plan_id)
+        logger.info(colored("Getting day plan from FB", "green"))
+
+        day_plan_id = day_plans[date]
+        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
         if status != 200:
             return JsonResponse(
-                {"Error": f"There was an error in retrieving that meal: {meal_items}"},
+                {
+                    "Error": f"There was an error in retrieving the meal plan: {day_plan}"
+                },
                 status=status,
             )
+
+        logger.info(colored("Getting the meal items from meal", "green"))
+        for meal in day_plan["meals"]:
+            if meal["_id"] == meal_id:
+                meal["favorited"] = True
+
+                # TODO, change meals to be stored in dayplan object as a dictionary not as a list
+                # as a result, change all areas where meals are iterated over
+                # therefore, we don't append meals again, we can just alter based on id
+
+                # msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
+                meal_items = meal["meal_types"]
 
         logger.info(f"Updating Permanent Items with {meal_items}...")
         msg, status = user.update_permanent_favorite_items(meal_items)
