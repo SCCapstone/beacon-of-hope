@@ -650,7 +650,8 @@ def gen_bandit_rec(
     num_days: int,
     meal_configs: List[Dict],
     starting_date: datetime,
-    dietary_conditions,
+    dietary_conditions: Dict[str, bool],
+    meal_plan_name: str,
 ) -> Dict:
     """Take Bandit Output and generate a meal plan
 
@@ -682,6 +683,7 @@ def gen_bandit_rec(
         meal = {
             "_id": str(ObjectId()),  # Unique ID for the meal
             "meal_name": meal_config["meal_name"],
+            "meal_plan_name": meal_plan_name,
             # "meal_time": meal_config.get("meal_time", ""),
             "meal_types": meal_components,
         }

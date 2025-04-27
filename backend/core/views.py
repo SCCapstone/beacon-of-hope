@@ -205,11 +205,12 @@ def bandit_recommendation(request: HttpRequest):
         logger.info("Generating recommendation")
         try:
             days = gen_bandit_rec(
-                favorite_items,
-                num_days,
-                meal_configs,
-                starting_date,
-                dietary_conditions,
+                favorite_items=favorite_items,
+                num_days=num_days,
+                meal_configs=meal_configs,
+                starting_date=starting_date,
+                dietary_conditions=dietary_conditions,
+                meal_plan_name=meal_plan_name,
             )
             # Construct meal plan object
             meal_plan = {
@@ -295,7 +296,7 @@ def regenerate_partial_meal_plan(request: HttpRequest):
         logger.info("Regenerate Meal Plan API Endpoint Called ...")
         logger.info("Parsing Request Body...")
         data: dict = json.loads(request.body)
-
+        meal_plan_name = data.get("meal_plan_name", "User Meal Plan")
         required_fields = ["user_id", "dates_to_regenerate"]
         for field in required_fields:
             if field not in data:
@@ -362,14 +363,18 @@ def regenerate_partial_meal_plan(request: HttpRequest):
             logger.info("Fetching user favorite items")
             favorite_items = user.get_favorite_items()
 
+        dietary_conditions = user.get_dietary_conditions()
+
         # Generate Bandit Recommendation
         try:
             logger.info("Generating Recommendation ...")
             days = gen_bandit_rec(
-                favorite_items,
-                len(dates_to_regenerate),
-                meal_plan_config["meal_configs"],
-                datetime.strptime(dates_to_regenerate[0], "%Y-%m-%d"),
+                favorite_items=favorite_items,
+                num_days=len(dates_to_regenerate),
+                meal_configs=meal_plan_config["meal_configs"],
+                starting_date=datetime.strptime(dates_to_regenerate[0], "%Y-%m-%d"),
+                dietary_conditions=dietary_conditions,
+                meal_plan_name=meal_plan_name,
             )
         except Exception as e:
             return JsonResponse(
@@ -993,6 +998,12 @@ def exit_default(request: HttpRequest):
                 "Side": [],
                 "Dessert": [],
                 "Beverage": [],
+            },
+            "dietary_conditions": {
+                "diabetes": False,
+                "gluten_free": False,
+                "vegan": False,
+                "vegetarian": False,
             },
             "nutritional_goals": {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0},
         }
