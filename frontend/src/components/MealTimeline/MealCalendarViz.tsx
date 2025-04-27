@@ -35,6 +35,7 @@ import {
   CalendarDaysIcon,
   TrashIcon,
   CheckCircleIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
 import { Tooltip } from "react-tooltip";
@@ -523,7 +524,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const showConfirmModal = useCallback(
     (
       title: string,
-      message: string,
+      message: string | React.ReactNode, // Allow ReactNode for tooltip message
       onConfirm: () => void,
       onCancel?: () => void
     ) => {
@@ -531,12 +532,12 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         title,
         message,
         type: "confirm",
+        confirmText: "Favorite", // Specific text for favoriting
         onConfirm: () => {
           onConfirm();
           setModalConfig(null); // Close after confirm
         },
         onCancel: () => {
-          // Also close on cancel
           onCancel?.();
           setModalConfig(null);
         },
@@ -557,6 +558,72 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       showModal({ title, message, type: "success" });
     },
     [showModal]
+  );
+
+  // Handler for favorite toggle initiated from the details panel
+  const handlePanelFavoriteToggle = useCallback(
+    (mealId: string, date: Date) => {
+      // Find the meal to potentially check its current state (optional for now)
+      const normalizedDate = normalizeDate(date);
+      const dayData = traceDataRef.current.find((d) =>
+        isSameNormalizedDay(d.date, normalizedDate)
+      );
+      const mealToToggle = dayData?.meals.find((m) => m.id === mealId);
+
+      if (!mealToToggle) {
+        console.error(
+          `MealCalendarViz: Could not find meal ${mealId} on ${format(
+            normalizedDate,
+            "yyyy-MM-dd"
+          )} to toggle favorite.`
+        );
+        // Optionally show an error modal
+        showErrorModal("Action Failed", "Could not find the specified meal.");
+        return;
+      }
+
+      // Check if already favorited (if implementing toggle later, this is needed)
+      // For now, we assume we are *adding* favorite via the panel
+      if (mealToToggle.isFavorited) {
+        // Handle unfavorite logic here if needed in the future
+        console.log("Meal is already favorited. Unfavorite action TBD.");
+        // For now, maybe show an info modal or do nothing
+        showModal({
+          title: "Already Favorited",
+          message: "This meal is already marked as a favorite.",
+          type: "info",
+        });
+        return;
+      }
+
+      // Show Confirmation Modal before calling the API
+      const confirmationMessage = (
+        <div>
+          <p>
+            Mark "<strong>{mealToToggle.name}</strong>" as a favorite for{" "}
+            {format(normalizedDate, "MMM d")}?
+          </p>
+          <p className="mt-3 text-xs text-gray-500 bg-gray-100 p-2 rounded">
+            <InformationCircleIcon className="w-4 h-4 inline mr-1 relative -top-px" />
+            This will inform future recommendations! You are more likely to be
+            recommended this item in the future.
+          </p>
+        </div>
+      );
+
+      showConfirmModal(
+        "Confirm Favorite",
+        confirmationMessage, // Pass the ReactNode message
+        () => {
+          // If confirmed, call the handler passed from MealTimelinePage
+          // This handler (handleFavoriteMeal in MealTimelinePage) is responsible
+          // for the API call and updating the main state.
+          onFavoriteMeal(mealId, normalizedDate);
+        }
+        // No specific cancel action needed here, modal closes automatically
+      );
+    },
+    [onFavoriteMeal, showConfirmModal, showErrorModal, showModal] // Add dependencies
   );
 
   const handleClearAllRecommendations = useCallback(() => {
@@ -1693,6 +1760,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 selectedDate={selectedDate}
                 currentLevel={currentLevel}
                 onShowRecipe={handleShowRecipe}
+                onFavoriteToggle={handlePanelFavoriteToggle}
               />
             </div>
           </div>
@@ -1704,7 +1772,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         delayShow={150}
         delayHide={50}
         className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
-        // place="top" // Default position, can be changed
+        place="bottom" // Default position, can be changed
         // effect="solid" // Default effect
       />
 

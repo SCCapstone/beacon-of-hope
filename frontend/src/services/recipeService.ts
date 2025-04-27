@@ -804,7 +804,7 @@ export async function transformApiResponseToDayMeals(
           varietyScore: varietyScore,
           coverageScore: coverageScore,
           constraintScore: constraintScore,
-          // Note: isFavorited status needs to be fetched/set separately if needed
+          isFavorited: meal.favorited ?? false,
         };
 
         dayMeal.meals.push(completeMeal);

@@ -44,32 +44,46 @@ interface MealDetailsPanelProps {
   };
   selectedDate: Date;
   currentLevel: VisualizationLevel["type"];
-  // Add callbacks for actions if needed later
-  // onFavoriteToggle?: (mealId: string) => void;
+  onFavoriteToggle?: (mealId: string, date: Date) => void;
   onShowRecipe: (food: Food) => void;
 }
 
-const DetailHeader: React.FC<{
+interface DetailHeaderProps {
   title: string;
   subtitle?: string;
   isRecommendation?: boolean;
   isTraceMeal?: boolean;
   isFavorited?: boolean;
   onClose: () => void;
-  // onFavoriteClick?: () => void; // Optional favorite handler
-}> = ({
+  onFavoriteClick?: () => void;
+  mealId?: string;
+  mealDate?: Date;
+}
+
+const DetailHeader: React.FC<DetailHeaderProps> = ({
   title,
   subtitle,
   isRecommendation,
   isTraceMeal,
   isFavorited,
   onClose,
-  // onFavoriteClick,
-  // isFavorited
+  onFavoriteClick,
+  mealId,
+  mealDate,
 }) => {
+  // Update tooltip based on isFavorited status
   const favoriteTooltip = isFavorited
-    ? "Favorited (Click to Unfavorite - Not Implemented)"
-    : "Favorite (Not Implemented)";
+    ? "Favorited! (Unfavorite action not implemented in panel)"
+    : "Favorite this meal! This will inform future recommendations! You are more likely to be recommended this item in the future.";
+
+  const handleFavClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent other clicks
+    if (onFavoriteClick) {
+      onFavoriteClick(); // Call the handler passed down
+    } else {
+      console.warn("onFavoriteClick handler is missing in DetailHeader");
+    }
+  };
 
   return (
     <div className="p-5 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
@@ -90,11 +104,10 @@ const DetailHeader: React.FC<{
       {/* Favorite Button for Trace Meals */}
       {isTraceMeal && (
         <button
-          // onClick={onFavoriteClick} // Not implemented
-          onClick={() =>
-            console.warn("Favorite click not implemented in panel")
-          }
-          className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10"
+          onClick={handleFavClick} // <-- Use the internal handler
+          // Disable button if needed info is missing or if action not provided
+          disabled={!onFavoriteClick || !mealId || !mealDate}
+          className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
           data-tooltip-id="global-tooltip"
           data-tooltip-content={favoriteTooltip}
@@ -470,10 +483,12 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   recommendation,
   onClose,
   nutritionalGoals, // Can be null
-  currentNutritionalValues, // Current day's totals (including simulated recommendation if selected)
+  currentNutritionalValues,
+  baseNutritionalValues,
   selectedDate,
   currentLevel,
   onShowRecipe,
+  onFavoriteToggle,
 }) => {
   // Determine what to display based on selection priority:
   // If a specific food/ingredient is selected, prioritize it.
@@ -554,6 +569,20 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       case "meal": {
         const m = displayItem as Meal;
         const mealDate = m.date || selectedDate;
+
+        // Define the click handler for the favorite button
+        const handleFavoriteClick = () => {
+          if (onFavoriteToggle && m.id && mealDate) {
+            onFavoriteToggle(m.id, mealDate); // Call the passed handler
+          } else {
+            console.error("Missing data or handler for favorite toggle", {
+              handlerExists: !!onFavoriteToggle,
+              mealId: m.id,
+              mealDate: mealDate,
+            });
+          }
+        };
+
         return (
           <>
             {/* Pass isFavorited status to DetailHeader */}
@@ -567,6 +596,9 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isTraceMeal
               isFavorited={m.isFavorited}
               onClose={onClose}
+              onFavoriteClick={handleFavoriteClick}
+              mealId={m.id}
+              mealDate={mealDate}
             />
             <ScoreDisplay
               varietyScore={m.varietyScore}

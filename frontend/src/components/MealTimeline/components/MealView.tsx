@@ -109,12 +109,12 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   onFavoriteClick,
 }) => {
   const [isFavoriting, setIsFavoriting] = useState(false);
-  // Use meal.isFavorited directly if available, otherwise default to false
+  // Use meal.isFavorited directly, default to false if undefined
   const [optimisticFavorite, setOptimisticFavorite] = useState(
     meal.isFavorited ?? false
   );
 
-  // Update optimistic state if the prop changes (e.g., after successful favorite)
+  // Update optimistic state if the prop changes (e.g., after successful favorite/unfavorite)
   useEffect(() => {
     setOptimisticFavorite(meal.isFavorited ?? false);
   }, [meal.isFavorited]);
@@ -153,11 +153,14 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     // Optimistic UI update happens here
-    setOptimisticFavorite(true); // Example: Assume success initially
+    // Toggle the favorite state optimistically
+    const newState = !optimisticFavorite;
+    setOptimisticFavorite(newState);
     setIsFavoriting(true);
     // Trigger the handler passed from MealView, which will call the API
-    onFavoriteClick();
+    onFavoriteClick(); // Parent handles API call and potential rollback
     // Reset loading state after a delay or based on parent feedback (if implemented)
+    // Parent should ideally update the meal prop which triggers the useEffect above
     setTimeout(() => setIsFavoriting(false), 1000); // Simple timeout for now
   };
 
@@ -174,8 +177,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   };
 
   const favoriteTooltip = optimisticFavorite
-    ? "Favorited Meal"
-    : "Favorite meal";
+    ? "Favorited! Click to unfavorite (Not Implemented)"
+    : "Favorite this meal! This will inform future recommendations! You are more likely to be recommended this item in the future.";
 
   return (
     <motion.div
@@ -192,7 +195,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         } // Primary ring, neutral border
         ${
           optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
-        } // Accent Yellow border/ring
+        } // Accent Yellow border/ring if favorited
         flex flex-col min-h-[120px]`} // Increased padding/min-height
       onClick={onClick}
     >
