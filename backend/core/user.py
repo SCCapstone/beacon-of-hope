@@ -43,7 +43,14 @@ class User:
         )
 
     def get_dietary_conditions(self) -> Dict:
-        return self.dietary_conditions
+        if hasattr(self, "dietary_conditions"):
+            return self.dietary_conditions
+        return {
+            "diabetes": False,
+            "gluten_free": False,
+            "vegan": False,
+            "vegetarian": False,
+        }
 
     def set_dietary_conditions(self, dietary_conditions) -> Dict:
         return self.firebaseManager.update_user_attr(
