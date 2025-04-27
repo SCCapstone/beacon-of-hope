@@ -18,6 +18,7 @@ import {
 } from "date-fns";
 import { FoodTypeIcon } from "./FoodTypeIcon";
 import { generateDateRange } from "../../../services/recipeService";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -77,6 +78,9 @@ interface FoodViewProps {
   isExpanded: boolean;
   maxBinsAcrossAllDates: number;
   defaultBinCount: number;
+  setIsExpanded: (isExpanded: boolean) => void;
+  showExpansionButton: boolean;
+  expandButtonTooltip: string;
 }
 
 // Food Card Component
@@ -196,6 +200,9 @@ export const FoodView: React.FC<FoodViewProps> = ({
   isExpanded,
   maxBinsAcrossAllDates,
   defaultBinCount,
+  setIsExpanded,
+  showExpansionButton,
+  expandButtonTooltip,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300;
@@ -459,13 +466,10 @@ export const FoodView: React.FC<FoodViewProps> = ({
         style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
         {/* Inner container to enforce consistent width */}
-        <div className="inline-block min-w-full align-top">
-          {" "}
-          {/* NEW WRAPPER */}
+        <div className="inline-block min-w-full align-top relative">
           {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
           <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-            {" "}
-            {/* Removed min-w-max */}
+            {/* Date Header Cell */}
             <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
               Date
             </div>
@@ -481,6 +485,15 @@ export const FoodView: React.FC<FoodViewProps> = ({
                 {binName}
               </div>
             ))}
+            {/* Expansion Button Header Cell (conditional) */}
+            {showExpansionButton && (
+              <div
+                className="flex-shrink-0 w-12 p-3 border-l border-[#D3B89F] bg-[#FADFBB]" // Consistent header style
+                aria-hidden="true"
+              >
+                {/* Empty header cell */}
+              </div>
+            )}
           </div>
           {/* Past Loading Indicator */}
           {isFetchingPast && <LoadingIndicator position="top" />}
@@ -499,8 +512,8 @@ export const FoodView: React.FC<FoodViewProps> = ({
                 normalizeDate(currentDate),
                 normalizeDate(selectedDate)
               );
-              // Get the food assignments for this date using the new helper
               const foodsByBin = extractFoodsForBins(currentDate);
+              const visibleBinCountForThisDate = currentVisibleBinCount;
 
               return (
                 <div
@@ -545,7 +558,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
                   </div>
 
                   {/* Food Bins */}
-                  {Array.from({ length: currentVisibleBinCount }).map(
+                  {Array.from({ length: visibleBinCountForThisDate }).map(
                     (_, index) => {
                       // Get the correct bin name for this column index
                       const binName = headerBinNames[index];
@@ -592,16 +605,43 @@ export const FoodView: React.FC<FoodViewProps> = ({
                       );
                     }
                   )}
-                </div> // End date row
+
+                  {/* Empty Column Div for Button Space (conditional) */}
+                  {showExpansionButton && (
+                    <div
+                      className={`flex-shrink-0 w-12 border-l border-[#E0E0E0] bg-gray-50`} // Consistent background
+                      aria-hidden="true"
+                    >
+                      {/* Empty div */}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </div>{" "}
-          {/* End Content Rows Container */}
+          </div>
           {isFetchingFuture && <LoadingIndicator position="bottom" />}
-        </div>{" "}
+          {/* Single Expansion Button */}
+          {showExpansionButton && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="absolute top-1/2 -translate-y-1/2 right-1 z-20 p-2 rounded-full bg-white/70 backdrop-blur-sm shadow-lg text-gray-600 hover:text-pink-900 hover:bg-pink-50/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2"
+              data-tooltip-id="global-tooltip"
+              data-tooltip-content={expandButtonTooltip}
+              aria-label={
+                isExpanded ? "Collapse meal slots" : "Expand meal slots"
+              }
+            >
+              {isExpanded ? (
+                <ChevronLeftIcon className="w-5 h-5" />
+              ) : (
+                <ChevronRightIcon className="w-5 h-5" />
+              )}
+            </button>
+          )}
+        </div>
         {/* End Inner container */}
-      </div>{" "}
+      </div>
       {/* End Scroll Wrapper */}
-    </div> // End main component div
+    </div>
   );
 };
