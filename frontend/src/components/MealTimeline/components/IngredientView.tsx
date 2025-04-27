@@ -209,7 +209,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   loadedEndDate,
   scrollToTodayTrigger,
 }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300;
   const FETCH_RANGE_DAYS = 7;
 
@@ -487,140 +487,147 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
-          Date
-        </div>
-        {/* Header for the ingredients area */}
-        {/* Add right padding to this element as it's the last one */}
-        <div className="flex-1 p-3 text-left font-semibold text-[#6B4226] pr-[15px]">
-          Ingredients
-        </div>
-      </div>
-
-      {/* Scrollable container for DATES (Vertical Scroll) */}
+      {/* Scroll Wrapper: Handles both vertical and horizontal scrolling */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
+        className="flex-1 overflow-auto bg-[#FFFBF5] relative" // Use overflow-auto for both scrolls
         style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
-        {/* Past Loading Indicator */}
-        {isFetchingPast && <LoadingIndicator position="top" />}
-
-        {/* Render Date Rows */}
-        {/* Use divide-y for separation between date rows */}
-        <div className="min-w-full divide-y divide-[#E0E0E0]">
-          {allAvailableDates.map((currentDate) => {
-            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
-            if (!isValidDate(currentDate)) {
-              console.error(
-                "IngredientView: Invalid date object encountered in allAvailableDates",
-                currentDate
+        {/* Inner container to enforce consistent width */}
+        <div className="inline-block min-w-full align-top">
+          {" "}
+          {/* NEW WRAPPER */}
+          {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
+          <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+            {" "}
+            {/* Removed min-w-max */}
+            <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
+              Date
+            </div>
+            {/* Header for the ingredients area */}
+            <div className="flex-1 p-3 text-left font-semibold text-[#6B4226]">
+              Ingredients
+            </div>
+          </div>
+          {/* Past Loading Indicator */}
+          {isFetchingPast && <LoadingIndicator position="top" />}
+          {/* Content Rows Container */}
+          <div className="divide-y divide-[#E0E0E0]">
+            {allAvailableDates.map((currentDate) => {
+              const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
+              if (!isValidDate(currentDate)) {
+                console.error(
+                  "IngredientView: Invalid date object encountered in allAvailableDates",
+                  currentDate
+                );
+                return null;
+              }
+              // Use the same variable name as MealView for clarity
+              const isSelected = isSameDay(
+                normalizeDate(currentDate),
+                normalizeDate(selectedDate)
               );
-              return null;
-            }
-            // Use the same variable name as MealView for clarity
-            const isSelected = isSameDay(
-              normalizeDate(currentDate),
-              normalizeDate(selectedDate)
-            );
-            // Get the combined list of ingredients for this date
-            const combinedIngredients =
-              getCombinedIngredientsForDate(currentDate);
-            const totalIngredients = combinedIngredients.length;
+              // Get the combined list of ingredients for this date
+              const combinedIngredients =
+                getCombinedIngredientsForDate(currentDate);
+              const totalIngredients = combinedIngredients.length;
 
-            return (
-              // Use flex-row for the main layout
-              <div
-                key={currentDate.toISOString()}
-                id={dateId}
-                // Apply consistent row background from MealView
-                className={`flex min-h-[60px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
-                  isSelected ? "bg-[#8B4513]/5" : "bg-white"
-                }`}
-              >
-                {/* Cell 1: Date Information */}
+              return (
+                // Use flex-row for the main layout
                 <div
-                  // Apply consistent cell styling from MealView
-                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
-                    isSelected
-                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
-                      : "border-[#E0E0E0]"
+                  key={currentDate.toISOString()}
+                  id={dateId}
+                  // Apply consistent row background from MealView
+                  className={`flex min-h-[60px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                    isSelected ? "bg-[#8B4513]/5" : "bg-white"
                   }`}
                 >
+                  {/* Cell 1: Date Information */}
                   <div
-                    // Apply consistent text styling from MealView
-                    className={`font-semibold ${
-                      isSelected ? "text-[#8B4513]" : "text-gray-800"
+                    // Apply consistent cell styling from MealView
+                    className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                      isSelected
+                        ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                        : "border-[#E0E0E0]"
                     }`}
                   >
-                    {format(currentDate, "EEE")}
-                  </div>
-                  <div
-                    // Apply consistent text styling from MealView
-                    className={`text-sm ${
-                      isSelected ? "text-[#A0522D]" : "text-gray-500"
-                    }`}
-                  >
-                    {format(currentDate, "MMM d")}
-                  </div>
-                  <div
-                    // Apply consistent text styling from MealView
-                    className={`text-xs ${
-                      isSelected ? "text-[#A0522D]/80" : "text-gray-400"
-                    }`}
-                  >
-                    {format(currentDate, "yyyy")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    ({totalIngredients} ingredient
-                    {totalIngredients !== 1 ? "s" : ""})
-                  </div>
-                </div>
-
-                {/* Cell 2: Ingredients Area */}
-                <div
-                  className="flex-1 p-1.5 flex flex-wrap gap-1.5 items-start content-start" // Use flex-wrap, add padding and gap
-                >
-                  <AnimatePresence>
-                    {combinedIngredients.map((ingredient) => {
-                      const ingredientKey = getIngredientKey(ingredient);
-                      const selectedKey = selectedIngredient
-                        ? getIngredientKey(selectedIngredient)
-                        : null;
-                      const isCurrentlySelected =
-                        ingredientKey !== null && ingredientKey === selectedKey;
-                      return (
-                        <IngredientCard
-                          key={`${ingredientKey}-${ingredient.isRecommended}`}
-                          ingredient={ingredient}
-                          isSelected={isCurrentlySelected}
-                          isRecommended={ingredient.isRecommended}
-                          onClick={() => {
-                            onIngredientSelect(
-                              isCurrentlySelected ? null : ingredient,
-                              ingredient.isRecommended
-                            );
-                          }}
-                        />
-                      );
-                    })}
-                  </AnimatePresence>
-                  {/* Show message if no ingredients */}
-                  {totalIngredients === 0 && (
-                    <div className="flex items-center justify-center text-center text-gray-400 text-xs p-2 w-full h-full min-h-[40px]">
-                      .
+                    <div
+                      // Apply consistent text styling from MealView
+                      className={`font-semibold ${
+                        isSelected ? "text-[#8B4513]" : "text-gray-800"
+                      }`}
+                    >
+                      {format(currentDate, "EEE")}
                     </div>
-                  )}
+                    <div
+                      // Apply consistent text styling from MealView
+                      className={`text-sm ${
+                        isSelected ? "text-[#A0522D]" : "text-gray-500"
+                      }`}
+                    >
+                      {format(currentDate, "MMM d")}
+                    </div>
+                    <div
+                      // Apply consistent text styling from MealView
+                      className={`text-xs ${
+                        isSelected ? "text-[#A0522D]/80" : "text-gray-400"
+                      }`}
+                    >
+                      {format(currentDate, "yyyy")}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      ({totalIngredients} ingredient
+                      {totalIngredients !== 1 ? "s" : ""})
+                    </div>
+                  </div>
+
+                  {/* Cell 2: Ingredients Area */}
+                  <div
+                    className="flex-1 p-1.5 flex flex-wrap gap-1.5 items-start content-start" // Use flex-wrap, add padding and gap
+                  >
+                    <AnimatePresence>
+                      {combinedIngredients.map((ingredient) => {
+                        const ingredientKey = getIngredientKey(ingredient);
+                        const selectedKey = selectedIngredient
+                          ? getIngredientKey(selectedIngredient)
+                          : null;
+                        const isCurrentlySelected =
+                          ingredientKey !== null &&
+                          ingredientKey === selectedKey;
+                        return (
+                          <IngredientCard
+                            key={`${ingredientKey}-${ingredient.isRecommended}`}
+                            ingredient={ingredient}
+                            isSelected={isCurrentlySelected}
+                            isRecommended={ingredient.isRecommended}
+                            onClick={() => {
+                              onIngredientSelect(
+                                isCurrentlySelected ? null : ingredient,
+                                ingredient.isRecommended
+                              );
+                            }}
+                          />
+                        );
+                      })}
+                    </AnimatePresence>
+                    {/* Show message if no ingredients */}
+                    {totalIngredients === 0 && (
+                      <div className="flex items-center justify-center text-center text-gray-400 text-xs p-2 w-full h-full min-h-[40px]">
+                        .
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Future Loading Indicator */}
-        {isFetchingFuture && <LoadingIndicator position="bottom" />}
-      </div>
+              );
+            })}
+          </div>{" "}
+          {/* End Content Rows Container */}
+          {/* Future Loading Indicator */}
+          {isFetchingFuture && <LoadingIndicator position="bottom" />}
+        </div>{" "}
+        {/* End Inner container */}
+      </div>{" "}
+      {/* End Scroll Wrapper */}
     </div>
   );
 };

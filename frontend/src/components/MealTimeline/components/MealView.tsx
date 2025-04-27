@@ -361,7 +361,7 @@ export const MealView: React.FC<MealViewProps> = ({
   organizeMealsIntoBins,
   allAvailableDates,
 }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the VERTICAL scroll container
+  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300; // Pixels from top/bottom edge to trigger fetch
   const FETCH_RANGE_DAYS = 7; // Number of days to fetch in each direction
 
@@ -650,162 +650,167 @@ export const MealView: React.FC<MealViewProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-        {/* Date Header Cell */}
-        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F] flex items-center justify-start">
-          <span>Date</span>
-        </div>
-        {/* Meal bin headers */}
-        {headerBinNames.map((binName, index) => (
-          <div
-            key={binName}
-            className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
-              index > 0 ? "border-l border-[#D3B89F]" : ""
-            } ${
-              index === headerBinNames.length - 1 ? "pr-[15px]" : "" // Pad last visible header
-            }`}
-            style={{ minWidth: "150px" }}
-          >
-            {binName}
-          </div>
-        ))}
-      </div>
-      {/* Scrollable container */}
+      {/* Scroll Wrapper: Handles both vertical and horizontal scrolling */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative"
-        style={{ scrollbarGutter: "stable" }}
+        className="flex-1 overflow-auto bg-[#FFFBF5] relative"
+        style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
-        {isFetchingPast && <LoadingIndicator position="top" />}
-        {/* This container needs to handle HORIZONTAL scrolling for the bins */}
-        <div className="min-w-full divide-y divide-[#E0E0E0] overflow-x-auto">
-          {allAvailableDates.map((currentDate) => {
-            // Use prop allAvailableDates
-            const isSelected = isSameDay(
-              normalizeDate(currentDate),
-              normalizeDate(selectedDate)
-            );
-            // Organize bins for *this specific date* using the passed function
-            const {
-              bins: binsForDate,
-              currentBinNames: currentBinNamesForDate,
-            } = organizeMealsIntoBins(currentDate);
-
-            // Use the globally calculated currentVisibleBinCount for rendering columns
-            const visibleBinCountForThisDate = currentVisibleBinCount; // Use calculated count
-
-            return (
+        {/* Inner container to enforce consistent width */}
+        <div className="inline-block min-w-full align-top">
+          {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
+          <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+            {/* Removed min-w-max */}
+            {/* Date Header Cell */}
+            <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F] flex items-center justify-start">
+              <span>Date</span>
+            </div>
+            {/* Meal bin headers */}
+            {headerBinNames.map((binName, index) => (
               <div
-                key={currentDate.toISOString()}
-                id={`date-row-${format(currentDate, "yyyy-MM-dd")}`}
-                className={`flex min-h-[180px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
-                  isSelected ? "bg-[#8B4513]/5" : "bg-white"
-                } min-w-max`}
+                key={binName}
+                className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
+                  index > 0 ? "border-l border-[#D3B89F]" : ""
+                }`}
+                style={{ minWidth: "150px" }}
               >
-                {/* Date Cell */}
+                {binName}
+              </div>
+            ))}
+          </div>
+          {isFetchingPast && <LoadingIndicator position="top" />}
+          {/* Content Rows Container */}
+          <div className="divide-y divide-[#E0E0E0]">
+            {" "}
+            {/* Removed min-w-full */}
+            {allAvailableDates.map((currentDate) => {
+              // Use prop allAvailableDates
+              const isSelected = isSameDay(
+                normalizeDate(currentDate),
+                normalizeDate(selectedDate)
+              );
+              // Organize bins for *this specific date* using the passed function
+              const {
+                bins: binsForDate,
+                currentBinNames: currentBinNamesForDate,
+              } = organizeMealsIntoBins(currentDate);
+
+              // Use the globally calculated currentVisibleBinCount for rendering columns
+              const visibleBinCountForThisDate = currentVisibleBinCount; // Use calculated count
+
+              return (
                 <div
-                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
-                    isSelected
-                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
-                      : "border-[#E0E0E0]"
-                  }`}
+                  key={currentDate.toISOString()}
+                  id={`date-row-${format(currentDate, "yyyy-MM-dd")}`}
+                  className={`flex min-h-[180px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                    isSelected ? "bg-[#8B4513]/5" : "bg-white"
+                  }`} // Ensure row expands horizontally
                 >
+                  {/* Date Cell */}
                   <div
-                    className={`font-semibold ${
-                      isSelected ? "text-[#8B4513]" : "text-gray-800"
+                    className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                      isSelected
+                        ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                        : "border-[#E0E0E0]"
                     }`}
                   >
-                    {format(currentDate, "EEE")}
+                    <div
+                      className={`font-semibold ${
+                        isSelected ? "text-[#8B4513]" : "text-gray-800"
+                      }`}
+                    >
+                      {format(currentDate, "EEE")}
+                    </div>
+                    <div
+                      className={`text-sm ${
+                        isSelected ? "text-[#A0522D]" : "text-gray-500"
+                      }`}
+                    >
+                      {format(currentDate, "MMM d")}
+                    </div>
+                    <div
+                      className={`text-xs ${
+                        isSelected ? "text-[#A0522D]/80" : "text-gray-400"
+                      }`}
+                    >
+                      {format(currentDate, "yyyy")}
+                    </div>
                   </div>
-                  <div
-                    className={`text-sm ${
-                      isSelected ? "text-[#A0522D]" : "text-gray-500"
-                    }`}
-                  >
-                    {format(currentDate, "MMM d")}
-                  </div>
-                  <div
-                    className={`text-xs ${
-                      isSelected ? "text-[#A0522D]/80" : "text-gray-400"
-                    }`}
-                  >
-                    {format(currentDate, "yyyy")}
-                  </div>
-                </div>
 
-                {/* Meal Bins for this date - Render based on visibleBinCountForThisDate */}
-                {Array.from({ length: visibleBinCountForThisDate }).map(
-                  (_, index) => {
-                    const binName = currentBinNamesForDate[index];
-                    const binContent = binName ? binsForDate[binName] : null;
-                    const mealsInBin = binContent?.meals || [];
-                    const recommendationsInBin =
-                      binContent?.recommendations || [];
-                    const keyName = headerBinNames[index] || `bin-${index}`;
+                  {/* Meal Bins for this date */}
+                  {Array.from({ length: visibleBinCountForThisDate }).map(
+                    (_, index) => {
+                      const binName = currentBinNamesForDate[index];
+                      const binContent = binName ? binsForDate[binName] : null;
+                      const mealsInBin = binContent?.meals || [];
+                      const recommendationsInBin =
+                        binContent?.recommendations || [];
+                      const keyName = headerBinNames[index] || `bin-${index}`;
 
-                    return (
-                      <div
-                        key={`${currentDate.toISOString()}-${keyName}`}
-                        className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
-                          index > 0 ? "border-l" : ""
-                        } ${
-                          isSelected && index > 0
-                            ? "border-[#A0522D]/30"
-                            : index > 0
-                            ? "border-[#E0E0E0]"
-                            : ""
-                        }`}
-                        style={{ minWidth: "150px" }}
-                      >
-                        <AnimatePresence>
-                          {mealsInBin.map((meal) =>
-                            renderMealCard(meal, currentDate)
-                          )}
-                        </AnimatePresence>
-                        <AnimatePresence>
-                          {recommendationsInBin.map((recommendation) => (
-                            <RecommendedMealCard
-                              key={`rec-${
-                                recommendation.meal.id
-                              }-${currentDate.toISOString()}`}
-                              className="flex-shrink-0"
-                              recommendation={recommendation}
-                              onAccept={() =>
-                                onAcceptRecommendationClick(recommendation)
-                              }
-                              onReject={() =>
-                                onRejectRecommendationClick(recommendation)
-                              }
-                              onClick={() =>
-                                onRecommendationSelect(recommendation)
-                              }
-                              isSelected={
-                                selectedRecommendation?.meal.id ===
-                                recommendation.meal.id
-                              }
-                            />
-                          ))}
-                        </AnimatePresence>
-                        {mealsInBin.length === 0 &&
-                          recommendationsInBin.length === 0 && (
-                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                              {/* Empty placeholder */}
-                            </div>
-                          )}
-                      </div>
-                    );
-                  }
-                )}
-              </div> /* End date row */
-            );
-          })}
-          {/* End map over allAvailableDates */}
-        </div>
-        {/* End horizontal scroll container */}
-        {isFetchingFuture && <LoadingIndicator position="bottom" />}
-      </div>
-      {/* End vertical scroll container */}
+                      return (
+                        <div
+                          key={`${currentDate.toISOString()}-${keyName}`}
+                          className={`flex-1 p-3 overflow-hidden flex flex-col items-stretch justify-start space-y-2 ${
+                            index > 0 ? "border-l" : ""
+                          } ${
+                            isSelected // Apply highlight border consistently
+                              ? "border-[#A0522D]/30"
+                              : index > 0
+                              ? "border-[#E0E0E0]"
+                              : ""
+                          }`}
+                          style={{ minWidth: "150px" }}
+                        >
+                          <AnimatePresence>
+                            {mealsInBin.map((meal) =>
+                              renderMealCard(meal, currentDate)
+                            )}
+                          </AnimatePresence>
+                          <AnimatePresence>
+                            {recommendationsInBin.map((recommendation) => (
+                              <RecommendedMealCard
+                                key={`rec-${
+                                  recommendation.meal.id
+                                }-${currentDate.toISOString()}`}
+                                className="flex-shrink-0"
+                                recommendation={recommendation}
+                                onAccept={() =>
+                                  onAcceptRecommendationClick(recommendation)
+                                }
+                                onReject={() =>
+                                  onRejectRecommendationClick(recommendation)
+                                }
+                                onClick={() =>
+                                  onRecommendationSelect(recommendation)
+                                }
+                                isSelected={
+                                  selectedRecommendation?.meal.id ===
+                                  recommendation.meal.id
+                                }
+                              />
+                            ))}
+                          </AnimatePresence>
+                          {mealsInBin.length === 0 &&
+                            recommendationsInBin.length === 0 && (
+                              <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                                {/* Empty placeholder */}
+                              </div>
+                            )}
+                        </div>
+                      );
+                    }
+                  )}
+                </div> /* End date row */
+              );
+            })}
+            {/* End map over allAvailableDates */}
+          </div>{" "}
+          {/* End Content Rows Container */}
+          {isFetchingFuture && <LoadingIndicator position="bottom" />}
+        </div>{" "}
+        {/* End Inner container */}
+      </div>{" "}
+      {/* End Scroll Wrapper */}
       {modalConfig && <CustomModal {...modalConfig} />}
     </div> /* End main component div */
   );

@@ -192,7 +192,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
   maxBinsAcrossAllDates,
   defaultBinCount,
 }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300;
   const FETCH_RANGE_DAYS = 7;
 
@@ -447,151 +447,156 @@ export const FoodView: React.FC<FoodViewProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden box-border">
-      {/* Fixed header */}
-      <div className="flex border-b bg-[#FADFBB] z-10 sticky top-0 flex-shrink-0 border-[#D3B89F]">
-        <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
-          Date
-        </div>
-        {/* Render bin headers */}
-        {headerBinNames.map((binName, index) => (
-          <div
-            key={binName}
-            className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
-              index > 0 ? "border-l border-[#D3B89F]" : ""
-            } ${
-              index === headerBinNames.length - 1 ? "pr-[15px]" : "" // Pad last visible header
-            }`}
-            style={{ minWidth: "150px" }} // Ensure minimum width for bins
-          >
-            {binName}
-          </div>
-        ))}
-      </div>
-
-      {/* Scrollable container */}
+      {/* Scroll Wrapper: Handles both vertical and horizontal scrolling */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-[#FFFBF5] relative" // Base cream background
+        className="flex-1 overflow-auto bg-[#FFFBF5] relative" // Use overflow-auto for both scrolls
         style={{ scrollbarGutter: "stable" }} // Reserve space for scrollbar
       >
-        {/* Past Loading Indicator */}
-        {isFetchingPast && <LoadingIndicator position="top" />}
-
-        {/* Render Date Rows */}
-        {/* This container needs to handle HORIZONTAL scrolling for the bins */}
-        <div className="min-w-full divide-y divide-[#E0E0E0] overflow-x-auto">
-          {allAvailableDates.map((currentDate) => {
-            const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
-            if (!isValidDate(currentDate)) {
-              console.error(
-                "FoodView: Invalid date object encountered in allAvailableDates",
-                currentDate
-              );
-              return null;
-            }
-            const isSelectedHighlight = isSameDay(
-              normalizeDate(currentDate),
-              normalizeDate(selectedDate)
-            );
-            // Get the food assignments for this date using the new helper
-            const foodsByBin = extractFoodsForBins(currentDate);
-
-            return (
+        {/* Inner container to enforce consistent width */}
+        <div className="inline-block min-w-full align-top">
+          {" "}
+          {/* NEW WRAPPER */}
+          {/* Sticky Header: Stays at the top *within* the scroll wrapper */}
+          <div className="flex border-b bg-[#FADFBB] z-30 sticky top-0 flex-shrink-0 border-[#D3B89F]">
+            {" "}
+            {/* Removed min-w-max */}
+            <div className="w-32 flex-shrink-0 p-3 font-semibold text-[#6B4226] border-r border-[#D3B89F]">
+              Date
+            </div>
+            {/* Render bin headers */}
+            {headerBinNames.map((binName, index) => (
               <div
-                key={currentDate.toISOString()}
-                id={dateId}
-                className={`flex min-h-[150px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
-                  isSelectedHighlight ? "bg-[#8B4513]/5" : "bg-white"
-                } min-w-max`} // Ensure row expands horizontally
+                key={binName}
+                className={`flex-1 p-3 text-center font-semibold text-[#6B4226] ${
+                  index > 0 ? "border-l border-[#D3B89F]" : ""
+                }`}
+                style={{ minWidth: "150px" }} // Ensure minimum width for bins
               >
-                {/* Date Cell */}
+                {binName}
+              </div>
+            ))}
+          </div>
+          {/* Past Loading Indicator */}
+          {isFetchingPast && <LoadingIndicator position="top" />}
+          {/* Content Rows Container: No longer needs min-w-full */}
+          <div className="divide-y divide-[#E0E0E0]">
+            {allAvailableDates.map((currentDate) => {
+              const dateId = `date-row-${format(currentDate, "yyyy-MM-dd")}`;
+              if (!isValidDate(currentDate)) {
+                console.error(
+                  "FoodView: Invalid date object encountered in allAvailableDates",
+                  currentDate
+                );
+                return null;
+              }
+              const isSelectedHighlight = isSameDay(
+                normalizeDate(currentDate),
+                normalizeDate(selectedDate)
+              );
+              // Get the food assignments for this date using the new helper
+              const foodsByBin = extractFoodsForBins(currentDate);
+
+              return (
                 <div
-                  className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
-                    // Adjusted padding
-                    isSelectedHighlight
-                      ? "border-[#A0522D]/30 bg-[#8B4513]/5"
-                      : "border-[#E0E0E0]"
-                  }`}
+                  key={currentDate.toISOString()}
+                  id={dateId}
+                  className={`flex min-h-[150px] hover:bg-[#FEF9F0] transition-colors duration-150 ${
+                    isSelectedHighlight ? "bg-[#8B4513]/5" : "bg-white"
+                  } `}
                 >
+                  {/* Date Cell */}
                   <div
-                    className={`font-semibold ${
-                      isSelectedHighlight ? "text-[#8B4513]" : "text-gray-800" // Primary text color for selected
-                    }`}
-                  >
-                    {format(currentDate, "EEE")}
-                  </div>
-                  <div
-                    className={`text-sm ${
-                      isSelectedHighlight ? "text-[#A0522D]" : "text-gray-500" // Slightly lighter primary text
-                    }`}
-                  >
-                    {format(currentDate, "MMM d")}
-                  </div>
-                  <div
-                    className={`text-xs ${
+                    className={`w-32 flex-shrink-0 p-3 border-r flex flex-col justify-start ${
+                      // Adjusted padding
                       isSelectedHighlight
-                        ? "text-[#A0522D]/80"
-                        : "text-gray-400" // Lighter primary text
+                        ? "border-[#A0522D]/30 bg-[#8B4513]/5"
+                        : "border-[#E0E0E0]"
                     }`}
                   >
-                    {format(currentDate, "yyyy")}
+                    <div
+                      className={`font-semibold ${
+                        isSelectedHighlight ? "text-[#8B4513]" : "text-gray-800" // Primary text color for selected
+                      }`}
+                    >
+                      {format(currentDate, "EEE")}
+                    </div>
+                    <div
+                      className={`text-sm ${
+                        isSelectedHighlight ? "text-[#A0522D]" : "text-gray-500" // Slightly lighter primary text
+                      }`}
+                    >
+                      {format(currentDate, "MMM d")}
+                    </div>
+                    <div
+                      className={`text-xs ${
+                        isSelectedHighlight
+                          ? "text-[#A0522D]/80"
+                          : "text-gray-400" // Lighter primary text
+                      }`}
+                    >
+                      {format(currentDate, "yyyy")}
+                    </div>
                   </div>
-                </div>
 
-                {/* Food Bins - Render based on visibleBinCount */}
-                {Array.from({ length: currentVisibleBinCount }).map(
-                  (_, index) => {
-                    // Get the correct bin name for this column index
-                    const binName = headerBinNames[index];
-                    // Get the food content for this specific bin name
-                    const binContent = foodsByBin[binName] || [];
-                    const keyName = binName || `bin-${index}`;
+                  {/* Food Bins */}
+                  {Array.from({ length: currentVisibleBinCount }).map(
+                    (_, index) => {
+                      // Get the correct bin name for this column index
+                      const binName = headerBinNames[index];
+                      // Get the food content for this specific bin name
+                      const binContent = foodsByBin[binName] || [];
+                      const keyName = binName || `bin-${index}`;
 
-                    return (
-                      <div
-                        key={`${currentDate.toISOString()}-${keyName}`}
-                        className={`flex-1 p-3 w-full flex flex-col items-stretch justify-start overflow-y-auto ${
-                          index > 0 ? "border-l" : ""
-                        } ${
-                          isSelectedHighlight && index > 0
-                            ? "border-[#A0522D]/30" // Highlighted border
-                            : index > 0
-                            ? "border-[#E0E0E0]" // Normal border
-                            : ""
-                        }`}
-                        style={{ minWidth: "150px" }} // Ensure min width for bins
-                      >
-                        <AnimatePresence>
-                          {binContent?.map((food) => (
-                            <FoodCard
-                              key={`${food.id}-${food.isRecommended}`}
-                              food={food}
-                              isSelected={selectedFood?.id === food.id}
-                              isRecommended={food.isRecommended}
-                              onClick={() => {
-                                onFoodSelect(
-                                  selectedFood?.id === food.id ? null : food,
-                                  food.isRecommended
-                                );
-                              }}
-                            />
-                          ))}
-                        </AnimatePresence>
-                        {(!binContent || binContent.length === 0) && (
-                          <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
-                            ·
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                )}
-              </div> // End date row
-            );
-          })}
-        </div>
-        {isFetchingFuture && <LoadingIndicator position="bottom" />}
-      </div>
+                      return (
+                        <div
+                          key={`${currentDate.toISOString()}-${keyName}`}
+                          className={`flex-1 p-3 w-full flex flex-col items-stretch justify-start overflow-y-auto ${
+                            index > 0 ? "border-l" : ""
+                          } ${
+                            isSelectedHighlight // Apply highlight border consistently
+                              ? "border-[#A0522D]/30" // Highlighted border
+                              : index > 0
+                              ? "border-[#E0E0E0]" // Normal border
+                              : ""
+                          }`}
+                          style={{ minWidth: "150px" }} // Ensure min width for bins
+                        >
+                          <AnimatePresence>
+                            {binContent?.map((food) => (
+                              <FoodCard
+                                key={`${food.id}-${food.isRecommended}`}
+                                food={food}
+                                isSelected={selectedFood?.id === food.id}
+                                isRecommended={food.isRecommended}
+                                onClick={() => {
+                                  onFoodSelect(
+                                    selectedFood?.id === food.id ? null : food,
+                                    food.isRecommended
+                                  );
+                                }}
+                              />
+                            ))}
+                          </AnimatePresence>
+                          {(!binContent || binContent.length === 0) && (
+                            <div className="h-full flex items-center justify-center text-center text-gray-400 text-xs p-2">
+                              ·
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
+                </div> // End date row
+              );
+            })}
+          </div>{" "}
+          {/* End Content Rows Container */}
+          {isFetchingFuture && <LoadingIndicator position="bottom" />}
+        </div>{" "}
+        {/* End Inner container */}
+      </div>{" "}
+      {/* End Scroll Wrapper */}
     </div> // End main component div
   );
 };
