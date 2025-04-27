@@ -126,9 +126,9 @@ interface MealCalendarVizProps {
   isFetchingFuture: boolean;
   loadedStartDate: Date | null;
   loadedEndDate: Date | null;
-  getMealsForDate: (date: Date) => Meal[];
-  getRecommendationsForDate: (date: Date) => MealRecommendation[];
-  organizeMealsIntoBins: (date: Date) => {
+  getMealsForDate?: (date: Date) => Meal[];
+  getRecommendationsForDate?: (date: Date) => MealRecommendation[];
+  organizeMealsIntoBins?: (date: Date) => {
     bins: Record<
       string,
       { meals: Meal[]; recommendations: MealRecommendation[] }
@@ -136,7 +136,7 @@ interface MealCalendarVizProps {
     maxBinsNeeded: number;
     currentBinNames: string[];
   };
-  allAvailableDates: Date[];
+  allAvailableDates?: Date[];
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
