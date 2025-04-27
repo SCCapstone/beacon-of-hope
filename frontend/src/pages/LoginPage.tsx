@@ -56,30 +56,9 @@ const LoginPage: React.FC = () => {
             }}
           >
             Log in to personalize your journey or explore as a guest
-            <br />
-            <br />
           </p>
 
-          <button
-            className="google-login-button"
-            style={{
-              opacity: 0.6,
-              cursor: "not-allowed",
-            }}
-            title="Coming soon!"
-          >
-            <img src="../../google-logo.png" alt="Google" />
-            <p
-              style={{
-                fontWeight: "700",
-                fontSize: ".9vw",
-                color: "#828282",
-                fontFamily: "Nunito Sans",
-              }}
-            >
-              Continue with Google
-            </p>
-          </button>
+          
 
           <div
             style={{
@@ -110,7 +89,6 @@ const LoginPage: React.FC = () => {
               marginTop: "1.1%",
             }}
           >
-            ------------or Sign in with Email------------
           </p>
         </div>
         <div id="login--content">
