@@ -55,7 +55,7 @@ def save_meal(request: HttpRequest):
         logger.info("Parsing Request Body ...")
         data = json.loads(request.body)
 
-        keys = ["date", "user_id", "meal_id"]
+        keys = ["date", "user_id", "meal_id", "nl_recommendations"]
         for key in keys:
             if key not in data:
                 return JsonResponse(
@@ -63,7 +63,7 @@ def save_meal(request: HttpRequest):
                     status=403,
                 )
 
-        date, user_id, meal_id = [data[key] for key in keys]
+        date, user_id, meal_id, nl_recommendations = [data[key] for key in keys]
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
             return JsonResponse(
@@ -106,6 +106,7 @@ def save_meal(request: HttpRequest):
         for meal in day_plan["meals"]:
             if meal["_id"] == meal_id:
                 # store meal in permanent day plan
+                meal["nl_recommendations"] = nl_recommendations
                 msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
 
                 return JsonResponse(
