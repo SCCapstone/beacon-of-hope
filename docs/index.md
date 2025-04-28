@@ -1,6 +1,6 @@
 # Beacon of Hope
 
-![Video Placeholder](https://via.placeholder.com/800x450.png?text=Demo+Video+Coming+Soon)
+[![demo video](https://img.youtube.com/vi/LK97haFz-t0/maxresdefault.jpg)](https://youtu.be/LK97haFz-t0)
 
 ## Your Personalized, Context-Aware Meal Planning Companion
 
