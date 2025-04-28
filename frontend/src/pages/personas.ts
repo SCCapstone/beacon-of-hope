@@ -26,7 +26,7 @@ export const personas: { [key: string]: Persona } = {
     },
     mealPlanConfig: {
       mealPlanLength: 3,
-      mealsPerDay: 1,
+      mealsPerDay: 3,
       mealPlanName: "Soul Food Plan",
       mealPlanStartDate: currentDate, 
     },
@@ -88,7 +88,7 @@ export const personas: { [key: string]: Persona } = {
     },
     mealPlanConfig: {
       mealPlanLength: 1,
-      mealsPerDay: 3,
+      mealsPerDay: 2,
       mealPlanName: "Diabetic-Friendly Plan",
       mealPlanStartDate: currentDate,
     },
