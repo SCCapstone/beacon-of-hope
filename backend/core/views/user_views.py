@@ -15,7 +15,7 @@ from termcolor import colored
 
 firebaseManager = FirebaseManager()
 db = firestore.client()
-  # DB manager
+# DB manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -44,9 +44,9 @@ def create_user(request: HttpRequest):
             "dietary_preferences": {
                 "preferences": [""],
                 "numerical_preferences": {
-                    "dairy": 0,
-                    "nuts": 0,
-                    "meat": 0,
+                    "dairyPreference": 0,
+                    "nutsPreference": 0,
+                    "meatPreference": 0,
                 },
             },
             "dietary_conditions": {
@@ -60,6 +60,7 @@ def create_user(request: HttpRequest):
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "temp_day_plans": {},
+            "day_plans": {},
             "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
                 "Main Course": [],
@@ -253,9 +254,9 @@ def exit_default(request: HttpRequest):
             "dietary_preferences": {
                 "preferences": [""],
                 "numerical_preferences": {
-                    "dairy": 0,
-                    "nuts": 0,
-                    "meat": 0,
+                    "dairyPreference": 0,
+                    "nutsPreference": 0,
+                    "meatPreference": 0,
                 },
             },
             "dietary_conditions": {
@@ -269,6 +270,7 @@ def exit_default(request: HttpRequest):
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "temp_day_plans": {},
+            "day_plans": {},
             "bandit_counter": 1,  # we'll check if this is 0 mod 5 to determine when to get new items for a user
             "favorite_items": {
                 "Main Course": [],
@@ -382,33 +384,35 @@ def get_nutritional_goals(request: HttpRequest, user_id: str):
         logger.exception("get_nutritional_goals failed")
         return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
 
+
 # @csrf_exempt
-@api_view(['POST'])
+@api_view(["POST"])
 def logout_user(request):
     try:
-        user_id = request.data.get('user_id')
+        user_id = request.data.get("user_id")
         if not user_id:
             return Response({"error": "Missing user_id"}, status=400)
 
-        user_ref = db.collection('users').document(user_id)
+        user_ref = db.collection("users").document(user_id)
         user_doc = user_ref.get()
 
         if not user_doc.exists:
             return Response({"error": "User not found"}, status=404)
 
         user_data = user_doc.to_dict()
-        temp_day_plans = user_data.get('temp_day_plans', {})
+        temp_day_plans = user_data.get("temp_day_plans", {})
 
         for day, temp_plan_id in temp_day_plans.items():
-            temp_day_plan_ref = db.collection('temp_day_plans').document(temp_plan_id)
+            temp_day_plan_ref = db.collection("temp_day_plans").document(temp_plan_id)
             temp_day_plan_ref.delete()
 
-        user_ref.update({
-            'temp_day_plans': {}
-        })
+        user_ref.update({"temp_day_plans": {}})
 
-        return Response({"message": "Successfully logged out and cleared temp day plans."}, status=200)
-    
+        return Response(
+            {"message": "Successfully logged out and cleared temp day plans."},
+            status=200,
+        )
+
     except Exception as e:
         print("🔥🔥🔥 ERROR:", e)
         return Response({"error": str(e)}, status=500)
