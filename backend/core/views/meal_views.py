@@ -61,16 +61,12 @@ def save_meal(request: HttpRequest):
         data = json.loads(request.body)
         keys = ["date", "user_id", "meal_id", "nl_recommendations"]
         for key in keys:
-            if key == "nl_recommendations":
-                data["nl_recommendations"] = []
             if key not in data:
-                if key == "nl_recommendations":
-                    data["nl_recommendations"] = []
-                else:
-                    return JsonResponse(
-                        {"Error": f"Request Body missing required attribute: {key}"},
-                        status=403,
-                    )
+
+                return JsonResponse(
+                    {"Error": f"Request Body missing required attribute: {key}"},
+                    status=403,
+                )
 
         date, user_id, meal_id, nl_recommendations = [data[key] for key in keys]
         user, status = firebaseManager.get_user_by_id(user_id)
