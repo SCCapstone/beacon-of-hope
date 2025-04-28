@@ -1,26 +1,15 @@
 const UserInformation: React.FC<{
   height: string;
-  age: string;
+  age: number;
   weight: string;
   gender: string;
-  handleChange: (
-    e: React.ChangeEvent<HTMLSelectElement>,
-    setter: React.Dispatch<React.SetStateAction<string>>
-  ) => void;
-  setHeight: React.Dispatch<React.SetStateAction<string>>;
-  setAge: React.Dispatch<React.SetStateAction<string>>;
-  setWeight: React.Dispatch<React.SetStateAction<string>>;
-  setGender: React.Dispatch<React.SetStateAction<string>>;
+  handleChange: (key: "height" | "age" | "weight" | "gender", value: string | number) => void;
 }> = ({
   height,
   age,
   weight,
   gender,
-  handleChange,
-  setHeight,
-  setAge,
-  setWeight,
-  setGender,
+  handleChange
 }) => {
 
   // Parse current height into feet and inches
@@ -28,7 +17,7 @@ const UserInformation: React.FC<{
 
   // Handle height changes
   const handleHeightChange = (feet: number, inches: number) => {
-    setHeight(`${feet}'${inches}"`);
+    handleChange("height", `${feet}'${inches}"`);
   };
 
   return (
@@ -44,27 +33,6 @@ const UserInformation: React.FC<{
           >
             Height
           </label>
-          {/* <select
-            id="height"
-            value={height}
-            onChange={(e) => handleChange(e, setHeight)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
-          >
-            <option value="">Select Height</option>
-            {Array.from({ length: 5 }, (_, feet) => {
-              return Array.from({ length: 12 }, (_, inches) => {
-                const totalFeet = feet + 4; // Start from 4 feet
-                return (
-                  <option
-                    key={`${totalFeet}-${inches}`}
-                    value={`${totalFeet}'${inches}"`}
-                  >
-                    {`${totalFeet}' ${inches}"`}
-                  </option>
-                );
-              });
-            })}
-          </select> */}
           <div className="flex gap-2">
             <div className="flex-1">
               <select
@@ -110,7 +78,7 @@ const UserInformation: React.FC<{
           <select
             id="age"
             value={age}
-            onChange={(e) => handleChange(e, setAge)}
+            onChange={(e) => handleChange("age", Number(e.target.value))}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
           >
             <option value="">Select Age</option>
@@ -133,7 +101,7 @@ const UserInformation: React.FC<{
           <select
             id="weight"
             value={weight}
-            onChange={(e) => handleChange(e, setWeight)}
+            onChange={(e) => handleChange("weight", e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
           >
             <option value="">Select Weight</option>
@@ -158,7 +126,7 @@ const UserInformation: React.FC<{
           <select
             id="gender"
             value={gender}
-            onChange={(e) => handleChange(e, setGender)}
+            onChange={(e) => handleChange("gender", e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
           >
             <option value="">Select Gender</option>

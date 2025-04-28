@@ -1,14 +1,11 @@
 import React from 'react';
 
 interface Props {
-  calories: number;
-  carbs: number;
-  protein: number;
-  fiber: number;
-  setCalories: React.Dispatch<React.SetStateAction<number>>;
-  setCarbs: React.Dispatch<React.SetStateAction<number>>;
-  setProtein: React.Dispatch<React.SetStateAction<number>>;
-  setFiber: React.Dispatch<React.SetStateAction<number>>;
+  calories: number | undefined;
+  carbs: number | undefined;
+  protein: number | undefined;
+  fiber: number | undefined;
+  onGoalChange: (key: "calories" | "carbs" | "protein" | "fiber", value: number) => void;
 }
 
 const NutritionalGoalsCard: React.FC<Props> = ({
@@ -16,17 +13,14 @@ const NutritionalGoalsCard: React.FC<Props> = ({
   carbs,
   protein,
   fiber,
-  setCalories,
-  setCarbs,
-  setProtein,
-  setFiber,
+  onGoalChange,
 }) => {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: React.Dispatch<React.SetStateAction<number>>
+    key: "calories" | "carbs" | "protein" | "fiber"
   ) => {
     const value = parseInt(e.target.value);
-    setter(value);
+    onGoalChange(key, value);
   };
 
   return (
@@ -47,7 +41,7 @@ const NutritionalGoalsCard: React.FC<Props> = ({
               type="number"
               id="calories"
               value={calories}
-              onChange={(e) => handleInputChange(e, setCalories)}
+              onChange={(e) => handleInputChange(e, "calories")}
               min="0"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             />
@@ -67,7 +61,7 @@ const NutritionalGoalsCard: React.FC<Props> = ({
               type="number"
               id="carbs"
               value={carbs}
-              onChange={(e) => handleInputChange(e, setCarbs)}
+              onChange={(e) => handleInputChange(e, "carbs")}
               min="0"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             />
@@ -87,7 +81,7 @@ const NutritionalGoalsCard: React.FC<Props> = ({
               type="number"
               id="protein"
               value={protein}
-              onChange={(e) => handleInputChange(e, setProtein)}
+              onChange={(e) => handleInputChange(e, "protein")}
               min="0"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             />
@@ -107,7 +101,7 @@ const NutritionalGoalsCard: React.FC<Props> = ({
               type="number"
               id="fiber"
               value={fiber}
-              onChange={(e) => handleInputChange(e, setFiber)}
+              onChange={(e) => handleInputChange(e, "fiber")}
               min="0"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-300 focus:ring focus:ring-orange-200 focus:ring-opacity-50"
             />
