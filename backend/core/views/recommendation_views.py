@@ -329,6 +329,7 @@ def regenerate_partial_meal_plan(request: HttpRequest):
                 {"Error": f"Failed to update bandit counter: {msg}"}, status=status
             )
 
+        dietary_conditions = user.get_dietary_conditions()
         if need_to_train:
             logger.info("Retraining bandit for new recommendations...")
             # Train bandit
@@ -345,7 +346,9 @@ def regenerate_partial_meal_plan(request: HttpRequest):
                     return JsonResponse({"Error": "Failed to test bandit"}, status=500)
 
                 # extract favorite items
-                favorite_items = get_bandit_favorite_items(trial_num, user_preferences)
+                favorite_items = get_bandit_favorite_items(
+                    trial_num, user_preferences, dietary_conditions=dietary_conditions
+                )
 
                 # update user in firebase
                 msg, status = user.set_favorite_items(favorite_items)
@@ -361,8 +364,6 @@ def regenerate_partial_meal_plan(request: HttpRequest):
         else:
             logger.info("Fetching user favorite items")
             favorite_items = user.get_favorite_items()
-
-        dietary_conditions = user.get_dietary_conditions()
 
         # Generate Bandit Recommendation
         try:

@@ -571,7 +571,9 @@ def test_bandit(bandit_trial_path):
 
 
 def get_bandit_favorite_items(
-    trial_num: int, user_preferences: Dict[str, int], dietary_condtions: Dict[str, bool]
+    trial_num: int,
+    user_preferences: Dict[str, int],
+    dietary_conditions: Dict[str, bool],
 ) -> Dict[str, List[str]]:
     # Read bandit's evaluation on test set, and consider those items for recommendation
     with open(
@@ -635,7 +637,7 @@ def get_bandit_favorite_items(
 
     logger.info(colored("Filtering food items based on dietary conditions", "green"))
     foods, bevs = filter_based_on_dietary_conditions(
-        food_ids=foods, bev_ids=bevs, dietary_conditions=dietary_condtions
+        food_ids=foods, bev_ids=bevs, dietary_conditions=dietary_conditions
     )
 
     return {
