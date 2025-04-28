@@ -18,6 +18,7 @@ import {
   InformationCircleIcon,
   XMarkIcon,
   BookOpenIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
@@ -237,6 +238,7 @@ const IngredientList: React.FC<{ ingredients: Ingredient[] | undefined }> = ({
       </div>
     );
   }
+
   return (
     <div className="py-4 px-5 border-t border-gray-100">
       <h4 className="text-base font-semibold text-gray-800 mb-3">
@@ -528,6 +530,28 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   // if a food/ingredient is selected AND it's part of the selected recommendation.
   const isShowingRecommendationContext = recommendation !== null;
 
+  const SavedRecommendationsDisplay: React.FC<{
+    recommendations: string[] | undefined;
+  }> = ({ recommendations }) => {
+    if (!recommendations || recommendations.length === 0) {
+      return null; // Don't render anything if no recommendations
+    }
+
+    return (
+      <div className="py-4 px-5 border-t border-gray-100">
+        <h4 className="text-base font-semibold text-gray-800 mb-3 flex items-center">
+          <ChatBubbleLeftRightIcon className="w-5 h-5 mr-2 text-blue-500" />
+          Saved Recommendation Notes
+        </h4>
+        <ul className="space-y-1.5 text-sm list-disc list-inside pl-2 text-gray-700">
+          {recommendations.map((rec, index) => (
+            <li key={`saved-rec-${index}`}>{rec}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (!displayItem) {
       return (
@@ -614,7 +638,6 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
 
         return (
           <>
-            {/* Pass isFavorited status to DetailHeader */}
             <DetailHeader
               title={m.name}
               subtitle={`${
@@ -638,6 +661,10 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             />
             <NutritionalBreakdown info={m.nutritionalInfo} />
             <FoodList foods={m?.foods} />
+            {/* Render the saved recommendations */}
+            <SavedRecommendationsDisplay
+              recommendations={m.nl_recommendations}
+            />
             <div className="py-4 px-5 border-t border-gray-100">
               <TagsList label="Cultural Tips" tags={m.culturalTips} />
             </div>

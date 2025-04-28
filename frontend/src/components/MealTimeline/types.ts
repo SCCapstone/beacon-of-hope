@@ -47,7 +47,7 @@ export interface Ingredient {
 export interface Food {
   id: string;
   name: string;
-  type: 'main_course' | 'side_dish' | 'beverage' | 'dessert' | 'snack';
+  type: "main_course" | "side_dish" | "beverage" | "dessert" | "snack";
   ingredients: Ingredient[];
   nutritionalInfo: NutritionalInfo;
   preparationTime: number;
@@ -64,7 +64,7 @@ export interface Meal {
   originalBackendId?: string; // Original _id from backend (especially for recommendations)
   name: string; // e.g., "Breakfast", "Lunch", "Snack"
   time: string; // e.g., "08:00" (24-hour format internally)
-  type: 'breakfast' | 'lunch' | 'dinner' | 'snack'; // Category of the meal
+  type: "breakfast" | "lunch" | "dinner" | "snack"; // Category of the meal
   foods: Food[]; // List of foods included in the meal
   nutritionalInfo: NutritionalInfo; // Combined nutrition for the whole meal
   diabetesFriendly?: boolean; // Calculated based on combined nutrition/foods
@@ -76,6 +76,7 @@ export interface Meal {
   constraintScore?: number; // Score from 0 to 1 (nutritional_constraint_score)
   isFavorited?: boolean;
   mealPlanName?: string;
+  nl_recommendations?: string[];
 }
 
 // Represents meals consumed on a specific day (Trace Data)
@@ -94,7 +95,8 @@ export interface DayRecommendations {
 export interface MealRecommendation {
   meal: Meal; // The recommended Meal object (includes score internally now)
   reasons?: string[]; // Text reasons why it's recommended
-  nutritionalImpact: { // Shows the meal's contribution
+  nutritionalImpact: {
+    // Shows the meal's contribution
     calories: number;
     carbs: number;
     protein: number;
@@ -105,7 +107,6 @@ export interface MealRecommendation {
   coverageScore?: number;
   constraintScore?: number;
 }
-
 
 export interface UserPreferences {
   diabetesFriendly: boolean;
@@ -132,19 +133,24 @@ export interface UserAnthropometrics {
   age: number;
   weight: number; // Consider units (e.g., kg or lbs)
   height: number; // Consider units (e.g., cm or inches)
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'very_active' | 'extra_active';
+  activityLevel:
+    | "sedentary"
+    | "light"
+    | "moderate"
+    | "very_active"
+    | "extra_active";
   healthConditions?: string[]; // e.g., ['diabetes_type_2', 'hypertension']
-  bloodSugarLevels?: { // Optional
+  bloodSugarLevels?: {
+    // Optional
     fasting?: number; // mg/dL or mmol/L
     postPrandial?: number; // mg/dL or mmol/L
   };
-  gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say'; // Add gender if used
+  gender?: "Male" | "Female" | "Other" | "Prefer not to say"; // Add gender if used
 }
 
-
 export interface VisualizationLevel {
-  type: 'meal' | 'food' | 'ingredient';
-  view: 'calendar' | 'list' | 'comparison';
+  type: "meal" | "food" | "ingredient";
+  view: "calendar" | "list" | "comparison";
 }
 
 export interface NutritionalGoals {

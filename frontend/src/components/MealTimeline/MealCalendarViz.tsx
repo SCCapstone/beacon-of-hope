@@ -96,13 +96,10 @@ type SaveMealPayload = {
   userId: string;
   date: string; // yyyy-MM-dd
   mealId: string; // originalBackendId
+  nl_recommendations: string[];
 };
 
-type SaveMealHandler = (payload: {
-  userId: string;
-  date: string; // yyyy-MM-dd
-  mealId: string; // originalBackendId
-}) => Promise<boolean>; // Returns true on success, false on failure
+type SaveMealHandler = (payload: SaveMealPayload) => Promise<boolean>; // Returns true on success, false on failure
 
 // Define the type for the callback to parent for fetching
 type FetchRequestHandler = (payload: {
@@ -714,6 +711,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const mealDate = normalizeDate(acceptedMeal.date || selectedDate);
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
+      // Combine reasons and health benefits into a single array
+      // Use optional chaining and nullish coalescing for safety
+      const nlRecommendationsToSave: string[] = [
+        ...(acceptedRec.reasons ?? []),
+        ...(acceptedRec.healthBenefits ?? []),
+      ];
+
       if (!acceptedMeal.mealPlanName) {
         console.warn(
           "Meal plan name missing from accepted recommendation meal object:",
@@ -814,6 +818,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               userId,
               date: mealDateStr,
               mealId: backendIdToSave,
+              nl_recommendations: nlRecommendationsToSave, 
             });
             if (saveSuccess) {
               // 5. Update localStorage (on success)
@@ -1303,12 +1308,19 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           const mealDate = normalizeDate(rec.meal.date || selectedDate);
           const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
+          const nlRecommendationsToSave: string[] = [
+            ...(rec.reasons ?? []),
+            ...(rec.healthBenefits ?? []),
+          ];
+
           if (backendId && userId) {
             payloadsToSave.push({
               userId,
               date: mealDateStr,
               mealId: backendId,
+              nl_recommendations: nlRecommendationsToSave,
             });
+
             // Prepare meal for optimistic trace update
             const traceMealToAdd: Meal = {
               ...rec.meal,
