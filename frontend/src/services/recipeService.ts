@@ -625,8 +625,6 @@ export async function transformApiResponseToDayMeals(
     return [];
   }
 
-  const mealPlanName = apiResponse.name || apiResponse.meal_plan_name;
-
   const dayMealsMap = new Map<string, DayMeals>();
 
   // Step 1: Collect all unique food/beverage IDs to fetch
@@ -634,6 +632,10 @@ export async function transformApiResponseToDayMeals(
   for (const dayData of Object.values(apiResponse.day_plans)) {
     if (!dayData || !Array.isArray(dayData.meals)) continue;
     for (const meal of dayData.meals) {
+      // meal is BanditMealData here
+      // Also check for meal_plan_name inside the meal object if needed for debugging
+      // console.log(`Processing trace meal: ${meal.meal_name}, Plan Name: ${meal.meal_plan_name}`);
+
       for (const [rawMealType, foodId] of Object.entries(meal.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
           // Map "side" key from backend data to "side_dish" type used internally
@@ -676,9 +678,9 @@ export async function transformApiResponseToDayMeals(
 
   // Wait for all fetches to complete (or fail)
   await Promise.all(fetchPromises);
-  console.log(
-    `Fetched/Processed details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
-  );
+  // console.log(
+  //   `Fetched/Processed details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
+  // );
 
   // Step 3: Transform the data day by day
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
@@ -765,19 +767,19 @@ export async function transformApiResponseToDayMeals(
           })
         );
 
-        const sideDishFood = mealFoodsWithInstanceIds.find(
-          (f) => f.type === "side_dish"
-        ); // Find any side dish
-        if (sideDishFood) {
-          console.log(
-            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
-            JSON.stringify(sideDishFood.nutritionalInfo)
-          );
-        } else {
-          console.log(
-            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
-          );
-        }
+        // const sideDishFood = mealFoodsWithInstanceIds.find(
+        //   (f) => f.type === "side_dish"
+        // );
+        // if (sideDishFood) {
+        //   console.log(
+        //     `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
+        //     JSON.stringify(sideDishFood.nutritionalInfo)
+        //   );
+        // } else {
+        //   console.log(
+        //     `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
+        //   );
+        // }
 
         // Calculate combined nutritional info for the meal (using potentially default values)
         // Use the foods with instance IDs, nutrition info remains the same
@@ -785,10 +787,10 @@ export async function transformApiResponseToDayMeals(
           mealFoodsWithInstanceIds
         );
 
-        console.log(
-          `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
-          JSON.stringify(mealNutritionalInfo)
-        );
+        // console.log(
+        //   `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
+        //   JSON.stringify(mealNutritionalInfo)
+        // );
 
         // Get default meal time if not provided
         const mealTime = meal.meal_time || getDefaultMealTime(meal.meal_name);
@@ -818,7 +820,7 @@ export async function transformApiResponseToDayMeals(
           coverageScore: coverageScore,
           constraintScore: constraintScore,
           isFavorited: meal.favorited ?? false,
-          mealPlanName: mealPlanName,
+          mealPlanName: meal.meal_plan_name,
         };
 
         dayMeal.meals.push(completeMeal);

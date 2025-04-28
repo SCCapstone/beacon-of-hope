@@ -41,11 +41,13 @@ interface BanditDayData {
 export interface BanditMealData {
   _id: string;
   meal_name: string;
+  meal_plan_name?: string;
   meal_types: {
     beverage?: string;
     main_course?: string;
     side_dish?: string;
     dessert?: string;
+    side?: string;
   };
   // Include scores directly from the API response structure
   variety_score?: number;
