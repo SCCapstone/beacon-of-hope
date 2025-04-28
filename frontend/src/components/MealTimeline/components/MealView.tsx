@@ -26,6 +26,7 @@ import { formatScore } from "../utils";
 import {
   StarIcon as StarIconOutline,
   InformationCircleIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { generateDateRange } from "../../../services/recipeService";
 import { CustomModal, ModalProps } from "../../CustomModal";
@@ -47,6 +48,7 @@ interface MealViewProps {
   onRejectRecommendationClick: (recommendation: MealRecommendation) => void;
   onDeleteMealClick: (mealId: string, date: Date) => Promise<void>;
   onFavoriteMealClick: (mealId: string, date: Date) => Promise<void>;
+  onUnfavoriteMealClick: (mealId: string, date: Date) => Promise<void>;
   selectedRecommendation: MealRecommendation | null;
   mealBinNames: string[];
   onMealBinUpdate: (newBinNames: string[]) => void;
@@ -99,6 +101,7 @@ interface TraceMealCardProps {
   onClick: () => void;
   onDeleteClick: () => void;
   onFavoriteClick: () => void;
+  onUnfavoriteClick: () => void;
 }
 
 const TraceMealCard: React.FC<TraceMealCardProps> = ({
@@ -107,14 +110,14 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   onClick,
   onDeleteClick,
   onFavoriteClick,
+  onUnfavoriteClick,
 }) => {
-  const [isFavoriting, setIsFavoriting] = useState(false);
-  // Use meal.isFavorited directly if available, otherwise default to false
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [optimisticFavorite, setOptimisticFavorite] = useState(
     meal.isFavorited ?? false
   );
 
-  // Update optimistic state if the prop changes (e.g., after successful favorite)
+  // Update optimistic state if the prop changes (e.g., after successful favorite/unfavorite)
   useEffect(() => {
     setOptimisticFavorite(meal.isFavorited ?? false);
   }, [meal.isFavorited]);
@@ -126,6 +129,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     varietyScore,
     coverageScore,
     constraintScore,
+    mealPlanName,
+    nl_recommendations,
   } = meal;
   const safeNutritionalInfo = nutritionalInfo || {
     calories: 0,
@@ -152,19 +157,34 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
 
   const handleFavoriteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Optimistic UI update happens here
-    setOptimisticFavorite(true); // Example: Assume success initially
-    setIsFavoriting(true);
-    // Trigger the handler passed from MealView, which will call the API
-    onFavoriteClick();
-    // Reset loading state after a delay or based on parent feedback (if implemented)
-    setTimeout(() => setIsFavoriting(false), 1000); // Simple timeout for now
+    if (isTogglingFavorite) return; // Prevent double clicks
+
+    const currentlyFavorited = optimisticFavorite; // Check state *before* toggling
+    const newState = !currentlyFavorited;
+
+    setOptimisticFavorite(newState); // Optimistic UI update
+    setIsTogglingFavorite(true);
+
+    try {
+      if (currentlyFavorited) {
+        // If it *was* favorited, call unfavorite
+        await onUnfavoriteClick();
+      } else {
+        // If it *was not* favorited, call favorite
+        await onFavoriteClick();
+      }
+      // Success: Optimistic state is now the confirmed state
+    } catch (error) {
+      // Error occurred (handled in parent), rollback optimistic state
+      console.error("Favorite/Unfavorite action failed, rolling back UI.");
+      setOptimisticFavorite(currentlyFavorited); // Revert to original state
+    } finally {
+      // Reset loading state after a short delay to allow visual feedback
+      setTimeout(() => setIsTogglingFavorite(false), 500);
+    }
   };
 
-  // Get unique food types from the meal
   const foodTypes = Array.from(new Set(foods.map((food) => food.type)));
-
-  // Define the descriptions for the tooltips
   const scoreDescriptions = {
     variety: "Measures the variation present in the recommended items",
     coverage:
@@ -174,8 +194,12 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
   };
 
   const favoriteTooltip = optimisticFavorite
-    ? "Favorited Meal"
-    : "Favorite meal";
+    ? "Remove from favorites"
+    : "Favorite this meal! This will inform future recommendations!";
+
+  // Check if there are saved recommendations
+  const hasSavedRecommendations =
+    nl_recommendations && nl_recommendations.length > 0;
 
   return (
     <motion.div
@@ -187,12 +211,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       transition={{ duration: 0.15 }}
       className={`meal-card relative p-3 rounded-lg cursor-pointer transition-all duration-300
         bg-white shadow-md hover:shadow-lg
-        ${
-          isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"
-        } // Primary ring, neutral border
-        ${
-          optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
-        } // Accent Yellow border/ring
+        ${isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"}
+        ${optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""}
         flex flex-col min-h-[120px]`} // Increased padding/min-height
       onClick={onClick}
     >
@@ -210,21 +230,21 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       <motion.button
         whileHover={{
           scale: 1.1,
-          backgroundColor: isFavoriting ? "#D4AF37" : "#FFA000",
-        }} // Darker Accent Yellow
+          backgroundColor: isTogglingFavorite ? "#D4AF37" : "#FFA000",
+        }}
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteButtonClick}
-        disabled={isFavoriting}
+        disabled={isTogglingFavorite}
         className={`absolute -top-2 -right-2 p-0.5 rounded-full text-white shadow-md z-20 transition-colors
                     ${
-                      isFavoriting
+                      isTogglingFavorite
                         ? "bg-yellow-600 animate-pulse"
                         : "bg-[#FFC107] hover:bg-[#FFA000]"
                     }`} // Accent Yellow
         data-tooltip-id="global-tooltip"
         data-tooltip-content={favoriteTooltip}
       >
-        {isFavoriting ? (
+        {isTogglingFavorite ? (
           <svg
             className="animate-spin h-4 w-4 text-white"
             xmlns="http://www.w3.org/2000/svg"
@@ -255,12 +275,15 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         {name && (
-          <div className="mb-1">
+          <div className="mb-1 flex flex-col items-start">
             <span className="text-sm font-medium px-2 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-full truncate pr-2">
-              {" "}
-              {/* Secondary color light */}
               {name}
             </span>
+            {mealPlanName && (
+              <span className="mt-1 text-[10px] font-medium px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full truncate max-w-full">
+                {mealPlanName}
+              </span>
+            )}
           </div>
         )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -300,7 +323,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           data-tooltip-content={`Protein: ${safeNutritionalInfo.protein.toFixed(
             1
           )}g`}
-        />{" "}
+        />
         {/* Nutrient Maroon */}
         <div
           className="bg-[#DAA520]"
@@ -309,7 +332,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           data-tooltip-content={`Fiber: ${safeNutritionalInfo.fiber.toFixed(
             1
           )}g`}
-        />{" "}
+        />
         {/* Nutrient Gold */}
       </div>
 
@@ -329,8 +352,9 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         </div>
       )}
 
-      {/* Footer Indicators (Scores) with Tooltips */}
-      <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
+      {/* Footer Indicators (Scores & Recommendation Icon) */}
+      <div className="pt-2 mt-auto flex justify-around items-center border-t border-gray-100 text-xs text-gray-600">
+        {/* Scores */}
         <div className="flex items-center space-x-1">
           <span className="text-[#20B2AA]">V: {formatScore(varietyScore)}</span>
           <InformationCircleIcon
@@ -359,6 +383,19 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
             data-tooltip-content={scoreDescriptions.nutrition}
           />
         </div>
+
+        {/* Saved Recommendation Indicator */}
+        {hasSavedRecommendations && (
+          <div
+            className="flex items-center text-blue-500" // Use a distinct color
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content="View saved recommendation reasons"
+          >
+            <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+            {/* Or use InformationCircleIcon */}
+            {/* <InformationCircleIcon className="w-3.5 h-3.5" /> */}
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -374,6 +411,7 @@ export const MealView: React.FC<MealViewProps> = ({
   onRejectRecommendationClick,
   onDeleteMealClick,
   onFavoriteMealClick,
+  onUnfavoriteMealClick,
   selectedRecommendation,
   mealBinNames,
   isLoading = false,
@@ -632,6 +670,21 @@ export const MealView: React.FC<MealViewProps> = ({
       }
     };
 
+    const handleUnfavorite = () => {
+      if (meal.id && validMealDate) {
+        onUnfavoriteMealClick(meal.id, validMealDate); // <-- Call the correct handler
+      } else {
+        console.error(
+          "Cannot unfavorite meal: Missing ID or valid date.",
+          meal
+        );
+        showErrorModal(
+          "Unfavorite Error",
+          "Cannot unfavorite this meal due to missing information."
+        );
+      }
+    };
+
     return (
       <TraceMealCard
         key={`meal-${meal.id}-${date.toISOString()}`}
@@ -640,6 +693,7 @@ export const MealView: React.FC<MealViewProps> = ({
         onClick={() => onMealSelect(selectedMeal?.id === meal.id ? null : meal)}
         onDeleteClick={handleDelete}
         onFavoriteClick={handleFavorite}
+        onUnfavoriteClick={handleUnfavorite}
       />
     );
   };
@@ -676,7 +730,7 @@ export const MealView: React.FC<MealViewProps> = ({
 
   // Generate the list of bin names to display in the header based on the calculated visible count
   const headerBinNames = Array.from({ length: currentVisibleBinCount }).map(
-    (_, i) => mealBinNames[i] || `Meal Slot ${i + 1}`
+    (_, i) => mealBinNames[i] || `Meal ${i + 1}`
   );
 
   return (

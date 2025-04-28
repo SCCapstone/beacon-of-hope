@@ -34,6 +34,7 @@ import {
   ArrowPathIcon,
   CalendarDaysIcon,
   TrashIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/20/solid";
 import { CustomModal, ModalProps } from "../CustomModal";
 import { Tooltip } from "react-tooltip";
@@ -46,6 +47,13 @@ const mealTypePriority = {
 };
 
 const DEFAULT_BIN_COUNT = 3;
+
+const LoadingIndicator = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-900"></div>
+    <span className="ml-3 text-gray-600">Processing recommendations...</span>
+  </div>
+);
 
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
@@ -84,11 +92,14 @@ const isSameNormalizedDay = (
   return isSameDay(d1, d2);
 };
 
-type SaveMealHandler = (payload: {
+type SaveMealPayload = {
   userId: string;
   date: string; // yyyy-MM-dd
   mealId: string; // originalBackendId
-}) => Promise<boolean>; // Returns true on success, false on failure
+  nl_recommendations: string[];
+};
+
+type SaveMealHandler = (payload: SaveMealPayload) => Promise<boolean>; // Returns true on success, false on failure
 
 // Define the type for the callback to parent for fetching
 type FetchRequestHandler = (payload: {
@@ -103,6 +114,7 @@ type RegeneratePartialHandler = (dates: string[]) => void;
 
 type DeleteMealHandler = (mealId: string, date: Date) => Promise<void>;
 type FavoriteMealHandler = (mealId: string, date: Date) => Promise<void>;
+type UnfavoriteMealHandler = (mealId: string, date: Date) => Promise<void>;
 
 interface MealCalendarVizProps {
   mealData: DayMeals[]; // This prop represents the initial/fetched trace data
@@ -120,6 +132,7 @@ interface MealCalendarVizProps {
   onSaveMeal: SaveMealHandler;
   onDeleteMeal: DeleteMealHandler;
   onFavoriteMeal: FavoriteMealHandler;
+  onUnfavoriteMeal: UnfavoriteMealHandler;
   userId: string;
   isFetchingPast: boolean;
   isFetchingFuture: boolean;
@@ -149,6 +162,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   isRegenerating,
   onSaveMeal,
   onFavoriteMeal,
+  onUnfavoriteMeal,
   onDeleteMeal,
   userId,
   isFetchingPast,
@@ -450,7 +464,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const binCountForThisDate = Math.max(mealBinNames.length, maxBinsNeeded);
 
       for (let i = 0; i < binCountForThisDate; i++) {
-        const binName = mealBinNames[i] || `Meal Slot ${i + 1}`;
+        const binName = mealBinNames[i] || `Meal ${i + 1}`;
         bins[binName] = { meals: [], recommendations: [] };
         currentBinNames.push(binName);
       }
@@ -516,20 +530,21 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const showConfirmModal = useCallback(
     (
       title: string,
-      message: string,
+      message: string | React.ReactNode, // Allow ReactNode for tooltip message
       onConfirm: () => void,
-      onCancel?: () => void
+      onCancel?: () => void,
+      confirmText?: string
     ) => {
       showModal({
         title,
         message,
         type: "confirm",
+        confirmText: confirmText || "Confirm",
         onConfirm: () => {
           onConfirm();
           setModalConfig(null); // Close after confirm
         },
         onCancel: () => {
-          // Also close on cancel
           onCancel?.();
           setModalConfig(null);
         },
@@ -696,6 +711,20 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const mealDate = normalizeDate(acceptedMeal.date || selectedDate);
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
+      // Combine reasons and health benefits into a single array
+      // Use optional chaining and nullish coalescing for safety
+      const nlRecommendationsToSave: string[] = [
+        ...(acceptedRec.reasons ?? []),
+        ...(acceptedRec.healthBenefits ?? []),
+      ];
+
+      if (!acceptedMeal.mealPlanName) {
+        console.warn(
+          "Meal plan name missing from accepted recommendation meal object:",
+          acceptedMeal
+        );
+      }
+
       if (!backendIdToSave || !userId) {
         showErrorModal(
           "Action Failed",
@@ -712,14 +741,26 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           "MMM d"
         )}? This action saves the meal.`,
         async () => {
-          // Confirmation logic goes here
           // 1. Optimistic UI Update (Trace Data)
           const traceMealToAdd: Meal = {
-            ...acceptedMeal,
+            ...acceptedMeal, // Spread the accepted meal object
             id: `trace-optimistic-${acceptedMeal.id}-${Date.now()}`,
             date: mealDate,
+            // Ensure isFavorited is false initially for a newly added trace meal unless specified otherwise
+            isFavorited: acceptedMeal.isFavorited ?? false,
+            // mealPlanName should be copied by the spread operator {...acceptedMeal}
           };
+          // Remove recommendation-specific fields if necessary (originalBackendId is often removed)
           delete traceMealToAdd.originalBackendId;
+
+          // console.log("Optimistic Trace Meal to Add:", traceMealToAdd);
+          // Check if mealPlanName exists on the optimistic trace meal object
+          if (!traceMealToAdd.mealPlanName) {
+            console.warn(
+              "Meal plan name missing from optimistic trace meal object:",
+              traceMealToAdd
+            );
+          }
 
           setTraceData((prevTraceData) => {
             const newData = [...prevTraceData];
@@ -729,7 +770,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             if (dayIndex > -1) {
               newData[dayIndex] = {
                 ...newData[dayIndex],
-                date: mealDate,
+                date: mealDate, // Ensure date is normalized
                 meals: [
                   ...(newData[dayIndex].meals || []),
                   traceMealToAdd,
@@ -777,6 +818,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               userId,
               date: mealDateStr,
               mealId: backendIdToSave,
+              nl_recommendations: nlRecommendationsToSave, 
             });
             if (saveSuccess) {
               // 5. Update localStorage (on success)
@@ -801,10 +843,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       rawMealPlan.days[mealDateStr].meals.length;
                     if (finalLength < initialLength) {
                       changed = true;
+                      // Check if the day object itself should be removed (only if it just contained this one meal)
+                      // This depends on whether the backend returns other metadata for the day
                       if (
                         finalLength === 0 &&
                         Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
                       ) {
+                        // Adjust condition as needed
                         delete rawMealPlan.days[mealDateStr];
                       }
                     }
@@ -871,6 +916,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               "Save Error",
               "An error occurred while saving. Recommendation restored."
             ); // Use modal
+            // Rollback trace data
             setTraceData((prevTraceData) => {
               const revertedData = prevTraceData
                 .map((day) => {
@@ -878,7 +924,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     return {
                       ...day,
                       meals: day.meals.filter(
-                        (m) => m.id !== traceMealToAdd.id
+                        (m) => m.id !== traceMealToAdd.id // Remove the optimistically added meal
                       ),
                     };
                   }
@@ -896,6 +942,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               traceDataRef.current = revertedData; // Update ref
               return revertedData;
             });
+            // Rollback recommendation data
             setRecommendationData(originalRecommendationData);
           }
         } // End of confirmation logic
@@ -1227,6 +1274,254 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     ? "Show Fewer Meal Slots"
     : "Show All Meal Slots";
 
+  const handleAcceptAllRecommendations = useCallback(async () => {
+    // 1. Collect all recommendations across all days currently in state
+    const allRecommendationsToAccept: MealRecommendation[] = [];
+    recommendationData.forEach((dayRec) => {
+      if (dayRec.recommendations && dayRec.recommendations.length > 0) {
+        allRecommendationsToAccept.push(...dayRec.recommendations);
+      }
+    });
+
+    if (allRecommendationsToAccept.length === 0) {
+      // console.log("Viz: No recommendations to accept.");
+      return; // Nothing to do
+    }
+
+    // 2. Show Confirmation Modal
+    showConfirmModal(
+      "Confirm Accept All",
+      `Are you sure you want to accept all ${allRecommendationsToAccept.length} current meal recommendations? This will save them to your meal history.`,
+      async () => {
+        // --- Confirmation Logic ---
+        // console.log(
+        //   `Viz: User confirmed accepting ${allRecommendationsToAccept.length} recommendations.`
+        // );
+
+        // 3. Prepare Data for Optimistic Updates and API Calls
+        const payloadsToSave: SaveMealPayload[] = [];
+        const mealsToAddOptimistically: Meal[] = [];
+        const acceptedRecMealIds = new Set<string>(); // Store IDs of meals being accepted
+
+        allRecommendationsToAccept.forEach((rec) => {
+          const backendId = rec.meal.originalBackendId;
+          const mealDate = normalizeDate(rec.meal.date || selectedDate);
+          const mealDateStr = format(mealDate, "yyyy-MM-dd");
+
+          const nlRecommendationsToSave: string[] = [
+            ...(rec.reasons ?? []),
+            ...(rec.healthBenefits ?? []),
+          ];
+
+          if (backendId && userId) {
+            payloadsToSave.push({
+              userId,
+              date: mealDateStr,
+              mealId: backendId,
+              nl_recommendations: nlRecommendationsToSave,
+            });
+
+            // Prepare meal for optimistic trace update
+            const traceMealToAdd: Meal = {
+              ...rec.meal,
+              id: `trace-optimistic-${rec.meal.id}-${Date.now()}`, // Unique optimistic ID
+              date: mealDate,
+            };
+            delete traceMealToAdd.originalBackendId; // Remove backend ID from trace version
+            mealsToAddOptimistically.push(traceMealToAdd);
+            acceptedRecMealIds.add(rec.meal.id); // Add the recommendation's meal ID
+          } else {
+            console.warn(
+              "Viz: Skipping recommendation in 'Accept All' due to missing backend ID or user ID:",
+              rec.meal.name
+            );
+          }
+        });
+
+        if (payloadsToSave.length === 0) {
+          showErrorModal(
+            "Action Failed",
+            "Could not prepare any recommendations for saving."
+          );
+          return;
+        }
+
+        // 4. Perform Optimistic UI Updates (Batch)
+        // Remove all accepted recommendations
+        setRecommendationData([]); // Simplest approach: clear all recommendations optimistically
+        // Add all accepted meals to trace data
+        setTraceData((prevTraceData) => {
+          const newDataMap = new Map<string, DayMeals>(
+            prevTraceData.map((day) => [
+              format(normalizeDate(day.date), "yyyy-MM-dd"),
+              day,
+            ])
+          );
+
+          mealsToAddOptimistically.forEach((mealToAdd) => {
+            const dateKey = format(
+              normalizeDate(mealToAdd.date!),
+              "yyyy-MM-dd"
+            );
+            const existingDay = newDataMap.get(dateKey);
+            if (existingDay) {
+              existingDay.meals = [
+                ...(existingDay.meals || []),
+                mealToAdd,
+              ].sort((a, b) => a.time.localeCompare(b.time));
+            } else {
+              newDataMap.set(dateKey, {
+                date: normalizeDate(mealToAdd.date!),
+                meals: [mealToAdd],
+              });
+            }
+          });
+
+          const sortedData = Array.from(newDataMap.values()).sort(
+            (a, b) => a.date.getTime() - b.date.getTime()
+          );
+          traceDataRef.current = sortedData; // Update ref
+          return sortedData;
+        });
+
+        // Clear selections
+        setSelectedRecommendation(null);
+        setSelectedMeal(null);
+        setSelectedFood(null);
+        setSelectedIngredient(null);
+
+        // 5. Call Backend API Concurrently
+        // console.log(
+        //   `Viz: Sending ${payloadsToSave.length} save requests concurrently...`
+        // );
+        const savePromises = payloadsToSave.map(
+          (payload) =>
+            onSaveMeal(payload)
+              .then(() => ({ success: true, payload })) // Return success status and payload
+              .catch((error) => ({ success: false, error, payload })) // Catch individual errors
+        );
+
+        const results = await Promise.all(savePromises);
+
+        // 6. Process Results
+        const successfulSaves = results.filter((r) => r.success);
+        const failedSaves = results.filter((r) => !r.success);
+        const successfullySavedPayloads = successfulSaves.map((r) => r.payload);
+        const successfullySavedBackendIds = new Set(
+          successfullySavedPayloads.map((p) => p.mealId)
+        );
+
+        // console.log(
+        //   `Viz: Save results - Success: ${successfulSaves.length}, Failed: ${failedSaves.length}`
+        // );
+
+        // 7. Handle Failures (Show Error Message)
+        if (failedSaves.length > 0) {
+          console.error(
+            "Viz: Some recommendations failed to save:",
+            failedSaves
+          );
+          // Find names of failed meals for better error message
+          const failedMealNames = allRecommendationsToAccept
+            .filter((rec) =>
+              failedSaves.some(
+                (f) => f.payload.mealId === rec.meal.originalBackendId
+              )
+            )
+            .map((rec) => rec.meal.name)
+            .join(", ");
+
+          showErrorModal(
+            "Partial Failure",
+            `Failed to save ${failedSaves.length} recommendation(s): ${failedMealNames}. Successfully saved meals are added. Failed ones might reappear after refresh or were not removed.`
+          );
+          // Note: We are NOT rolling back the optimistic UI updates here.
+          // The refetch below will correct the state based on the backend truth.
+        }
+
+        // 8. Update LocalStorage (Batch - based on successful saves)
+        try {
+          const rawMealPlanString = localStorage.getItem("mealPlan");
+          if (rawMealPlanString) {
+            let rawMealPlan = JSON.parse(rawMealPlanString);
+            let changed = false;
+            if (rawMealPlan.days && typeof rawMealPlan.days === "object") {
+              Object.keys(rawMealPlan.days).forEach((dateKey) => {
+                const day = rawMealPlan.days[dateKey];
+                if (day && Array.isArray(day.meals)) {
+                  const initialLength = day.meals.length;
+                  // Filter out meals whose backend IDs were successfully saved
+                  day.meals = day.meals.filter(
+                    (rawMeal: any) =>
+                      !successfullySavedBackendIds.has(rawMeal._id)
+                  );
+                  if (day.meals.length < initialLength) {
+                    changed = true;
+                  }
+                  // Optional: Remove day if it becomes empty
+                  // if (day.meals.length === 0) {
+                  //   delete rawMealPlan.days[dateKey];
+                  // }
+                }
+              });
+            }
+            if (changed) {
+              localStorage.setItem("mealPlan", JSON.stringify(rawMealPlan));
+              // console.log(
+              //   "Viz: Updated localStorage['mealPlan'] removing successfully accepted recommendations."
+              // );
+            }
+          }
+        } catch (e) {
+          console.error(
+            "Viz: Failed to update localStorage['mealPlan'] after 'Accept All':",
+            e
+          );
+        }
+
+        // 9. Trigger Re-fetch (Batch - for dates of successful saves)
+        if (successfullySavedPayloads.length > 0) {
+          const datesToRefetch = Array.from(
+            new Set(successfullySavedPayloads.map((p) => p.date))
+          );
+          // console.log(
+          //   "Viz: Triggering refetch for successfully saved dates:",
+          //   datesToRefetch
+          // );
+          onRequestFetch({
+            datesToFetch: datesToRefetch,
+            direction: "specific",
+          });
+        }
+
+        // 10. Show Final Success Message (if no failures)
+        if (failedSaves.length === 0) {
+          showSuccessModal(
+            "Recommendations Accepted",
+            `All ${successfulSaves.length} recommendations have been saved to your meal history.`
+          );
+        }
+        // End Confirmation Logic
+      } // End async confirmation callback
+    ); // End showConfirmModal call
+  }, [
+    recommendationData,
+    userId,
+    selectedDate,
+    onSaveMeal,
+    onRequestFetch,
+    setTraceData,
+    setRecommendationData,
+    setSelectedRecommendation,
+    setSelectedMeal,
+    setSelectedFood,
+    setSelectedIngredient,
+    showConfirmModal,
+    showSuccessModal,
+    showErrorModal,
+    traceData,
+  ]);
+
   return (
     <div
       className="w-screen flex flex-col overflow-hidden bg-[#FFFBF5]"
@@ -1253,18 +1548,18 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {!isRegenerating && hasRecommendationsInView && (
                 <button
                   onClick={handleRegenerateClick}
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-pink-900 hover:bg-pink-800 text-white"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-pink-300 text-pink-700 bg-pink-50 hover:bg-pink-100"
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={regenerateButtonTooltip}
                 >
                   <ArrowPathIcon className="h-4 w-4 mr-2" />
-                  Regenerate Plans
+                  Regenerate All
                 </button>
               )}
               {/* Show loading indicator if regenerating */}
               {isRegenerating && (
                 <button
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-300 text-gray-500 cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed"
                   disabled={true}
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={regenerateButtonTooltip}
@@ -1277,13 +1572,25 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               {/* Clear Recommendations Button - Conditionally Rendered */}
               {hasRecommendationsInView && (
                 <button
-                  onClick={handleClearAllRecommendations} // Use the new handler
-                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 bg-red-700 hover:bg-red-600 text-white"
+                  onClick={handleClearAllRecommendations}
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100"
                   data-tooltip-id="global-tooltip"
                   data-tooltip-content={clearButtonTooltip}
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
-                  Clear Recommendations
+                  Clear All
+                </button>
+              )}
+
+              {hasRecommendationsInView && (
+                <button
+                  onClick={handleAcceptAllRecommendations}
+                  className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors duration-200 border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-tooltip-id="global-tooltip"
+                  data-tooltip-content="Accept all current recommendations"
+                >
+                  <CheckCircleIcon className="h-4 w-4 mr-2" />
+                  Accept All
                 </button>
               )}
             </div>
@@ -1315,97 +1622,109 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 className="viz-main-area bg-white rounded-lg shadow-md flex-1 overflow-hidden border border-gray-200 flex flex-col"
                 onClick={handleMainAreaClick}
               >
-                {/* Render Views based on currentLevel */}
-                {currentLevel === "meal" && (
-                  <div className="meal-view-background h-full">
-                    <MealView
-                      allData={traceData}
-                      recommendationData={recommendationData}
-                      selectedDate={selectedDate}
-                      onMealSelect={handleMealSelect}
-                      selectedMeal={selectedMeal}
-                      onRecommendationSelect={handleRecommendationSelect}
-                      onAcceptRecommendationClick={handleAcceptRecommendation}
-                      onRejectRecommendationClick={handleRejectRecommendation}
-                      onFavoriteMealClick={onFavoriteMeal}
-                      onDeleteMealClick={onDeleteMeal}
-                      selectedRecommendation={selectedRecommendation}
-                      mealBinNames={mealBinNames}
-                      onMealBinUpdate={handleMealBinNamesUpdate}
-                      isLoading={loadingRecommendations}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                      getMealsForDate={getMealsForDate}
-                      getRecommendationsForDate={getRecommendationsForDate}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      allAvailableDates={allAvailableDates}
-                    />
-                  </div>
-                )}
-                {currentLevel === "food" && (
-                  <div className="food-view-background h-full">
-                    <FoodView
-                      allData={traceData} // Pass trace data
-                      recommendationData={recommendationData} // Pass recommendation data
-                      onFoodSelect={handleFoodSelect}
-                      selectedFood={selectedFood}
-                      mealBinNames={mealBinNames} // Pass bin names
-                      onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
-                      selectedRecommendation={selectedRecommendation} // Pass selection context
-                      selectedDate={selectedDate}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      allAvailableDates={allAvailableDates}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                    />
-                  </div>
-                )}
-                {currentLevel === "ingredient" && (
-                  <div className="ingredient-view-background h-full">
-                    <IngredientView
-                      allData={traceData}
-                      recommendationData={recommendationData}
-                      onIngredientSelect={handleIngredientSelect}
-                      selectedIngredient={selectedIngredient}
-                      mealBinNames={mealBinNames}
-                      onMealBinUpdate={handleMealBinNamesUpdate}
-                      selectedRecommendation={selectedRecommendation}
-                      selectedDate={selectedDate}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                    />
-                  </div>
+                {loadingRecommendations ? (
+                  <LoadingIndicator />
+                ) : (
+                  <>
+                    {/* Render Views based on currentLevel */}
+                    {currentLevel === "meal" && (
+                      <div className="meal-view-background h-full">
+                        <MealView
+                          allData={traceData}
+                          recommendationData={recommendationData}
+                          selectedDate={selectedDate}
+                          onMealSelect={handleMealSelect}
+                          selectedMeal={selectedMeal}
+                          onRecommendationSelect={handleRecommendationSelect}
+                          onAcceptRecommendationClick={
+                            handleAcceptRecommendation
+                          }
+                          onRejectRecommendationClick={
+                            handleRejectRecommendation
+                          }
+                          onFavoriteMealClick={onFavoriteMeal}
+                          onUnfavoriteMealClick={onUnfavoriteMeal}
+                          onDeleteMealClick={onDeleteMeal}
+                          selectedRecommendation={selectedRecommendation}
+                          mealBinNames={mealBinNames}
+                          onMealBinUpdate={handleMealBinNamesUpdate}
+                          isLoading={loadingRecommendations} // Pass the specific loading state
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                          getMealsForDate={getMealsForDate}
+                          getRecommendationsForDate={getRecommendationsForDate}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          allAvailableDates={allAvailableDates}
+                        />
+                      </div>
+                    )}
+                    {currentLevel === "food" && (
+                      <div className="food-view-background h-full">
+                        <FoodView
+                          allData={traceData} // Pass trace data
+                          recommendationData={recommendationData} // Pass recommendation data
+                          onFoodSelect={handleFoodSelect}
+                          selectedFood={selectedFood}
+                          mealBinNames={mealBinNames} // Pass bin names
+                          onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
+                          selectedRecommendation={selectedRecommendation} // Pass selection context
+                          selectedDate={selectedDate}
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          allAvailableDates={allAvailableDates}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                        />
+                      </div>
+                    )}
+                    {currentLevel === "ingredient" && (
+                      <div className="ingredient-view-background h-full">
+                        <IngredientView
+                          allData={traceData}
+                          recommendationData={recommendationData}
+                          onIngredientSelect={handleIngredientSelect}
+                          selectedIngredient={selectedIngredient}
+                          mealBinNames={mealBinNames}
+                          onMealBinUpdate={handleMealBinNamesUpdate}
+                          selectedRecommendation={selectedRecommendation}
+                          selectedDate={selectedDate}
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                          allAvailableDates={allAvailableDates}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1429,6 +1748,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 selectedDate={selectedDate}
                 currentLevel={currentLevel}
                 onShowRecipe={handleShowRecipe}
+                onFavoriteMeal={onFavoriteMeal}
+                onUnfavoriteMeal={onUnfavoriteMeal}
               />
             </div>
           </div>
@@ -1439,8 +1760,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
         id="global-tooltip"
         delayShow={150}
         delayHide={50}
-        className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg" 
-        // place="top" // Default position, can be changed
+        className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+        place="bottom" // Default position, can be changed
         // effect="solid" // Default effect
       />
 

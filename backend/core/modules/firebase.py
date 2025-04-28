@@ -3,6 +3,11 @@ from firebase_admin import credentials, firestore
 from functools import cache
 from typing import List, Dict
 from .user import User
+import logging
+from termcolor import colored
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+logger = logging.getLogger(__name__)
 
 # Path to  service account key JSON file (CHANGE FOR AWS)
 SERVICE_ACCOUNT_FILE = "firebase_key.json"
@@ -358,21 +363,44 @@ class FirebaseManager:
         Returns a tuple: (meal plan data or error message, status code)
         """
         try:
+            logger.info(colored("Retrieving user", "cyan"))
             user, status = self._get_document("users", user_id)
             if status != 200:
                 return (user, status)
 
+            logger.info(
+                colored(
+                    "Checking if the user has dayplans and converting dates to a set",
+                    "cyan",
+                )
+            )
             dates = set(dates)  # convert to set for checking inclusion in constant time
             day_plans = {}
             if "day_plans" not in user:
                 return ("No day plans found for user.", 404)
 
-            for date, day_plan_id in user["day_plans"].items():
+            logger.info(colored(f"User day plans: {user['day_plans']}", "cyan"))
+            for date, day_plan_ids in user["day_plans"].items():
                 if date in dates:
-                    # retrieve the day_plan using its id
-                    day_plan, status = self._get_document("day_plans", day_plan_id)
-                    if status != 200:
-                        return (day_plan, status)
+                    # retrieve all corresponding day plans for each id
+                    all_plans = []
+                    for day_plan_id in day_plan_ids:
+                        day_plan, status = self._get_document("day_plans", day_plan_id)
+                        if status != 200:
+                            return (day_plan, status)
+                        if day_plan["meals"]:
+                            all_plans.append(day_plan["meals"])
+
+                    meals = {}
+                    for d in all_plans:
+                        meals.update(d)
+
+                    day_plan = {
+                        "user_id": day_plan["user_id"],
+                        "meals": meals,
+                        "_id": day_plan["_id"],
+                    }
+
                     if day_plan["meals"]:
                         day_plans[date] = day_plan
             # return the day_plans
@@ -441,24 +469,48 @@ class FirebaseManager:
         # Need to create a dayplan object as well as a reference to it in the user's object
         # if dayplan already exists
         if self._exists_document("day_plans", day_plan_id):
+            logger.info(colored("Day plan object already exists", "cyan"))
+            date_ids_map, status = self.get_user_attr(user_id=user_id, attr="day_plans")
+            if status != 200:
+                return date_ids_map, status
+            # appending day plan id to the specific date for the user
+            day_plan_ids = date_ids_map.get(date, [])
+
+            if day_plan_id not in day_plan_ids:
+                day_plan_ids.append(day_plan_id)
+
             msg, status = self._update_document_dict_attr(
-                "users", user_id, "day_plans", date, day_plan_id
+                "users", user_id, "day_plans", date, day_plan_ids
             )
             if status != 200:
                 return msg, status
             return (f"Day Plan Object Already Exists, {msg}", 200)
+        else:
+            # if dayplan doesn't exist, we create a new one
+            logger.info(colored("Creating new dayplan object", "cyan"))
+            day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": {}}
+            msg, status = self._add_document("day_plans", day_plan_id, day_plan)
+            if status != 200:
+                return msg, status
 
-        # if dayplan doesn't exist
-        day_plan = {"_id": day_plan_id, "user_id": user_id, "meals": {}}
-        msg, status = self._add_document("day_plans", day_plan_id, day_plan)
-        if status != 200:
-            return msg, status
-        msg, status = self._update_document_dict_attr(
-            "users", user_id, "day_plans", date, day_plan_id
-        )
-        if status != 200:
-            return msg, status
-        return (f"Day Plan Object Created, {msg}", 200)
+            logger.info(
+                colored("Updating user information with new day plan id", "cyan")
+            )
+
+            date_ids_map, status = self.get_user_attr(user_id=user_id, attr="day_plans")
+            if status != 200:
+                return date_ids_map, status
+            # appending day plan id to the specific date for the user
+            day_plan_ids = date_ids_map.get(date, [])
+
+            if day_plan_id not in day_plan_ids:
+                day_plan_ids.append(day_plan_id)
+            msg, status = self._update_document_dict_attr(
+                "users", user_id, "day_plans", date, day_plan_ids
+            )
+            if status != 200:
+                return msg, status
+            return (f"Day Plan Object Created, {msg}", 200)
 
     def get_temp_dayplan_by_id(self, day_plan_id):
         return self._get_document("temp_day_plans", day_plan_id)
@@ -518,21 +570,26 @@ class FirebaseManager:
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
 
-    def remove_meal_from_dayplan(self, meal_id_to_delete, dayplan_id):
-        day_plan, status = self.get_dayplan_by_id(dayplan_id)
-        if status != 200:
-            return (
-                f"There was an error in retrieving the previously stored meal plan: {day_plan}",
-                status,
-            )
+    def remove_meal_from_dayplan(self, meal_id_to_delete, dayplan_ids):
+        for dayplan_id in dayplan_ids:
+            day_plan, status = self.get_dayplan_by_id(dayplan_id)
+            if status != 200:
+                return (
+                    f"There was an error in retrieving the previously stored meal plan: {day_plan}",
+                    status,
+                )
 
-        meals = {
-            id: meal
-            for id, meal in day_plan["meals"].items()
-            if id != meal_id_to_delete
-        }
+            if meal_id_to_delete not in day_plan["meals"]:
+                continue
 
-        return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
+            meals = {
+                id: meal
+                for id, meal in day_plan["meals"].items()
+                if id != meal_id_to_delete
+            }
+
+            return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
+        return ("Meal did not exist to delete", 200)
 
     def add_favorite_items(self, user_id: str, new_favorite_items: Dict[str, int]):
         # create the permanent favorite items if the field doesn't already exist
@@ -583,8 +640,9 @@ class FirebaseManager:
                 500,
             )
 
-
-    def remove_favorite_items(self, user_id: str, to_remove_favorite_items: Dict[str, int]):
+    def remove_favorite_items(
+        self, user_id: str, to_remove_favorite_items: Dict[str, int]
+    ):
         # create the permanent favorite items if the field doesn't already exist
         try:
             if not self._exists_field_in_document(

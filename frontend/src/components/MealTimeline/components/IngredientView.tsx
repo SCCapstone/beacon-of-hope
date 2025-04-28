@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DayMeals,
@@ -84,6 +84,7 @@ interface IngredientViewProps {
   setIsExpanded: (isExpanded: boolean) => void;
   showExpansionButton: boolean;
   expandButtonTooltip: string;
+  allAvailableDates: Date[];
 }
 
 const getPrimaryNutrient = (
@@ -214,7 +215,6 @@ const LoadingIndicator = ({
 
 export const IngredientView: React.FC<IngredientViewProps> = ({
   allData,
-  recommendationData,
   onIngredientSelect,
   selectedIngredient,
   mealBinNames,
@@ -232,6 +232,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   setIsExpanded,
   showExpansionButton,
   expandButtonTooltip,
+  allAvailableDates,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null); // Ref for the combined scroll container
   const SCROLL_THRESHOLD = 300;
@@ -242,32 +243,32 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
   const prevLoadedStartDateRef = useRef<Date | null>(null);
   const isAdjustingScrollRef = useRef(false); // Prevent race conditions
 
-  // Combine and sort all available dates
-  const allAvailableDates = useMemo(() => {
-    const dateSet = new Set<string>();
-    allData.forEach((day) => {
-      const normDate = normalizeDate(day.date);
-      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
-    });
-    recommendationData.forEach((day) => {
-      const normDate = normalizeDate(day.date);
-      if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
-    });
-    if (loadedStartDate && isValidDate(loadedStartDate))
-      dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
-    if (loadedEndDate && isValidDate(loadedEndDate))
-      dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
+  // // Combine and sort all available dates
+  // const allAvailableDates = useMemo(() => {
+  //   const dateSet = new Set<string>();
+  //   allData.forEach((day) => {
+  //     const normDate = normalizeDate(day.date);
+  //     if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+  //   });
+  //   recommendationData.forEach((day) => {
+  //     const normDate = normalizeDate(day.date);
+  //     if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
+  //   });
+  //   if (loadedStartDate && isValidDate(loadedStartDate))
+  //     dateSet.add(format(loadedStartDate, "yyyy-MM-dd"));
+  //   if (loadedEndDate && isValidDate(loadedEndDate))
+  //     dateSet.add(format(loadedEndDate, "yyyy-MM-dd"));
 
-    const sortedDates = Array.from(dateSet)
-      .map((dateStr) => normalizeDate(dateStr))
-      .filter(isValidDate)
-      .sort((a, b) => a.getTime() - b.getTime());
+  //   const sortedDates = Array.from(dateSet)
+  //     .map((dateStr) => normalizeDate(dateStr))
+  //     .filter(isValidDate)
+  //     .sort((a, b) => a.getTime() - b.getTime());
 
-    // console.log(
-    //   `IngredientView: Calculated ${sortedDates.length} available dates to render.`
-    // );
-    return sortedDates;
-  }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
+  //   // console.log(
+  //   //   `IngredientView: Calculated ${sortedDates.length} available dates to render.`
+  //   // );
+  //   return sortedDates;
+  // }, [allData, recommendationData, loadedStartDate, loadedEndDate]);
 
   const extractIngredientsForBins = useCallback(
     (
@@ -480,7 +481,7 @@ export const IngredientView: React.FC<IngredientViewProps> = ({
 
   // Generate header names based on visible count
   const headerBinNames = Array.from({ length: currentVisibleBinCount }).map(
-    (_, i) => mealBinNames[i] || `Meal Slot ${i + 1}`
+    (_, i) => mealBinNames[i] || `Meal ${i + 1}`
   );
 
   return (

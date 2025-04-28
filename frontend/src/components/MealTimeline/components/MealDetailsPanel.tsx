@@ -18,6 +18,7 @@ import {
   InformationCircleIcon,
   XMarkIcon,
   BookOpenIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
@@ -44,32 +45,65 @@ interface MealDetailsPanelProps {
   };
   selectedDate: Date;
   currentLevel: VisualizationLevel["type"];
-  // Add callbacks for actions if needed later
-  // onFavoriteToggle?: (mealId: string) => void;
+  onFavoriteMeal?: (mealId: string, date: Date) => void;
+  onUnfavoriteMeal?: (mealId: string, date: Date) => void;
   onShowRecipe: (food: Food) => void;
 }
 
-const DetailHeader: React.FC<{
+interface DetailHeaderProps {
   title: string;
   subtitle?: string;
   isRecommendation?: boolean;
   isTraceMeal?: boolean;
   isFavorited?: boolean;
   onClose: () => void;
-  // onFavoriteClick?: () => void; // Optional favorite handler
-}> = ({
+  onFavoriteClick?: () => void;
+  onUnfavoriteClick?: () => void;
+  mealId?: string;
+  mealDate?: Date;
+}
+
+const DetailHeader: React.FC<DetailHeaderProps> = ({
   title,
   subtitle,
   isRecommendation,
   isTraceMeal,
   isFavorited,
   onClose,
-  // onFavoriteClick,
-  // isFavorited
+  onFavoriteClick,
+  onUnfavoriteClick,
+  mealId,
+  mealDate,
 }) => {
+  // Update tooltip based on isFavorited status
   const favoriteTooltip = isFavorited
-    ? "Favorited (Click to Unfavorite - Not Implemented)"
-    : "Favorite (Not Implemented)";
+    ? "Remove from favorites"
+    : "Favorite this meal! This will inform future recommendations!";
+
+  const handleFavClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent other clicks
+    if (isFavorited) {
+      // If currently favorited, call the unfavorite handler
+      if (onUnfavoriteClick) {
+        onUnfavoriteClick();
+      } else {
+        console.warn("onUnfavoriteClick handler is missing in DetailHeader");
+      }
+    } else {
+      // If not currently favorited, call the favorite handler
+      if (onFavoriteClick) {
+        onFavoriteClick();
+      } else {
+        console.warn("onFavoriteClick handler is missing in DetailHeader");
+      }
+    }
+  };
+
+  // Determine if the button should be disabled
+  const isFavButtonDisabled =
+    !mealId ||
+    !mealDate ||
+    (isFavorited ? !onUnfavoriteClick : !onFavoriteClick); // Disable if the required handler is missing
 
   return (
     <div className="p-5 border-b border-[#E0E0E0] bg-[#FEF9F0] relative">
@@ -87,14 +121,12 @@ const DetailHeader: React.FC<{
       >
         <XMarkIcon className="w-5 h-5" />
       </button>
-      {/* Favorite Button for Trace Meals */}
+      {/* Favorite/Unfavorite Button for Trace Meals */}
       {isTraceMeal && (
         <button
-          // onClick={onFavoriteClick} // Not implemented
-          onClick={() =>
-            console.warn("Favorite click not implemented in panel")
-          }
-          className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10"
+          onClick={handleFavClick} // <-- Use the combined handler
+          disabled={isFavButtonDisabled} // <-- Use dynamic disabled state
+          className="absolute top-3 right-12 p-1.5 text-yellow-400 hover:text-yellow-500 hover:bg-yellow-50 rounded-full transition-colors duration-150 z-10 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label={isFavorited ? "Unfavorite meal" : "Favorite meal"}
           data-tooltip-id="global-tooltip"
           data-tooltip-content={favoriteTooltip}
@@ -206,6 +238,7 @@ const IngredientList: React.FC<{ ingredients: Ingredient[] | undefined }> = ({
       </div>
     );
   }
+
   return (
     <div className="py-4 px-5 border-t border-gray-100">
       <h4 className="text-base font-semibold text-gray-800 mb-3">
@@ -470,10 +503,12 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   recommendation,
   onClose,
   nutritionalGoals, // Can be null
-  currentNutritionalValues, // Current day's totals (including simulated recommendation if selected)
+  currentNutritionalValues,
   selectedDate,
   currentLevel,
   onShowRecipe,
+  onFavoriteMeal,
+  onUnfavoriteMeal,
 }) => {
   // Determine what to display based on selection priority:
   // If a specific food/ingredient is selected, prioritize it.
@@ -494,6 +529,28 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
   // This is true if the top-level selection is a recommendation OR
   // if a food/ingredient is selected AND it's part of the selected recommendation.
   const isShowingRecommendationContext = recommendation !== null;
+
+  const SavedRecommendationsDisplay: React.FC<{
+    recommendations: string[] | undefined;
+  }> = ({ recommendations }) => {
+    if (!recommendations || recommendations.length === 0) {
+      return null; // Don't render anything if no recommendations
+    }
+
+    return (
+      <div className="py-4 px-5 border-t border-gray-100">
+        <h4 className="text-base font-semibold text-gray-800 mb-3 flex items-center">
+          <ChatBubbleLeftRightIcon className="w-5 h-5 mr-2 text-blue-500" />
+          Saved Recommendation Notes
+        </h4>
+        <ul className="space-y-1.5 text-sm list-disc list-inside pl-2 text-gray-700">
+          {recommendations.map((rec, index) => (
+            <li key={`saved-rec-${index}`}>{rec}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   const renderContent = () => {
     if (!displayItem) {
@@ -554,9 +611,33 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
       case "meal": {
         const m = displayItem as Meal;
         const mealDate = m.date || selectedDate;
+
+        // Define the click handler for the favorite button
+        const handleFavoriteClick = () => {
+          if (onFavoriteMeal && m.id && mealDate) {
+            onFavoriteMeal(m.id, mealDate);
+          } else {
+            console.error("Missing data or handler for favorite toggle", {
+              handlerExists: !!onFavoriteMeal,
+              mealId: m.id,
+              mealDate: mealDate,
+            });
+          }
+        };
+        const handleUnfavoriteClick = () => {
+          if (onUnfavoriteMeal && m.id && mealDate) {
+            onUnfavoriteMeal(m.id, mealDate);
+          } else {
+            console.error("Missing data or handler for unfavorite toggle", {
+              handlerExists: !!onUnfavoriteMeal,
+              mealId: m.id,
+              mealDate: mealDate,
+            });
+          }
+        };
+
         return (
           <>
-            {/* Pass isFavorited status to DetailHeader */}
             <DetailHeader
               title={m.name}
               subtitle={`${
@@ -567,6 +648,10 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
               isTraceMeal
               isFavorited={m.isFavorited}
               onClose={onClose}
+              onFavoriteClick={handleFavoriteClick}
+              onUnfavoriteClick={handleUnfavoriteClick}
+              mealId={m.id}
+              mealDate={mealDate}
             />
             <ScoreDisplay
               varietyScore={m.varietyScore}
@@ -576,6 +661,10 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
             />
             <NutritionalBreakdown info={m.nutritionalInfo} />
             <FoodList foods={m?.foods} />
+            {/* Render the saved recommendations */}
+            <SavedRecommendationsDisplay
+              recommendations={m.nl_recommendations}
+            />
             <div className="py-4 px-5 border-t border-gray-100">
               <TagsList label="Cultural Tips" tags={m.culturalTips} />
             </div>
@@ -799,7 +888,8 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
     const { dailyCalories, carbohydrates, protein, fiber } = nutritionalGoals;
     const calcProgress = (current: number, target: number) => {
       if (target <= 0) return 0;
-      return Math.min(Math.max((current / target) * 100, 0), 100); // Cap at 100%
+      // Return raw progress, potentially over 100
+      return Math.max((current / target) * 100, 0);
     };
 
     const goals = [
@@ -853,40 +943,52 @@ export const MealDetailsPanel: React.FC<MealDetailsPanelProps> = ({
           </div>
 
           <div className="space-y-3">
-            {goals.map((goal) => (
-              <div key={goal.label} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className={`font-medium ${goal.textColor}`}>
-                    {goal.label}
-                  </span>
-                  <span className="text-gray-500">
-                    {goal.current.toFixed(0)} / {goal.target.toFixed(0)}{" "}
-                    {goal.unit}
-                  </span>
+            {goals.map((goal) => {
+              const rawProgress = calcProgress(goal.current, goal.target);
+              // Cap progress at 100% for the visual bar width
+              const cappedProgress = Math.min(rawProgress, 100);
+
+              return (
+                <div key={goal.label} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className={`font-medium ${goal.textColor}`}>
+                      {goal.label}
+                    </span>
+                    <span className="text-gray-500">
+                      {goal.current.toFixed(0)} / {goal.target.toFixed(0)}{" "}
+                      {goal.unit}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full ${goal.color}`}
+                      initial={{ width: "0%" }}
+                      animate={{
+                        width: `${cappedProgress}%`, // Use capped progress for bar width
+                      }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full ${goal.color}`}
-                    initial={{ width: "0%" }}
-                    animate={{
-                      width: `${calcProgress(goal.current, goal.target)}%`,
-                    }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-4 gap-2 pt-2">
-            {goals.map((goal) => (
-              <div key={goal.label + "-stat"} className="text-center">
-                <div className={`text-lg font-bold ${goal.textColor}`}>
-                  {Math.round(calcProgress(goal.current, goal.target))}%
+            {goals.map((goal) => {
+              const rawProgress = calcProgress(goal.current, goal.target);
+              const displayPercentage =
+                rawProgress > 100 ? ">100%" : `${Math.round(rawProgress)}%`;
+
+              return (
+                <div key={goal.label + "-stat"} className="text-center">
+                  <div className={`text-lg font-bold ${goal.textColor}`}>
+                    {displayPercentage} {/* Display modified percentage */}
+                  </div>
+                  <div className="text-xs text-gray-500">{goal.label}</div>
                 </div>
-                <div className="text-xs text-gray-500">{goal.label}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
