@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
         {/* Logo and Title Section */}
         <div className="flex items-center space-x-6">
           {!isGuest ? (
-            <Link to="/home" className="group relative">
+            <Link to="/" className="group relative">
               <div className="relative p-2 rounded-xl transform group-hover:scale-105 transition-transform">
                 <img src={Logo} alt="Logo" className="h-12 w-12" />
               </div>
