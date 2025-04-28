@@ -403,8 +403,8 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
 
   const allAvailableDates = useMemo(() => {
     const dateSet = new Set<string>();
-    // Use traceDataRef for potentially more up-to-date list
-    traceDataRef.current.forEach((day) => {
+    // Use traceData state directly for dependency tracking
+    traceData.forEach((day) => {
       const normDate = normalizeDate(day.date);
       if (isValidDate(normDate)) dateSet.add(format(normDate, "yyyy-MM-dd"));
     });
@@ -423,7 +423,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       .sort((a, b) => a.getTime() - b.getTime());
 
     return sortedDates;
-  }, [recommendationData, loadedStartDate, loadedEndDate]); // Add traceDataRef.current? No, useMemo won't track ref changes. Rely on traceData state update triggering re-calc via useEffect dependency chain.
+  }, [traceData, recommendationData, loadedStartDate, loadedEndDate]);
 
   // Organize meals into bins for each date (moved from MealView)
   const organizeMealsIntoBins = useCallback(
@@ -496,6 +496,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   const { maxBinsAcrossAllDates, needsExpansion } = useMemo(() => {
     let maxNeeded = DEFAULT_BIN_COUNT;
     let anyDateNeedsExpansion = false;
+    // This now depends on the correctly calculated allAvailableDates
     for (const date of allAvailableDates) {
       const { maxBinsNeeded } = organizeMealsIntoBins(date);
       if (maxBinsNeeded > maxNeeded) {
