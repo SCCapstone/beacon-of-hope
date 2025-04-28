@@ -204,7 +204,6 @@ def delete_meal(request: HttpRequest):
         logger.info(colored(f"Removing meal from dayplan: {date}", "yellow"))
         day_plan_ids = day_plans[date]
 
-
         msg, status = firebaseManager.remove_meal_from_dayplan(meal_id, day_plan_ids)
         if status != 200:
             return JsonResponse(
@@ -227,8 +226,8 @@ def favorite_meal(request: HttpRequest):
     if request.method != "POST":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
-        logger.info("Favorite Meal API Endpoint Called ...")
-        logger.info("Parsing Request Body ...")
+        logger.info(colored("Favorite Meal API Endpoint Called ...", "yellow"))
+        logger.info(colored("Parsing Request Body ...", "yellow"))
         data = json.loads(request.body)
 
         keys = ["date", "user_id", "meal_id"]
@@ -242,7 +241,10 @@ def favorite_meal(request: HttpRequest):
         date, user_id, to_favorite_meal_id = [data[key] for key in keys]
 
         logger.info(
-            f"Getting corresponding day plan id for date {date} for user {user_id}"
+            colored(
+                f"Getting corresponding day plan id for date {date} for user {user_id}",
+                "yellow",
+            )
         )
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
@@ -265,42 +267,57 @@ def favorite_meal(request: HttpRequest):
                 status=403,
             )
 
-        logger.info(colored("Getting day plan from FB", "green"))
+        logger.info(colored("Getting day plan from FB", "yellow"))
 
-        day_plan_id = day_plans[date]
-        day_plan, status = firebaseManager.get_dayplan_by_id(day_plan_id=day_plan_id)
-        if status != 200:
-            return JsonResponse(
-                {
-                    "Error": f"There was an error in retrieving the meal plan: {day_plan}"
-                },
-                status=status,
+        day_plan_ids = day_plans[date]
+        meal_items = None
+        for day_plan_id in day_plan_ids:
+            day_plan, status = firebaseManager.get_dayplan_by_id(
+                day_plan_id=day_plan_id
             )
-
-        logger.info(colored("Getting the meal items from meal", "green"))
-        for meal_id, meal in day_plan["meals"].items():
-            if meal_id == to_favorite_meal_id:
-                logger.info(
-                    colored(
-                        f"Favorited meal {to_favorite_meal_id} in day plan {day_plan_id}",
-                        "green",
-                    )
+            if status != 200:
+                return JsonResponse(
+                    {
+                        "Error": f"There was an error in retrieving the meal plan: {day_plan}"
+                    },
+                    status=status,
                 )
-                meal["favorited"] = True
-                msg, status = firebaseManager.store_meal_in_dayplan(day_plan_id, meal)
-                meal_items = meal["meal_types"]
 
-        logger.info(f"Updating Permanent Items with {meal_items}...")
-        msg, status = user.add_permanent_favorite_items(meal_items)
-        if status != 200:
-            return JsonResponse(
-                {
-                    "Error": f"There was an error in updating the permanent favorite items {msg}"
-                },
-                status=status,
+            if to_favorite_meal_id not in day_plan["meals"]:
+                continue
+
+            logger.info(colored("Getting the meal items from meal", "yellow"))
+            for meal_id, meal in day_plan["meals"].items():
+                if meal_id == to_favorite_meal_id:
+                    logger.info(
+                        colored(
+                            f"Favorited meal {to_favorite_meal_id} in day plan {day_plan_id}",
+                            "yellow",
+                        )
+                    )
+                    meal["favorited"] = True
+                    msg, status = firebaseManager.store_meal_in_dayplan(
+                        day_plan_id, meal
+                    )
+                    meal_items = meal["meal_types"]
+
+        if meal_items:
+            logger.info(
+                colored(f"Updating Permanent Items with {meal_items}...", "yellow")
             )
+            msg, status = user.add_permanent_favorite_items(meal_items)
+            if status != 200:
+                return JsonResponse(
+                    {
+                        "Error": f"There was an error in updating the permanent favorite items {msg}"
+                    },
+                    status=status,
+                )
 
-        return JsonResponse({"Message": msg}, status=status)
+            return JsonResponse({"Message": msg}, status=status)
+        return JsonResponse(
+            {"Message": "Meal items were empty for favoriting"}, status=200
+        )
 
     except Exception as e:
         return JsonResponse(
