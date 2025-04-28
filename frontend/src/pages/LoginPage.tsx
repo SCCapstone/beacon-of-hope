@@ -17,13 +17,13 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
+    setError(""); // Clear previous errors
+  
     try {
-      await dispatch(loginUser({email, password, rememberMe})).unwrap();
-      navigate("/food-preferences");
-    } catch(err: any) {
-      setError("Invalid email or password.");
+      await dispatch(loginUser({ email, password, rememberMe })).unwrap();
+      navigate("/food-preferences"); // Only navigate AFTER successful login
+    } catch (err: any) {
+      setError("Invalid email or password. Please try again."); // Show error
     }
   };
 
@@ -143,45 +143,30 @@ const LoginPage: React.FC = () => {
                 marginBottom: "2.5%",
               }}
             >
-              <label
-                style={{
-                  fontWeight: "400",
-                  fontSize: ".55vw",
-                  color: "#a1a1a1",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => {
-                    setRememberMe(e.target.checked);
-                  }}
-                  style={{
-                    margin: 0,
-                  }}
-                />
-                Remember Me
-              </label>
+             
 
-              <a
-                href=""
-                style={{
+                <a
+                  onClick={() => navigate("/forgot-password")}
+                  style={{
                   fontWeight: "600",
                   fontSize: ".55vw",
                   color: "#7f265b",
                   textDecoration: "none",
+                  cursor: "pointer",
                 }}
               >
                 Forgot password?
               </a>
+
             </div>
 
-            <button className="bg-gradient-to-r from-orange-100 to-pink-900" type="submit" id="login--submit" name='home-page'>
-              Login
-            </button>
+              <button 
+                className="bg-gradient-to-r from-orange-100 to-pink-900" 
+                type="submit" 
+                id="login--submit"
+              >
+                Login
+              </button>
           </form>
           <div 
           style={{
