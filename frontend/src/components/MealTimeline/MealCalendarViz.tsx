@@ -149,6 +149,7 @@ interface MealCalendarVizProps {
     currentBinNames: string[];
   };
   allAvailableDates?: Date[];
+  initialLoadScrollTrigger: number;
 }
 
 const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
@@ -169,6 +170,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
   isFetchingFuture,
   loadedStartDate,
   loadedEndDate,
+  initialLoadScrollTrigger,
 }) => {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -245,6 +247,15 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Optionally save to localStorage for persistence
     localStorage.setItem("mealBinNames", JSON.stringify(newNames));
   };
+
+  useEffect(() => {
+    // Only trigger scroll *after* the parent indicates initial load is done (trigger > 0)
+    if (initialLoadScrollTrigger > 0) {
+      // console.log("Viz: Initial load scroll trigger received from parent. Triggering scroll.");
+      setScrollToTodayTrigger(prev => prev + 1);
+    }
+    // This effect specifically depends on the trigger from the parent
+  }, [initialLoadScrollTrigger]);
 
   // Load recommendations based on mealPlan prop (from localStorage)
   useEffect(() => {
@@ -1129,7 +1140,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
     // Always update the date state via the parent first
     handleDateChange(today);
     // console.log("Viz: Today button clicked, triggering scroll via handleDateChange.");
-  }, [handleDateChange]); // Keep handleDateChange dependency
+  }, [handleDateChange]);
 
   const handleLevelChange = useCallback(
     (newLevel: VisualizationLevel["type"]) => {
