@@ -102,6 +102,7 @@ poetry run coverage report
    - JSON Schema:
    ```json
    {
+      "meal_plan_name": "",
       "starting_date": "2025-03-08",
       "meal_plan_config": {
         "num_days": 3,
@@ -308,6 +309,7 @@ poetry run coverage report
    - JSON Schema:
    ```python
     {
+      "meal_plan_name" : "",
       "user_id":"67eeda155888fbf4e77f55dc",
       "dates_to_regenerate":["2025-04-02", "2025-04-03"]
     }
@@ -540,12 +542,66 @@ poetry run coverage report
 
       ```
 
+- #### `<backend_ip>/beacon/user/logout-user`
+  - HTTP Method: `POST`
+  - Logout user profile
+  - Parameters
+    - Content-type: application/json
+    - ```python
+      {
+        "user_id": str,
+      }
+    ```
+  - Returns nothing
+
+- #### `<backend_ip>/beacon/user/exit-default`
+  - HTTP Method: `POST`
+  - Logout guest user profile
+  - Parameters
+    - Content-type: application/json
+    - ```python
+      {
+        "user_id": str,
+      }
+    ```
+  - Returns nothing
 
 - #### `<backend_ip>/beacon/user/update/<str:user_id>`
   - HTTP Method: `PATCH`
   - Update user profile in database
   - Parameters
     - user_id: PyMongo ObjectId type
+    - Content-type: application/json
+    - ```python
+      {
+        "name": "", # First Last
+        "email" : "", # email_address@domain.com
+        "dietaryPreferences" : {
+          "preferences": [""],
+          "numerical_preferences": {
+              "dairy": 0,
+              "nuts": 0,
+              "meat": 0,
+          },
+        },
+        "demographicsInfo" : {
+          "ethnicity" : "",
+          "race" : "",
+          "gender": "",
+          "height" : "",
+          "weight": "",
+          "age" : "",
+        },
+        "dietary_conditions": {
+            "diabetes": True,
+            "gluten_free": True,
+            "vegan": True,
+            "vegetarian": True,
+        },
+        "nutritional_goals": {"calories": 0, "carbs": 0, "protein": 0, "fiber": 0}
+      }
+
+    ```
 
 
 - #### `<backend_ip>/beacon/user/delete/<str:user_id>`
@@ -628,9 +684,10 @@ poetry run coverage report
   - Parameters:
     - ```json
       {
-        "user_id":"67cbasdflsdafj293",
-        "date:":"2025-04-08",
-        "meal_id":"67cbasdfls324433"
+        "user_id" : "67cbasdflsdafj293",
+        "date:" : "2025-04-08",
+        "meal_id" : "67cbasdfls324433",
+        "nl_recommendations" : []
       }
   - Response:
     - (200) Successfully saved meal
@@ -671,6 +728,28 @@ poetry run coverage report
 - #### `<backend_ip>/beacon/user/favorite-meal`
   - HTTP Method: `POST`
   - Description: Favorite meal to influence future recommendations
+  - Parameters:
+    - ```json
+      {
+        "user_id":"67cbasdflsdafj293",
+        "date:":"2025-04-08",
+        "meal_id":"67cbasdfls324433"
+      }
+  - Response:
+    - (200) Successfully favorited meal
+    ```json
+    {
+      "Message": "Meal was successfully favoritd"
+    }
+    ```
+    - (400) Invalid request method
+    - (403) Missing Parameters
+    - (500) Internal Server error
+    - Status code 200 if successful
+
+- #### `<backend_ip>/beacon/user/unfavorite-meal`
+  - HTTP Method: `POST`
+  - Description: Unfavorite meal to influence future recommendations
   - Parameters:
     - ```json
       {

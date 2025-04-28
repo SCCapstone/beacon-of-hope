@@ -7,6 +7,84 @@ const PrivacySharingModal: React.FC = () => {
     healthData: false,
     demographicData: true,
   });
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+
+  const handlePrivacyPolicyClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowPrivacyPolicy(true);
+  };
+
+  if (showPrivacyPolicy) {
+    return (
+      <div className="modal-content">
+        <div className="privacy-section">
+          <h3>Privacy Policy</h3>
+          <div className="terms-section">
+            <section className="terms-intro">
+              <p>
+                Welcome to BEACON of Hope ("we," "our," or "us"). This Privacy Policy explains how we collect, use, and protect your personal information when you use our website and services.
+              </p>
+            </section>
+
+            <section className="terms-part">
+              <h1>INFORMATION WE COLLECT</h1>
+              <ul>
+                <li>Personal Information: Name, email, and demographic data you provide</li>
+                <li>Health Information: Dietary restrictions, allergies, and health conditions</li>
+                <li>Usage Data: How you interact with our meal recommendations</li>
+                <li>Preferences: Food preferences and meal plan customization settings</li>
+              </ul>
+            </section>
+
+            <section className="terms-part">
+              <h1>HOW WE USE YOUR INFORMATION</h1>
+              <ul>
+                <li>To provide personalized meal recommendations</li>
+                <li>To improve our services and user experience</li>
+                <li>To communicate with you about your account and updates</li>
+                <li>To ensure the security and integrity of our platform</li>
+              </ul>
+            </section>
+
+            <section className="terms-part">
+              <h1>DATA PROTECTION</h1>
+              <p>
+                We implement appropriate security measures to protect your personal information. Your data is stored securely and accessed only by authorized personnel.
+              </p>
+            </section>
+
+            <section className="terms-part">
+              <h1>YOUR RIGHTS</h1>
+              <ul>
+                <li>Access your personal data</li>
+                <li>Request corrections to your data</li>
+                <li>Delete your account and associated data</li>
+                <li>Opt-out of certain data processing activities</li>
+              </ul>
+            </section>
+
+            <section className="terms-part">
+              <h1>CONTACT US</h1>
+              <p>
+                If you have any questions about this Privacy Policy, please contact us at beaconOfHope@gmail.com.
+              </p>
+            </section>
+
+            <section className="terms-foot">
+              <p>Last Updated: 02/25/2025</p>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setShowPrivacyPolicy(false)}
+                style={{ marginTop: '1rem' }}
+              >
+                Back to Privacy Settings
+              </button>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-content">
@@ -89,8 +167,8 @@ const PrivacySharingModal: React.FC = () => {
         <p>
           We take your privacy seriously and are committed to protecting your
           personal information. Learn more about how we collect, use, and
-          protect your data in our
-          <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">
+          protect your data in our{" "}
+          <a href="#" onClick={handlePrivacyPolicyClick}>
             Privacy Policy
           </a>
           .

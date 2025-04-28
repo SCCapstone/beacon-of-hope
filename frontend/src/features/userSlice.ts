@@ -14,23 +14,46 @@ interface User {
   allowPersonalization: boolean;
   demographicsInfo: {
     ethnicity: string;
+    race: string;
     height: string;
     weight: string;
     age: number;
     gender: string;
   };
   dietaryRestrictions: string;
-  dietary_preferences: {
+  dietaryPreferences: {
     preferences: string[];
     numerical_preferences: {
-      dairy: number;
-      nuts: number;
-      meat: number;
+      dairyPreference: number;
+      nutsPreference: number;
+      meatPreference: number;
     };
   };
-  health_info: {
-    allergies: string[];
-    conditions: string[];
+  dietary_conditions: {
+    diabetes: boolean;
+    gluten_free: boolean;
+    vegetarian: boolean;
+    vegan: boolean;
+  };
+  nutritional_goals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fiber: number;
+  };
+  mealPlan?: {
+    name: string;
+    startDate: string;
+    length: number;
+    mealsPerDay: number;
+    configs: {
+      meal_name: string;
+      meal_time?: string;
+      beverage: boolean;
+      main_course: boolean;
+      side: boolean;
+      dessert: boolean;
+    }[];
   };
   meal_plan_config: {
     meal_configs: {
@@ -145,6 +168,7 @@ export const userSlice = createSlice({
                 allowPersonalization: false,
                 demographicsInfo: {
                     ethnicity: "",
+                    race: "",
                     height: "",
                     weight: "",
                     age: 0,
@@ -157,11 +181,26 @@ export const userSlice = createSlice({
                         dairy: 0,
                         nuts: 0,
                         meat: 0
-                    }
+                    },
                 },
-                health_info: {
-                    allergies: [],
-                    conditions: []
+                dietary_conditions: {
+                    diabetes: false,
+                    glutenFree: false,
+                    vegetarian: false,
+                    vegan: false
+                },
+                nutritional_goals: {
+                    calories: 2000,
+                    protein: 50,
+                    carbs: 250,
+                    fiber: 25
+                },
+                mealPlan: {
+                    name: "",
+                    startDate: new Date().toISOString().split("T")[0],
+                    length: 1,
+                    mealsPerDay: 3,
+                    configs: []
                 },
                 meal_plan_config: {
                     meal_configs: [],

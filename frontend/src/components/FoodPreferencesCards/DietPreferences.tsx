@@ -1,51 +1,58 @@
+import { Tooltip } from "react-tooltip";
+
 const DietaryPreferences: React.FC<{
   dairy: number;
   meat: number;
   nuts: number;
-  glutenFree: boolean;
-  diabetes: boolean;
-  vegetarian: boolean;
-  vegan: boolean;
-  handleSliderChange: (
-    setter: React.Dispatch<React.SetStateAction<number>>,
-    value: number
-  ) => void;
-  handleCheckboxChange: (
-    setter: React.Dispatch<React.SetStateAction<boolean>>
-  ) => void;
-  setDairy: React.Dispatch<React.SetStateAction<number>>;
-  setMeat: React.Dispatch<React.SetStateAction<number>>;
-  setNuts: React.Dispatch<React.SetStateAction<number>>;
-  setGlutenFree: React.Dispatch<React.SetStateAction<boolean>>;
-  setDiabetes: React.Dispatch<React.SetStateAction<boolean>>;
-  setVegetarian: React.Dispatch<React.SetStateAction<boolean>>;
-  setVegan: React.Dispatch<React.SetStateAction<boolean>>;
+  // glutenFree: boolean;
+  // diabetes: boolean;
+  // vegetarian: boolean;
+  // vegan: boolean;
+  selectedCondition: string | null;
+  setSelectedCondition: (condition: string) => void;
+  handleSliderChange: (key: "dairyPreference" | "meatPreference" | "nutsPreference", value: number) => void;
+  handleCheckboxChange: (key: "gluten_free" | "diabetes" | "vegetarian" | "vegan") => void;
 }> = ({
   dairy,
   meat,
   nuts,
-  glutenFree,
-  diabetes,
-  vegetarian,
-  vegan,
+  // glutenFree,
+  // diabetes,
+  // vegetarian,
+  // vegan,
+  selectedCondition,
+  setSelectedCondition,
   handleSliderChange,
-  handleCheckboxChange,
-  setDairy,
-  setMeat,
-  setNuts,
-  setGlutenFree,
-  setDiabetes,
-  setVegetarian,
-  setVegan,
+  handleCheckboxChange
 }) => {
   const sliderLabels = ["Dislike", "No Preference", "Like"];
 
   return (
     <div className="bg-white/10 rounded-2xl shadow-lg p-6">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+      <h2 className="flex text-2xl font-semibold text-gray-800 mb-6">
         Dietary Preferences & Health
+        <div className="ml-2 text-sm">
+            <button
+              data-tooltip-id="dietary-disclaimer-tooltip"
+              data-tooltip-content="Our recommendation system currently supports only one dietary condition at a time. Selecting a new one will replace the previous selection."
+              className="bg-orange-100 text-orange-700 rounded-full p-2 shadow-lg hover:bg-orange-200"
+              type="button"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
+              </svg>
+            </button>
+            <Tooltip
+              id="dietary-disclaimer-tooltip"
+              delayShow={150}
+              delayHide={50}
+              className="z-50 rounded-md bg-gray-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+              place="left"
+            />
+      </div>
       </h2>
-
+      
       <div className="space-y-6">
         <div className="space-y-4">
           <div>
@@ -57,8 +64,7 @@ const DietaryPreferences: React.FC<{
               min="-1"
               max="1"
               value={dairy}
-              onChange={(e) =>
-                handleSliderChange(setDairy, Number(e.target.value))
+              onChange={(e) => handleSliderChange("dairyPreference", Number(e.target.value))
               }
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
             />
@@ -78,9 +84,7 @@ const DietaryPreferences: React.FC<{
               min="-1"
               max="1"
               value={meat}
-              onChange={(e) =>
-                handleSliderChange(setMeat, Number(e.target.value))
-              }
+              onChange={(e) => handleSliderChange("meatPreference", Number(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
             />
             <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -99,9 +103,7 @@ const DietaryPreferences: React.FC<{
               min="-1"
               max="1"
               value={nuts}
-              onChange={(e) =>
-                handleSliderChange(setNuts, Number(e.target.value))
-              }
+              onChange={(e) => handleSliderChange("nutsPreference", Number(e.target.value))}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-400"
             />
             <div className="flex justify-between text-sm text-gray-600 mt-1">
@@ -116,8 +118,8 @@ const DietaryPreferences: React.FC<{
           <label className="flex items-center space-x-3">
             <input
               type="checkbox"
-              checked={glutenFree}
-              onChange={() => handleCheckboxChange(setGlutenFree)}
+              checked={selectedCondition == "gluten_free"}
+              onChange={() => setSelectedCondition("gluten_free")}
               className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
             />
             <span className="text-gray-700">Gluten-Free</span>
@@ -126,8 +128,8 @@ const DietaryPreferences: React.FC<{
           <label className="flex items-center space-x-3">
             <input
               type="checkbox"
-              checked={diabetes}
-              onChange={() => handleCheckboxChange(setDiabetes)}
+              checked={selectedCondition == "diabetes"}
+              onChange={() => setSelectedCondition("diabetes")}
               className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
             />
             <span className="text-gray-700">Diabetes</span>
@@ -136,8 +138,8 @@ const DietaryPreferences: React.FC<{
           <label className="flex items-center space-x-3">
             <input
               type="checkbox"
-              checked={vegetarian}
-              onChange={() => handleCheckboxChange(setVegetarian)}
+              checked={selectedCondition == "vegetarian"}
+              onChange={() => setSelectedCondition("vegetarian")}
               className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
             />
             <span className="text-gray-700">Vegetarian</span>
@@ -146,8 +148,8 @@ const DietaryPreferences: React.FC<{
           <label className="flex items-center space-x-3">
             <input
               type="checkbox"
-              checked={vegan}
-              onChange={() => handleCheckboxChange(setVegan)}
+              checked={selectedCondition == "vegan"}
+              onChange={() => setSelectedCondition("vegan")}
               className="form-checkbox h-5 w-5 text-orange-400 rounded border-gray-300 focus:ring-orange-200"
             />
             <span className="text-gray-700">Vegan</span>

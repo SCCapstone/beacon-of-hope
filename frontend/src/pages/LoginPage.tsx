@@ -4,6 +4,7 @@ import "../App.css";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser, setGuestUser } from "../features/userSlice";
 import { AppStore, RootState } from "../app/store";
+import '../styles/Login.css';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -16,13 +17,13 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-
+    setError(""); // Clear previous errors
+  
     try {
-      await dispatch(loginUser({email, password, rememberMe})).unwrap();
-      navigate("/food-preferences");
-    } catch(err: any) {
-      setError(err.response?.data?.message);
+      await dispatch(loginUser({ email, password, rememberMe })).unwrap();
+      navigate("/food-preferences"); // Only navigate AFTER successful login
+    } catch (err: any) {
+      setError("Invalid email or password. Please try again."); // Show error
     }
   };
 
@@ -33,16 +34,13 @@ const LoginPage: React.FC = () => {
 
   return (
     <div id="login--page">
-      <div id="login--left">
-        <img src="../../login-img.png" alt="Login" />
-      </div>
+      <img id="login--left" src="../../login-img.png" alt="Login" />
       <div id="login--right">
         <div id="login--header">
           <h1
             style={{
               fontWeight: "700",
-              fontSize: "36px",
-              lineHeight: "49px",
+              fontSize: "2.1vw",
               margin: "0px",
               color: "#525252",
             }}
@@ -52,36 +50,15 @@ const LoginPage: React.FC = () => {
           <p
             style={{
               fontWeight: "400",
-              fontSize: "16px",
-              lineHeight: "22px",
+              fontSize: ".8vw",
+              lineHeight: "1.1vw",
               color: "#525252",
             }}
           >
             Log in to personalize your journey or explore as a guest
-            <br />
-            <br />
           </p>
 
-          <button
-            className="google-login-button"
-            style={{
-              opacity: 0.6,
-              cursor: "not-allowed",
-            }}
-            title="Coming soon!"
-          >
-            <img src="../../google-logo.png" alt="Google" />
-            <p
-              style={{
-                fontWeight: "700",
-                fontSize: "14px",
-                color: "#828282",
-                fontFamily: "Nunito Sans",
-              }}
-            >
-              Continue with Google
-            </p>
-          </button>
+          
 
           <div
             style={{
@@ -105,27 +82,24 @@ const LoginPage: React.FC = () => {
             id="sign--in"
             style={{
               width: "100%",
-              height: "16px",
+              height: "1vh",
               fontWeight: "600",
-              fontSize: "12px",
+              fontSize: ".8vw",
               color: "#DDDDDD",
-              justifyContent: "center",
-              alignItems: "center",
-              marginTop: "18px",
+              marginTop: "1.1%",
             }}
           >
-            ------------or Sign in with Email------------
           </p>
         </div>
         <div id="login--content">
           <form onSubmit={handleSubmit}>
-            {error && <div className="error-message">{error}</div>}
+            {error && <div className="error-message">{error}</div>}{" "}
             <div className="login--input">
               <label
                 htmlFor="email"
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".82vw",
                   color: "#828282",
                 }}
               >
@@ -139,12 +113,12 @@ const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="login--input" style={{ marginTop: "24px" }}>
+            <div className="login--input" style={{ marginTop: "3%" }}>
               <label
                 htmlFor="password"
                 style={{
                   fontWeight: "600",
-                  fontSize: "14px",
+                  fontSize: ".82vw",
                   color: "#828282",
                 }}
               >
@@ -165,53 +139,38 @@ const LoginPage: React.FC = () => {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginTop: "16px",
-                marginBottom: "24px",
+                marginTop: "2%",
+                marginBottom: "2.5%",
               }}
             >
-              <label
-                style={{
-                  fontWeight: "400",
-                  fontSize: "12px",
-                  color: "#a1a1a1",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => {
-                    setRememberMe(e.target.checked);
-                  }}
-                  style={{
-                    margin: 0,
-                  }}
-                />
-                Remember Me
-              </label>
+             
 
-              <a
-                href=""
-                style={{
+                <a
+                  onClick={() => navigate("/forgot-password")}
+                  style={{
                   fontWeight: "600",
-                  fontSize: "12px",
+                  fontSize: ".55vw",
                   color: "#7f265b",
                   textDecoration: "none",
+                  cursor: "pointer",
                 }}
               >
                 Forgot password?
               </a>
+
             </div>
 
-            <button type="submit" id="login--submit" name='home-page'>
-              Login
-            </button>
+              <button 
+                className="bg-gradient-to-r from-orange-100 to-pink-900" 
+                type="submit" 
+                id="login--submit"
+              >
+                Login
+              </button>
           </form>
           <div 
           style={{
-            marginTop: "24px",
+            marginTop: "2.5%",
             textAlign: "center",
             display: "flex",
             flexDirection: "column",
@@ -219,7 +178,7 @@ const LoginPage: React.FC = () => {
           }}>
           <p
             id="create--account"
-            style={{ fontWeight: "400", fontSize: "16px", color: "#828282" }}
+            style={{ fontWeight: "400", fontSize: ".7vw", color: "#828282" }}
           >
             Not registered yet?{" "}
             <a
@@ -238,7 +197,7 @@ const LoginPage: React.FC = () => {
             style={{
               fontStyle: "italic",
               fontWeight: "400",
-              fontSize: "16px",
+              fontSize: ".7vw",
               color: "#828282",
             }}
           >

@@ -3,6 +3,7 @@ import WelcomeCard from '../components/WelcomeCard';
 import { useDispatch } from 'react-redux';
 import { setGuestUser } from '../features/userSlice';
 import { useNavigate } from 'react-router-dom';
+import '../styles/Welcome.css';
 
 const WelcomePage: React.FC = () => {
     const dispatch = useDispatch();
@@ -15,15 +16,13 @@ const WelcomePage: React.FC = () => {
 
     return (
         <div id='welcome--page'>
-            <div id='welcome--left'>
-                <img src='../../login-img.png'></img>
-            </div>
+            <img id='welcome--left' src='../../login-img.png'></img>
             <div id='welcome--right'>
                 <div id='welcome--header'>
-                    <h1 style={{fontFamily: "Arima", fontWeight: "700", fontSize: "48px", margin: "0px", color: "#525252"}}>
+                    <h1 style={{fontFamily: "Arima", fontWeight: "700", fontSize: "3vw", margin: "0px", color: "#525252"}}>
                         Welcome!
                     </h1>
-                    <p style={{fontWeight: "400", fontSize: "20px", color: "#525252", margin: "0px"}}>
+                    <p style={{fontWeight: "400", fontSize: ".9vw", color: "#525252", margin: "0px"}}>
                         Choose Your Starting Point to Personalize Your Experience
                     </p>
                 </div>

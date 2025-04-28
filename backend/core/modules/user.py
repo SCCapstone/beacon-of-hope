@@ -42,11 +42,20 @@ class User:
             numerical_preferences,
         )
 
-    def get_allergies(self) -> List[str]:
-        return self.health_info["allergies"]
+    def get_dietary_conditions(self) -> Dict:
+        if hasattr(self, "dietary_conditions"):
+            return self.dietary_conditions
+        return {
+            "diabetes": False,
+            "gluten_free": False,
+            "vegan": False,
+            "vegetarian": False,
+        }
 
-    def get_conditions(self) -> List[str]:
-        return self.health_info["conditions"]
+    def set_dietary_conditions(self, dietary_conditions) -> Dict:
+        return self.firebaseManager.update_user_attr(
+            self.get_id(), "dietary_conditions", dietary_conditions
+        )
 
     def get_demographic_info(self) -> Dict:
         return self.demographicsInfo
@@ -113,7 +122,7 @@ class User:
     def get_favorite_bevs(self) -> List[str]:
         return self.favorite_items["Beverage"]
 
-    def update_permanent_favorite_items(self, meal_items: Dict[str, int]):
+    def add_permanent_favorite_items(self, meal_items: Dict[str, int]):
         meal_items = {
             "Main Course": meal_items.get("main_course", None),
             "Side": meal_items.get("side", None),
@@ -124,6 +133,18 @@ class User:
         meal_items = {key: val for key, val in meal_items.items() if val}
         return self.firebaseManager.add_favorite_items(self.get_id(), meal_items)
 
+    def remove_permanent_favorite_items(self, meal_items: Dict[str, int]):
+        meal_items = {
+            "Main Course": meal_items.get("main_course", None),
+            "Side": meal_items.get("side", None),
+            "Dessert": meal_items.get("dessert", None),
+            "Beverage": meal_items.get("beverage", None),
+        }
+
+        meal_items = {key: val for key, val in meal_items.items() if val}
+        return self.firebaseManager.remove_favorite_items(self.get_id(), meal_items)
+
+
     def get_nutritional_goals(self) -> Dict[str, int]:
         if self.nutritional_goals:
             return self.nutritional_goals
@@ -133,4 +154,7 @@ class User:
         return f"User({self.__dict__})"
 
     def to_dict(self):
-        return self.__dict__
+        user_dict = self.__dict__
+        if "firebaseManager" in user_dict:
+            user_dict.pop("firebaseManager")
+        return user_dict

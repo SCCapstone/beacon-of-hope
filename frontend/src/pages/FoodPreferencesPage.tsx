@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../app/store";
 import { useNavigate } from "react-router-dom";
 import UserInformation from "../components/FoodPreferencesCards/UserInformation";
@@ -11,20 +11,99 @@ import { MainLayout } from "../components/Layouts/MainLayout";
 import { personas } from "./personas";
 import { motion, AnimatePresence } from "framer-motion";
 import { convertTime24to12 } from "../utils/mealPlanTransformer";
+import { updateUser } from "../../src/features/userSlice";
+
+interface PersonalInfo {
+  allowPersonalization: boolean;
+  demographicsInfo: {
+    ethnicity: string;
+    race: string;
+    height: string;
+    weight: string;
+    age: number;
+    gender: string;
+  };
+  dietaryRestrictions: string;
+  dietaryPreferences: {
+    preferences: string[];
+    numerical_preferences: {
+      dairyPreference: number;
+      nutsPreference: number;
+      meatPreference: number;
+    };
+  };
+  dietary_conditions: {
+    diabetes: boolean;
+    gluten_free: boolean;
+    vegetarian: boolean;
+    vegan: boolean;
+  };
+  nutritional_goals?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fiber: number;
+  };
+  mealPlan?: {
+    name: string;
+    startDate: string;
+    length: number;
+    mealsPerDay: number;
+    configs: {
+      meal_name: string;
+      meal_time?: string;
+      beverage: boolean;
+      main_course: boolean;
+      side: boolean;
+      dessert: boolean;
+    }[];
+  };
+}
 
 const FoodPreferencesPage: React.FC = () => {
   const navigate = useNavigate();
   const userState = useSelector((state: RootState) => state.user);
+  const userData = userState.user;
+  console.log(userData);
 
-  // User Info
-  const [height, setHeight] = useState<string>(`5'8"`);
-  const [age, setAge] = useState<string>("26");
-  const [weight, setWeight] = useState<string>("185");
-  const [gender, setGender] = useState<string>("Male");
+  const [info, setInfo] = useState<PersonalInfo>({
+    allowPersonalization: userData?.allowPersonalization ?? false,
+    demographicsInfo: {
+      ethnicity: userData?.demographicsInfo?.ethnicity ?? "",
+      race: userData?.demographicsInfo?.race ?? "",
+      height: userData?.demographicsInfo?.height ?? `5'8"`,
+      weight: userData?.demographicsInfo?.weight ?? "185",
+      age: userData?.demographicsInfo?.age ?? 26,
+      gender: userData?.demographicsInfo?.gender ?? "Male"
+    },
+    dietaryRestrictions: userData?.dietaryRestrictions ?? "",
+    dietaryPreferences: {
+      preferences: userData?.dietaryPreferences?.preferences ?? [],
+      numerical_preferences: {
+        dairyPreference: userData?.dietaryPreferences?.numerical_preferences?.dairyPreference ?? 0,
+        nutsPreference: userData?.dietaryPreferences?.numerical_preferences?.nutsPreference ?? 0,
+        meatPreference: userData?.dietaryPreferences?.numerical_preferences?.meatPreference ?? 0
+      },
+    },
+    dietary_conditions: {
+      diabetes: userData?.dietary_conditions?.diabetes ?? false,
+      gluten_free: userData?.dietary_conditions?.gluten_free ?? false,
+      vegetarian: userData?.dietary_conditions?.vegetarian ?? false,
+      vegan: userData?.dietary_conditions?.vegan ?? false,
+    },
+    nutritional_goals: {
+      calories: userData?.nutritional_goals.calories ?? 2000,
+      carbs: userData?.nutritional_goals.carbs ?? 250,
+      protein: userData?.nutritional_goals.protein ?? 100,
+      fiber: userData?.nutritional_goals.fiber ?? 30
+    }
+  });
+
+  const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
 
   // Meal Plan Config Card
   const [mealPlanLength, setMealPlanLength] = useState<number>(1);
-  const [mealsPerDay, setMealsPerDay] = useState<number>(1);
+  const [mealsPerDay, setMealsPerDay] = useState<number>(3);
   const [mealPlanName, setMealPlanName] = useState<string>("Your Meal Plan...");
   const [mealPlanStartDate, setMealPlanStartDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -34,15 +113,6 @@ const FoodPreferencesPage: React.FC = () => {
   const [selectedPersona, setSelectedPersona] = useState<
     keyof typeof personas | null
   >(null);
-
-  // Dietary Pref Card
-  const [dairy, setDairy] = useState<number>(0);
-  const [meat, setMeat] = useState<number>(0);
-  const [nuts, setNuts] = useState<number>(0);
-  const [glutenFree, setGlutenFree] = useState<boolean>(false);
-  const [diabetes, setDiabetes] = useState<boolean>(false);
-  const [vegetarian, setVegetarian] = useState<boolean>(false);
-  const [vegan, setVegan] = useState<boolean>(false);
 
   // Meal Specific Options
   const [currentMealIndex, setCurrentMealIndex] = useState(0);
@@ -96,18 +166,7 @@ const FoodPreferencesPage: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Add new state variables for nutritional goals
-  const [calories, setCalories] = useState<number>(2000);
-  const [carbs, setCarbs] = useState<number>(250);
-  const [protein, setProtein] = useState<number>(100);
-  const [fiber, setFiber] = useState<number>(30);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLSelectElement>,
-    setter: React.Dispatch<React.SetStateAction<string>>
-  ) => {
-    setter(e.target.value);
-  };
+  const dispatch = useDispatch();
 
   const handleDropdownChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
@@ -116,28 +175,84 @@ const FoodPreferencesPage: React.FC = () => {
     setter(Number(e.target.value));
   };
 
+  const handleDemographicsChange = (key: keyof PersonalInfo['demographicsInfo'], value: any) => {
+    setInfo(prev => ({
+      ...prev,
+      demographicsInfo: {
+        ...prev.demographicsInfo,
+        [key]: value,
+      }
+    }));
+  };
+
+  const handleNumericalPrefChange = (key: "dairyPreference" | "meatPreference" | "nutsPreference", value: number) => {
+    setInfo(prev => ({
+      ...prev,
+      dietaryPreferences: {
+        ...prev.dietaryPreferences,
+        numerical_preferences: {
+          ...prev.dietaryPreferences.numerical_preferences,
+          [key]: value,
+        }
+      }
+    }));
+  }
+
+  const handleDietaryConditionChange = (key: keyof PersonalInfo['dietary_conditions']) => {
+    setInfo(prev => ({
+      ...prev,
+      dietary_conditions: {
+        ...prev.dietary_conditions,
+        [key]: !prev.dietary_conditions[key],
+      }
+    }));
+  };
+
+  const handleNutritionalGoalChange = (key: "calories" | "carbs" | "protein" | "fiber", value: number) => {
+    setInfo(prev => ({
+      ...prev,
+      nutritional_goals: {
+        ...prev.nutritional_goals,
+        [key]: value,
+      }
+    }));
+  }
+
   // Function for Persona Data
   const applyPersona = (personaKey: keyof typeof personas) => {
     const persona = personas[personaKey];
 
-    setHeight(persona.userInfo.height);
-    setAge(persona.userInfo.age);
-    setWeight(persona.userInfo.weight);
-    setGender(persona.userInfo.gender);
-
-    setDairy(persona.dietaryPreferences.dairy);
-    setMeat(persona.dietaryPreferences.meat);
-    setNuts(persona.dietaryPreferences.nuts);
-    setGlutenFree(persona.dietaryPreferences.glutenFree);
-    setDiabetes(persona.dietaryPreferences.diabetes);
-    setVegetarian(persona.dietaryPreferences.vegetarian);
-    setVegan(persona.dietaryPreferences.vegan);
-
-    // Set Nutritional Goals
-    setCalories(persona.nutritionalGoals.calories);
-    setCarbs(persona.nutritionalGoals.carbs);
-    setProtein(persona.nutritionalGoals.protein);
-    setFiber(persona.nutritionalGoals.fiber);
+    setInfo(prev => ({
+      ...prev,
+      demographicsInfo: {
+        ...prev.demographicsInfo,
+        height: persona.userInfo.height,
+        age: persona.userInfo.age,
+        weight: persona.userInfo.weight,
+        gender: persona.userInfo.gender,
+      },
+      dietaryPreferences: {
+        ...prev.dietaryPreferences,
+        numerical_preferences: {
+          ...prev.dietaryPreferences.numerical_preferences,
+          dairyPreference: persona.dietaryPreferences.dairy,
+          meatPreference: persona.dietaryPreferences.meat,
+          nutsPreference: persona.dietaryPreferences.nuts,
+        }
+      },
+      dietary_conditions: {
+        diabetes: persona.dietaryPreferences.diabetes,
+        gluten_free: persona.dietaryPreferences.glutenFree,
+        vegetarian: persona.dietaryPreferences.vegetarian,
+        vegan: persona.dietaryPreferences.vegan,
+      },
+      nutritional_goals: {
+        calories: persona.nutritionalGoals.calories,
+        carbs: persona.nutritionalGoals.carbs,
+        protein: persona.nutritionalGoals.protein,
+        fiber: persona.nutritionalGoals.fiber,
+      }
+    }));
 
     // Update Meal Plan Configuration
     setMealPlanLength(persona.mealPlanConfig.mealPlanLength);
@@ -145,6 +260,10 @@ const FoodPreferencesPage: React.FC = () => {
     setMealPlanName(persona.mealPlanConfig.mealPlanName);
     setMealPlanStartDate(persona.mealPlanConfig.mealPlanStartDate);
     setMealConfigs(persona.mealSpecificOptions);
+
+    // Ensure current meal index is valid for the new number of meals
+    setCurrentMealIndex(0); // Reset to first meal to avoid out-of-bounds errors
+
     setSelectedPersona(personaKey);
   };
 
@@ -189,19 +308,6 @@ const FoodPreferencesPage: React.FC = () => {
     setMealPlanName(value);
   };
 
-  const handleSliderChange = (
-    setter: React.Dispatch<React.SetStateAction<number>>,
-    value: number
-  ) => {
-    setter(value);
-  };
-
-  const handleCheckboxChange = (
-    setter: React.Dispatch<React.SetStateAction<boolean>>
-  ) => {
-    setter((prev) => !prev);
-  };
-
   const handlePreviousMeal = () => {
     setCurrentMealIndex((prev) => Math.max(0, prev - 1));
   };
@@ -210,10 +316,18 @@ const FoodPreferencesPage: React.FC = () => {
     setCurrentMealIndex((prev) => Math.min(mealsPerDay - 1, prev + 1));
   };
 
+  const handleSave = () => {
+    //console.log(dairyPreference);
+    console.log(info.dietaryPreferences.numerical_preferences)
+    dispatch(updateUser(info) as any);
+    console.log(userData?.dietaryPreferences?.numerical_preferences)
+  }
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setError(null);
     setLoadingStage("Preparing your preferences...");
+    dispatch(updateUser(info) as any);
 
     // Process all meal configs based on mealsPerDay
     const processedMealConfigs = Array.from(
@@ -231,6 +345,7 @@ const FoodPreferencesPage: React.FC = () => {
     );
 
     const requestBodyBandit = {
+      meal_plan_name: mealPlanName,
       starting_date: mealPlanStartDate,
       meal_plan_config: {
         num_days: mealPlanLength,
@@ -238,22 +353,28 @@ const FoodPreferencesPage: React.FC = () => {
         meal_configs: processedMealConfigs,
       },
       user_preferences: {
-        dairyPreference: dairy,
-        meatPreference: meat,
-        nutsPreference: nuts,
+        dairyPreference: info.dietaryPreferences.numerical_preferences.dairyPreference,
+        meatPreference: info.dietaryPreferences.numerical_preferences.meatPreference,
+        nutsPreference: info.dietaryPreferences.numerical_preferences.nutsPreference,
+      },
+      dietary_conditions: {
+        diabetes: info.dietary_conditions.diabetes,
+        gluten_free: info.dietary_conditions.gluten_free,
+        vegan: info.dietary_conditions.vegan,
+        vegetarian: info.dietary_conditions.vegetarian
       },
       user_id: userState.user?._id,
     };
 
     const requestBodyNutritionalGoals = {
       daily_goals: {
-        calories: calories,
-        carbs: carbs,
-        protein: protein,
-        fiber: fiber,
+        calories: info.nutritional_goals?.calories,
+        carbs: info.nutritional_goals?.carbs,
+        protein: info.nutritional_goals?.protein,
+        fiber: info.nutritional_goals?.fiber,
       },
       user_id: userState.user?._id,
-    }
+    };
 
     // console.log("Request body:", JSON.stringify(requestBodyBandit, null, 2));
 
@@ -272,11 +393,14 @@ const FoodPreferencesPage: React.FC = () => {
     try {
       console.log(
         "Sending request to:",
-        "http://localhost:8000/beacon/recommendation/bandit"
+        "http://localhost:8000/beacon/recommendation/bandit:",
+        JSON.stringify(requestBodyBandit, null, 2)
       );
-      console.log("Request body to Bandit:", JSON.stringify(requestBodyBandit, null, 2));
-      console.log("Request body to Nutritional Goals:", JSON.stringify(requestBodyNutritionalGoals, null, 2));
-
+      console.log(
+        "Sending request to:",
+        "http://localhost:8000/beacon/user/nutritional-goals",
+        JSON.stringify(requestBodyNutritionalGoals, null, 2)
+      );
 
       // Simulate different loading stages with timeouts
       setTimeout(() => {
@@ -295,19 +419,20 @@ const FoodPreferencesPage: React.FC = () => {
         "http://localhost:8000/beacon/user/nutritional-goals",
         requestOptionsNutritionalGoals
       );
-      console.log("Response status:", responseNutritionalGoals.status);
+      // console.log("Response status from nutritional-goals: ", responseNutritionalGoals.status);
 
       if (!responseNutritionalGoals.ok) {
         const errorText = await responseNutritionalGoals.text();
         console.log("Error response body:", errorText);
-        throw new Error(`HTTP error! status: ${responseNutritionalGoals.status}`);
+        throw new Error(
+          `HTTP error! status: ${responseNutritionalGoals.status}`
+        );
       }
 
       const responseBandit = await fetch(
         "http://localhost:8000/beacon/recommendation/bandit",
         requestOptionsBandit
       );
-      console.log("Bandit Response status:", responseBandit.status);
 
       if (!responseBandit.ok) {
         const errorText = await responseBandit.text();
@@ -321,9 +446,9 @@ const FoodPreferencesPage: React.FC = () => {
       // Clear Session Cache BEFORE navigating
       try {
         let clearedCount = 0;
-        console.log(
-          "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
-        );
+        // console.log(
+        //   "FoodPreferencesPage: Attempting to clear sessionStorage recommendation caches..."
+        // );
         Object.keys(sessionStorage).forEach((key) => {
           if (key.startsWith("recommendations-")) {
             sessionStorage.removeItem(key);
@@ -331,9 +456,9 @@ const FoodPreferencesPage: React.FC = () => {
             clearedCount++;
           }
         });
-        console.log(
-          `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
-        );
+        // console.log(
+        //   `FoodPreferencesPage: Cleared ${clearedCount} sessionStorage recommendation cache(s).`
+        // );
       } catch (cacheError) {
         console.error(
           "FoodPreferencesPage: Error clearing sessionStorage:",
@@ -346,7 +471,7 @@ const FoodPreferencesPage: React.FC = () => {
       setLoadingStage("Success! Your meal plan is ready.");
       setShowSuccess(true);
 
-      console.log("Successful response:", result);
+      // console.log("Successful response:", result);
 
       localStorage.setItem("mealPlan", JSON.stringify(result)); // Save the NEW plan
 
@@ -468,7 +593,7 @@ const FoodPreferencesPage: React.FC = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
                       >
-                        {diabetes
+                        {userData?.dietary_conditions.diabetes
                           ? "Optimizing for diabetes-friendly meals with lower glycemic index..."
                           : "Balancing nutritional content for your optimal health..."}
                       </motion.p>
@@ -495,49 +620,99 @@ const FoodPreferencesPage: React.FC = () => {
         {/* Content Section with Grid Layout */}
         <div className="px-6 pb-16">
           <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Persona Selection Section */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+                Select Our Recommended Personas
+              </h2>
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => applyPersona("earlJones")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "earlJones"
+                      ? "bg-orange-50 border-2 border-orange-300"
+                      : "bg-gray-50 border-2 border-transparent hover:border-orange-300"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Earl"
+                    alt="Earl"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Earl Jones
+                      </h3>
+                      <p className="text-xs text-gray-500">Forklift Operator</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Prefers culturally relevant meals, especially soul food,
+                      with focus on hearty, satisfying dishes.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => applyPersona("jessicaSmith")}
+                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
+                    selectedPersona === "jessicaSmith"
+                      ? "bg-pink-50 border-2 border-pink-900"
+                      : "bg-gray-50 border-2 border-transparent hover:border-pink-900"
+                  }`}
+                >
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica"
+                    alt="Jessica"
+                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="ml-4">
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        Jessica Smith
+                      </h3>
+                      <p className="text-xs text-gray-500">College Student</p>
+                    </div>
+                    <p className="text-sm text-gray-600 text-left mt-2">
+                      Type 1 diabetes-focused meal plan with low-glycemic foods
+                      and balanced nutrition.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* User Information Card */}
             <UserInformation
-              height={height}
-              age={age}
-              weight={weight}
-              gender={gender}
-              handleChange={handleChange}
-              setHeight={setHeight}
-              setAge={setAge}
-              setWeight={setWeight}
-              setGender={setGender}
+              height={info.demographicsInfo.height}
+              age={info.demographicsInfo.age}
+              weight={info.demographicsInfo.weight}
+              gender={info.demographicsInfo.gender}
+              handleChange={handleDemographicsChange}
             />
 
             {/* Dietary Preferences Card */}
             <DietaryPreferences
-              dairy={dairy}
-              meat={meat}
-              nuts={nuts}
-              glutenFree={glutenFree}
-              diabetes={diabetes}
-              vegetarian={vegetarian}
-              vegan={vegan}
-              handleSliderChange={handleSliderChange}
-              handleCheckboxChange={handleCheckboxChange}
-              setDairy={setDairy}
-              setMeat={setMeat}
-              setNuts={setNuts}
-              setGlutenFree={setGlutenFree}
-              setDiabetes={setDiabetes}
-              setVegetarian={setVegetarian}
-              setVegan={setVegan}
+              dairy={info.dietaryPreferences.numerical_preferences.dairyPreference}
+              meat={info.dietaryPreferences.numerical_preferences.meatPreference}
+              nuts={info.dietaryPreferences.numerical_preferences.nutsPreference}
+              // glutenFree={info.dietary_conditions.gluten_free}
+              // diabetes={info.dietary_conditions.diabetes}
+              // vegetarian={info.dietary_conditions.vegetarian}
+              // vegan={info.dietary_conditions.vegan}
+              selectedCondition={selectedCondition}
+              setSelectedCondition={setSelectedCondition}
+              handleSliderChange={handleNumericalPrefChange}
+              handleCheckboxChange={handleDietaryConditionChange}
             />
 
             {/* Nutritional Goals Card */}
             <NutritionalGoalsCard
-              calories={calories}
-              carbs={carbs}
-              protein={protein}
-              fiber={fiber}
-              setCalories={setCalories}
-              setCarbs={setCarbs}
-              setProtein={setProtein}
-              setFiber={setFiber}
+              calories={info.nutritional_goals?.calories}
+              carbs={info.nutritional_goals?.carbs}
+              protein={info.nutritional_goals?.protein}
+              fiber={info.nutritional_goals?.fiber}
+              onGoalChange={handleNutritionalGoalChange}
             />
 
             {/* Meal Plan Configuration Card */}
@@ -589,66 +764,11 @@ const FoodPreferencesPage: React.FC = () => {
               onPreviousMeal={handlePreviousMeal}
               onNextMeal={handleNextMeal}
             />
-            {/* Persona Selection Section */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-                Select Our Recommended Personas
-              </h2>
-              <div className="flex flex-col gap-4">
-                <button
-                  onClick={() => applyPersona("earlJones")}
-                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
-                    selectedPersona === "earlJones"
-                      ? "bg-blue-50 border-2 border-blue-500"
-                      : "bg-gray-50 border-2 border-transparent hover:border-blue-300"
-                  }`}
-                >
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Earl"
-                    alt="Earl"
-                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
-                  />
-                  <div className="ml-4">
-                    <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Earl Jones</h3>
-                      <p className="text-xs text-gray-500">Forklift Operator</p>
-                    </div>
-                    <p className="text-sm text-gray-600 text-left mt-2">
-                      Prefers culturally relevant meals, especially soul food, with focus on hearty, satisfying dishes.
-                    </p>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => applyPersona("jessicaSmith")}
-                  className={`flex items-start p-4 rounded-xl transition-all duration-200 ${
-                    selectedPersona === "jessicaSmith"
-                      ? "bg-green-50 border-2 border-green-500"
-                      : "bg-gray-50 border-2 border-transparent hover:border-green-300"
-                  }`}
-                >
-                  <img
-                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica"
-                    alt="Jessica"
-                    className="w-12 h-12 rounded-full bg-white p-1 border border-gray-200 flex-shrink-0"
-                  />
-                  <div className="ml-4">
-                    <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-800">Jessica Smith</h3>
-                      <p className="text-xs text-gray-500">College Student</p>
-                    </div>
-                    <p className="text-sm text-gray-600 text-left mt-2">
-                      Type 1 diabetes-focused meal plan with low-glycemic foods and balanced nutrition.
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Generate Button */}
-        <div className="mt-6 mb-20 flex justify-center px-6">
+        <div className="h-20 mt-10 mb-40 flex justify-center px-6">
           <motion.button
             onClick={handleSubmit}
             disabled={isLoading}
@@ -657,9 +777,9 @@ const FoodPreferencesPage: React.FC = () => {
             className={`px-12 ${
               isLoading
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-orange-400 hover:bg-orange-500"
+                : "bg-gradient-to-r from-orange-200 to-pink-900 hover:bg-pink-950"
             }
-                      text-white font-semibold py-3 rounded-lg transition duration-200 ease-in-out
+                      text-white font-semibold py-3 rounded-3xl transition duration-200 ease-in-out
                       transform hover:-translate-y-1 relative overflow-hidden`}
           >
             {isLoading ? (
