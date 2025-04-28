@@ -76,7 +76,8 @@ interface FetchApiResponse {
   };
   _id?: string; // meal plan id
   user_id?: string;
-  name?: string;
+  name?: string; // Corresponds to meal_plan_name from backend
+  meal_plan_name?: string;
 }
 
 // New ApiResponse type specifically for regenerate-partial
@@ -86,8 +87,12 @@ interface RegenerateApiResponse {
       _id: string;
       meals: BanditMealData[]; // Assuming the structure is the same as BanditMealData
       user_id: string;
+      // Backend might return meal_plan_name here too, add if necessary
+      // meal_plan_name?: string;
     };
   };
+  // Backend might return meal_plan_name at top level too, add if necessary
+  // meal_plan_name?: string;
 }
 
 // Placeholder type for food info fetched from API or created on error
@@ -296,8 +301,8 @@ export async function fetchMealDays(userId: string, dates: string[]) {
       return { day_plans: {} };
     }
 
-    console.log(`Fetched meal days for ${dates.join(", ")}`);
-    console.log(response.data);
+    // console.log(`Fetched meal days for ${dates.join(", ")}`);
+    // console.log(response.data);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -313,7 +318,7 @@ export async function fetchMealDays(userId: string, dates: string[]) {
             ", "
           )} (Status: ${error.response?.status}). Returning empty data.`
         );
-        return { day_plans: {} }; // Return empty structure, not an error
+        return { day_plans: {} };
       }
 
       // For other errors, throw a more specific error
@@ -331,12 +336,17 @@ export async function fetchMealDays(userId: string, dates: string[]) {
 
 export async function regeneratePartialMeals(
   userId: string,
+  mealPlanName: string,
   dates: string[]
 ): Promise<RegenerateApiResponse> {
   // Return the specific response type
   if (!userId) {
     console.error("regeneratePartialMeals called with no userId.");
     throw new ApiError("User ID is required for regeneration.", 400);
+  }
+  if (!mealPlanName) {
+    console.error("regeneratePartialMeals called with no mealPlanName.");
+    throw new ApiError("Meal Plan Name is required for regeneration.", 400);
   }
   if (!dates || dates.length === 0) {
     console.log("regeneratePartialMeals called with no dates.");
@@ -346,7 +356,7 @@ export async function regeneratePartialMeals(
 
   try {
     console.log(
-      `Calling regenerate-partial API for user ${userId} on dates: ${dates.join(
+      `Calling regenerate-partial API for user ${userId}, plan '${mealPlanName}' on dates: ${dates.join(
         ", "
       )}`
     );
@@ -354,6 +364,7 @@ export async function regeneratePartialMeals(
       `${BACKEND_URL}/beacon/recommendation/regenerate-partial`,
       {
         user_id: userId,
+        meal_plan_name: mealPlanName,
         dates_to_regenerate: dates,
       }
     );
@@ -371,8 +382,8 @@ export async function regeneratePartialMeals(
       );
     }
 
-    console.log(`Successfully regenerated meals for ${dates.join(", ")}`);
-    console.log("Regeneration Response:", response.data);
+    // console.log(`Successfully regenerated meals for ${dates.join(", ")}`);
+    // console.log("Regeneration Response:", response.data);
     return response.data; // Return the full response data
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -614,7 +625,9 @@ export async function transformApiResponseToDayMeals(
     return [];
   }
 
-  const dayMealsMap = new Map<string, DayMeals>(); // Use map for efficient updates
+  const mealPlanName = apiResponse.name || apiResponse.meal_plan_name;
+
+  const dayMealsMap = new Map<string, DayMeals>();
 
   // Step 1: Collect all unique food/beverage IDs to fetch
   const foodIdsToFetch = new Map<string, { type: string }>();
@@ -805,6 +818,7 @@ export async function transformApiResponseToDayMeals(
           coverageScore: coverageScore,
           constraintScore: constraintScore,
           isFavorited: meal.favorited ?? false,
+          mealPlanName: mealPlanName,
         };
 
         dayMeal.meals.push(completeMeal);

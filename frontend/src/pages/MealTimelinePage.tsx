@@ -129,9 +129,8 @@ export const MealTimelinePage: React.FC = () => {
 
   const initialLoadAttemptedRef = useRef(false);
   const fetchingDatesRef = useRef<Set<string>>(new Set());
-
+  const [mealPlanForRegen, setMealPlanForRegen] = useState<any>(null);
   const userId = useSelector((state: RootState) => state.user.user?._id || "");
-  // TODO: Might fetch
   const [userPreferences] = useState<UserPreferences>({
     diabetesFriendly: true,
     culturalPreferences: ["african_american"],
@@ -224,6 +223,40 @@ export const MealTimelinePage: React.FC = () => {
   //     window.removeEventListener("beforeunload", handleBeforeUnload);
   //   };
   // }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+
+  // Effect to load mealPlan from localStorage once
+  useEffect(() => {
+    try {
+      const storedPlan = localStorage.getItem("mealPlan");
+      if (storedPlan) {
+        const parsedPlan = JSON.parse(storedPlan);
+        // Basic validation
+        if (
+          typeof parsedPlan === "object" &&
+          parsedPlan !== null &&
+          "days" in parsedPlan &&
+          typeof parsedPlan.days === "object"
+        ) {
+          setMealPlanForRegen(parsedPlan);
+        } else {
+          console.warn(
+            "Page: Invalid mealPlan structure in localStorage on load. Clearing."
+          );
+          localStorage.removeItem("mealPlan");
+          setMealPlanForRegen(null);
+        }
+      } else {
+        setMealPlanForRegen(null);
+      }
+    } catch (e) {
+      console.error(
+        "Page: Failed to parse mealPlan from localStorage on load:",
+        e
+      );
+      localStorage.removeItem("mealPlan"); // Clear invalid data
+      setMealPlanForRegen(null);
+    }
+  }, []); // Run once on mount
 
   // Fetch Nutritional Goals
   useEffect(() => {
@@ -605,133 +638,95 @@ export const MealTimelinePage: React.FC = () => {
         return;
       }
 
-      // console.log(
-      //   "Page: handleRegeneratePartial called for dates:",
-      //   datesToRegenerate.join(", ")
-      // );
+      // Get mealPlanName from state (loaded from localStorage)
+      const currentMealPlan = mealPlanForRegen; // Use state variable
+      const mealPlanName = currentMealPlan?.name; // Get name from parsed plan
+
+      if (!mealPlanName) {
+        showErrorModal(
+          "Regeneration Error",
+          "Could not find the name of the current meal plan. Unable to regenerate."
+        );
+        console.error(
+          "Page: mealPlanName not found in state for regeneration.",
+          currentMealPlan
+        );
+        return;
+      }
+
       setIsRegenerating(true);
       setError(null);
 
       try {
+        // Pass mealPlanName to the service function
         const response = await regeneratePartialMeals(
           userId,
+          mealPlanName,
           datesToRegenerate
         );
         // console.log("Page: Regeneration API response received.");
 
-        // Update localStorage["mealPlan"]
-        const rawMealPlanString = localStorage.getItem("mealPlan");
-        let currentMealPlan: any = { days: {} }; // Default structure
+        // Use functional update for setMealPlanForRegen to ensure we have the latest state
+        setMealPlanForRegen((prevPlan: any) => {
+          let updatedPlan = prevPlan
+            ? { ...prevPlan }
+            : { user_id: userId, name: mealPlanName, days: {} }; // Start with previous or new
+          if (!updatedPlan.days) updatedPlan.days = {}; // Ensure days object exists
 
-        if (rawMealPlanString) {
-          try {
-            currentMealPlan = JSON.parse(rawMealPlanString);
-            // Basic validation
+          // Merge regenerated days
+          for (const [dateStr, dayDataFromResponse] of Object.entries(
+            response.days
+          )) {
             if (
-              typeof currentMealPlan !== "object" ||
-              currentMealPlan === null ||
-              !currentMealPlan.days ||
-              typeof currentMealPlan.days !== "object"
+              dayDataFromResponse &&
+              Array.isArray(dayDataFromResponse.meals)
             ) {
-              console.warn(
-                "Page: Invalid mealPlan structure in localStorage during regeneration. Resetting."
-              );
-              // Keep essential top-level fields if they exist, otherwise reset days
-              currentMealPlan = {
-                _id: currentMealPlan?._id,
-                user_id: currentMealPlan?.user_id,
-                name: currentMealPlan?.name,
-                scores: currentMealPlan?.scores,
-                days: {}, // Reset days
+              const existingDayStorage = updatedPlan.days[dateStr] || {};
+              updatedPlan.days[dateStr] = {
+                _id: existingDayStorage._id || dayDataFromResponse._id,
+                meals: dayDataFromResponse.meals,
+                user_id:
+                  existingDayStorage.user_id ||
+                  dayDataFromResponse.user_id ||
+                  userId,
+                meal_plan_id:
+                  existingDayStorage.meal_plan_id || updatedPlan._id,
               };
+            } else {
+              console.warn(
+                `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update.`
+              );
             }
+          }
+
+          // Save back to localStorage
+          try {
+            localStorage.setItem("mealPlan", JSON.stringify(updatedPlan));
+            console.log(
+              "Page: Updated localStorage['mealPlan'] after regeneration."
+            );
           } catch (e) {
             console.error(
-              "Page: Failed to parse mealPlan from localStorage during regeneration:",
+              "Page: Failed to save updated mealPlan to localStorage:",
               e
             );
-
-            // Attempt to preserve top-level fields if possible during reset
-            const tempPlan = localStorage.getItem("mealPlan");
-            let parsedTemp = {};
-            try {
-              parsedTemp = tempPlan ? JSON.parse(tempPlan) : {};
-            } catch {}
-            currentMealPlan = {
-              _id: (parsedTemp as any)?._id,
-              user_id: (parsedTemp as any)?._user_id,
-              name: (parsedTemp as any)?._name,
-              scores: (parsedTemp as any)?._scores,
-              days: {}, // Reset days
-            };
+            // Optionally show an error, but the state update below will still happen
           }
-        } else {
-          // If no plan exists, initialize with a basic structure
-          currentMealPlan = { user_id: userId, days: {} };
-        }
-
-        // Merge the regenerated days into the current meal plan's 'days' object
-        // The response 'days' object contains the *new* meal data for the regenerated dates
-        for (const [dateStr, dayDataFromResponse] of Object.entries(
-          response.days
-        )) {
-          // dayDataFromResponse structure: { _id, meals, user_id } from RegenerateApiResponse
-          if (dayDataFromResponse && Array.isArray(dayDataFromResponse.meals)) {
-            // Get the existing day structure from localStorage plan (if any)
-            // This structure should match BanditDayData: { _id, meals, user_id, meal_plan_id }
-            const existingDayStorage = currentMealPlan.days[dateStr] || {};
-
-            // Create the updated day structure for localStorage
-            // Prioritize keeping existing IDs if available, update meals array
-            currentMealPlan.days[dateStr] = {
-              _id: existingDayStorage._id || dayDataFromResponse._id, // Keep existing day ID or use new one
-              meals: dayDataFromResponse.meals, // *** Replace meals array entirely with the new recommendations ***
-              user_id:
-                existingDayStorage.user_id ||
-                dayDataFromResponse.user_id ||
-                userId, // Ensure user_id
-              meal_plan_id:
-                existingDayStorage.meal_plan_id || currentMealPlan._id, // Ensure meal_plan_id links back
-              // Include scores if they come back from regeneration API, otherwise clear them for the day?
-              // Assuming regeneration API doesn't return day-level scores, clear them:
-              // variety_score: undefined,
-              // item_coverage_score: undefined,
-              // nutritional_constraint_score: undefined,
-            };
-            // console.log(
-            //   `Page: Updated recommendations in localStorage for ${dateStr}. New meal count: ${dayDataFromResponse.meals.length}`
-            // );
-          } else {
-            console.warn(
-              `Page: Received invalid day data for ${dateStr} in regeneration response. Skipping update for this date.`
-            );
-          }
-        }
-
-        // Save the updated meal plan back to localStorage
-        localStorage.setItem("mealPlan", JSON.stringify(currentMealPlan));
-        // console.log(
-        //   "Page: Updated localStorage['mealPlan'] after regeneration."
-        // );
-
-        // The MealCalendarViz component will automatically re-render and update
-        // its recommendations based on the change to the 'mealPlan' prop derived from localStorage.
+          return updatedPlan; // Return the updated plan for the state
+        });
       } catch (err: any) {
         console.error("Page: Error during meal regeneration:", err);
-        if (err instanceof ApiError) {
-          setError(
-            `Regeneration failed: ${err.message} (Status: ${
-              err.statusCode || "N/A"
-            })`
-          );
-        } else {
-          setError("An unexpected error occurred during regeneration.");
-        }
+        const errorMsg =
+          err instanceof ApiError
+            ? `Regeneration failed: ${err.message}`
+            : "An unexpected error occurred during regeneration.";
+        showErrorModal("Regeneration Error", errorMsg); // Use modal
+        setError(errorMsg);
       } finally {
         setIsRegenerating(false);
       }
     },
-    [userId]
+    [userId, mealPlanForRegen, showErrorModal]
   );
 
   const handleSaveMeal = useCallback(
@@ -1187,7 +1182,7 @@ export const MealTimelinePage: React.FC = () => {
         mealData={weekData} // This is the source of truth from the parent
         userPreferences={userPreferences}
         nutritionalGoals={finalNutritionalGoals} // Pass final goals
-        mealPlan={mealPlan} // Pass parsed meal plan
+        mealPlan={mealPlanForRegen}
         onRequestFetch={handleFetchRequest} // Pass fetch handler
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}

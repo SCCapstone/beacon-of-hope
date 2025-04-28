@@ -17,7 +17,7 @@ import { parse, startOfDay, isValid as isValidDate } from "date-fns";
 interface BanditMealPlan {
   _id: string;
   user_id: string;
-  name: string;
+  name: string; // Corresponds to meal_plan_name
   days: {
     [date: string]: BanditDayData;
   };
@@ -27,6 +27,8 @@ interface BanditMealPlan {
     coverage_scores?: number[];
     constraint_scores?: number[];
   };
+  // Add meal_plan_name if backend uses that key specifically at top level
+  // meal_plan_name?: string;
 }
 
 interface BanditDayData {
@@ -49,7 +51,6 @@ export interface BanditMealData {
   variety_score?: number;
   item_coverage_score?: number;
   nutritional_constraint_score?: number;
-  // meal_time might be missing, handle this
   meal_time?: string;
   favorited?: boolean;
 }
@@ -312,6 +313,9 @@ export async function transformMealPlanToRecommendations(
     return [];
   }
 
+  // Extract meal plan name from the top level
+  const mealPlanName = mealPlan.name; // Assuming 'name' holds the plan name
+
   const recommendations: DayRecommendations[] = [];
   const foodIdsToFetch = new Map<string, { type: string }>(); // Map ID to its type
 
@@ -567,8 +571,10 @@ export async function transformMealPlanToRecommendations(
           varietyScore: varietyScore,
           coverageScore: coverageScore,
           constraintScore: constraintScore,
+          mealPlanName: mealPlanName,
         };
 
+        // Create the MealRecommendation object
         const recommendationItem: MealRecommendation = {
           meal: completeMeal,
           reasons: reasons,
