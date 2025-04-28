@@ -192,7 +192,15 @@ def update_user(request: HttpRequest, user_id: str):
                         return JsonResponse({"Error": msg}, status=500)
 
         if "nutritional_goals" in data:
-            ...
+            logger.info("Updating Nutritional Goals")
+            nutritional_goals = data["nutritional_goals"]
+
+            msg, status = firebaseManager.update_user_attr(
+                user_id, "nutritional_goals", nutritional_goals
+            )
+            if status != 200:
+                logger.info(msg)
+                return JsonResponse({"Error": msg}, status=500)
 
         # Update Last Updated Timestamp
         logger.info("Updating Timestamp")
