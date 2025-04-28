@@ -48,6 +48,13 @@ const mealTypePriority = {
 
 const DEFAULT_BIN_COUNT = 3;
 
+const LoadingIndicator = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-900"></div>
+    <span className="ml-3 text-gray-600">Processing recommendations...</span>
+  </div>
+);
+
 // Robust date normalization
 const normalizeDate = (date: Date | string | null | undefined): Date => {
   if (date === null || date === undefined) {
@@ -707,6 +714,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
       const mealDate = normalizeDate(acceptedMeal.date || selectedDate);
       const mealDateStr = format(mealDate, "yyyy-MM-dd");
 
+      if (!acceptedMeal.mealPlanName) {
+        console.warn(
+          "Meal plan name missing from accepted recommendation meal object:",
+          acceptedMeal
+        );
+      }
+
       if (!backendIdToSave || !userId) {
         showErrorModal(
           "Action Failed",
@@ -723,14 +737,26 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
           "MMM d"
         )}? This action saves the meal.`,
         async () => {
-          // Confirmation logic goes here
           // 1. Optimistic UI Update (Trace Data)
           const traceMealToAdd: Meal = {
-            ...acceptedMeal,
+            ...acceptedMeal, // Spread the accepted meal object
             id: `trace-optimistic-${acceptedMeal.id}-${Date.now()}`,
             date: mealDate,
+            // Ensure isFavorited is false initially for a newly added trace meal unless specified otherwise
+            isFavorited: acceptedMeal.isFavorited ?? false,
+            // mealPlanName should be copied by the spread operator {...acceptedMeal}
           };
+          // Remove recommendation-specific fields if necessary (originalBackendId is often removed)
           delete traceMealToAdd.originalBackendId;
+
+          // console.log("Optimistic Trace Meal to Add:", traceMealToAdd);
+          // Check if mealPlanName exists on the optimistic trace meal object
+          if (!traceMealToAdd.mealPlanName) {
+            console.warn(
+              "Meal plan name missing from optimistic trace meal object:",
+              traceMealToAdd
+            );
+          }
 
           setTraceData((prevTraceData) => {
             const newData = [...prevTraceData];
@@ -740,7 +766,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
             if (dayIndex > -1) {
               newData[dayIndex] = {
                 ...newData[dayIndex],
-                date: mealDate,
+                date: mealDate, // Ensure date is normalized
                 meals: [
                   ...(newData[dayIndex].meals || []),
                   traceMealToAdd,
@@ -812,10 +838,13 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                       rawMealPlan.days[mealDateStr].meals.length;
                     if (finalLength < initialLength) {
                       changed = true;
+                      // Check if the day object itself should be removed (only if it just contained this one meal)
+                      // This depends on whether the backend returns other metadata for the day
                       if (
                         finalLength === 0 &&
                         Object.keys(rawMealPlan.days[mealDateStr]).length <= 3
                       ) {
+                        // Adjust condition as needed
                         delete rawMealPlan.days[mealDateStr];
                       }
                     }
@@ -882,6 +911,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               "Save Error",
               "An error occurred while saving. Recommendation restored."
             ); // Use modal
+            // Rollback trace data
             setTraceData((prevTraceData) => {
               const revertedData = prevTraceData
                 .map((day) => {
@@ -889,7 +919,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                     return {
                       ...day,
                       meals: day.meals.filter(
-                        (m) => m.id !== traceMealToAdd.id
+                        (m) => m.id !== traceMealToAdd.id // Remove the optimistically added meal
                       ),
                     };
                   }
@@ -907,6 +937,7 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
               traceDataRef.current = revertedData; // Update ref
               return revertedData;
             });
+            // Rollback recommendation data
             setRecommendationData(originalRecommendationData);
           }
         } // End of confirmation logic
@@ -1579,98 +1610,109 @@ const MealCalendarViz: React.FC<MealCalendarVizProps> = ({
                 className="viz-main-area bg-white rounded-lg shadow-md flex-1 overflow-hidden border border-gray-200 flex flex-col"
                 onClick={handleMainAreaClick}
               >
-                {/* Render Views based on currentLevel */}
-                {currentLevel === "meal" && (
-                  <div className="meal-view-background h-full">
-                    <MealView
-                      allData={traceData}
-                      recommendationData={recommendationData}
-                      selectedDate={selectedDate}
-                      onMealSelect={handleMealSelect}
-                      selectedMeal={selectedMeal}
-                      onRecommendationSelect={handleRecommendationSelect}
-                      onAcceptRecommendationClick={handleAcceptRecommendation}
-                      onRejectRecommendationClick={handleRejectRecommendation}
-                      onFavoriteMealClick={onFavoriteMeal}
-                      onUnfavoriteMealClick={onUnfavoriteMeal}
-                      onDeleteMealClick={onDeleteMeal}
-                      selectedRecommendation={selectedRecommendation}
-                      mealBinNames={mealBinNames}
-                      onMealBinUpdate={handleMealBinNamesUpdate}
-                      isLoading={loadingRecommendations}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                      getMealsForDate={getMealsForDate}
-                      getRecommendationsForDate={getRecommendationsForDate}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      allAvailableDates={allAvailableDates}
-                    />
-                  </div>
-                )}
-                {currentLevel === "food" && (
-                  <div className="food-view-background h-full">
-                    <FoodView
-                      allData={traceData} // Pass trace data
-                      recommendationData={recommendationData} // Pass recommendation data
-                      onFoodSelect={handleFoodSelect}
-                      selectedFood={selectedFood}
-                      mealBinNames={mealBinNames} // Pass bin names
-                      onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
-                      selectedRecommendation={selectedRecommendation} // Pass selection context
-                      selectedDate={selectedDate}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      allAvailableDates={allAvailableDates}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                    />
-                  </div>
-                )}
-                {currentLevel === "ingredient" && (
-                  <div className="ingredient-view-background h-full">
-                    <IngredientView
-                      allData={traceData}
-                      recommendationData={recommendationData}
-                      onIngredientSelect={handleIngredientSelect}
-                      selectedIngredient={selectedIngredient}
-                      mealBinNames={mealBinNames}
-                      onMealBinUpdate={handleMealBinNamesUpdate}
-                      selectedRecommendation={selectedRecommendation}
-                      selectedDate={selectedDate}
-                      onRequestFetch={onRequestFetch}
-                      isFetchingPast={isFetchingPast}
-                      isFetchingFuture={isFetchingFuture}
-                      loadedStartDate={loadedStartDate}
-                      loadedEndDate={loadedEndDate}
-                      scrollToTodayTrigger={scrollToTodayTrigger}
-                      organizeMealsIntoBins={organizeMealsIntoBins}
-                      isExpanded={isExpanded}
-                      setIsExpanded={setIsExpanded}
-                      showExpansionButton={showExpansionButton}
-                      expandButtonTooltip={expandButtonTooltip}
-                      maxBinsAcrossAllDates={maxBinsAcrossAllDates}
-                      defaultBinCount={DEFAULT_BIN_COUNT}
-                    />
-                  </div>
+                {loadingRecommendations ? (
+                  <LoadingIndicator />
+                ) : (
+                  <>
+                    {/* Render Views based on currentLevel */}
+                    {currentLevel === "meal" && (
+                      <div className="meal-view-background h-full">
+                        <MealView
+                          allData={traceData}
+                          recommendationData={recommendationData}
+                          selectedDate={selectedDate}
+                          onMealSelect={handleMealSelect}
+                          selectedMeal={selectedMeal}
+                          onRecommendationSelect={handleRecommendationSelect}
+                          onAcceptRecommendationClick={
+                            handleAcceptRecommendation
+                          }
+                          onRejectRecommendationClick={
+                            handleRejectRecommendation
+                          }
+                          onFavoriteMealClick={onFavoriteMeal}
+                          onUnfavoriteMealClick={onUnfavoriteMeal}
+                          onDeleteMealClick={onDeleteMeal}
+                          selectedRecommendation={selectedRecommendation}
+                          mealBinNames={mealBinNames}
+                          onMealBinUpdate={handleMealBinNamesUpdate}
+                          isLoading={loadingRecommendations} // Pass the specific loading state
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                          getMealsForDate={getMealsForDate}
+                          getRecommendationsForDate={getRecommendationsForDate}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          allAvailableDates={allAvailableDates}
+                        />
+                      </div>
+                    )}
+                    {currentLevel === "food" && (
+                      <div className="food-view-background h-full">
+                        <FoodView
+                          allData={traceData} // Pass trace data
+                          recommendationData={recommendationData} // Pass recommendation data
+                          onFoodSelect={handleFoodSelect}
+                          selectedFood={selectedFood}
+                          mealBinNames={mealBinNames} // Pass bin names
+                          onMealBinUpdate={handleMealBinNamesUpdate} // Pass update handler
+                          selectedRecommendation={selectedRecommendation} // Pass selection context
+                          selectedDate={selectedDate}
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          allAvailableDates={allAvailableDates}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                        />
+                      </div>
+                    )}
+                    {currentLevel === "ingredient" && (
+                      <div className="ingredient-view-background h-full">
+                        <IngredientView
+                          allData={traceData}
+                          recommendationData={recommendationData}
+                          onIngredientSelect={handleIngredientSelect}
+                          selectedIngredient={selectedIngredient}
+                          mealBinNames={mealBinNames}
+                          onMealBinUpdate={handleMealBinNamesUpdate}
+                          selectedRecommendation={selectedRecommendation}
+                          selectedDate={selectedDate}
+                          onRequestFetch={onRequestFetch}
+                          isFetchingPast={isFetchingPast}
+                          isFetchingFuture={isFetchingFuture}
+                          loadedStartDate={loadedStartDate}
+                          loadedEndDate={loadedEndDate}
+                          scrollToTodayTrigger={scrollToTodayTrigger}
+                          organizeMealsIntoBins={organizeMealsIntoBins}
+                          isExpanded={isExpanded}
+                          setIsExpanded={setIsExpanded}
+                          showExpansionButton={showExpansionButton}
+                          expandButtonTooltip={expandButtonTooltip}
+                          maxBinsAcrossAllDates={maxBinsAcrossAllDates}
+                          defaultBinCount={DEFAULT_BIN_COUNT}
+                          allAvailableDates={allAvailableDates}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

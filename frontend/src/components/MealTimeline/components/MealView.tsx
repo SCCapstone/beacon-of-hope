@@ -128,6 +128,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     varietyScore,
     coverageScore,
     constraintScore,
+    mealPlanName,
   } = meal;
   const safeNutritionalInfo = nutritionalInfo || {
     calories: 0,
@@ -206,10 +207,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         bg-white shadow-md hover:shadow-lg
         ${
           isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"
-        } // Primary ring, neutral border
+        }
         ${
           optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
-        } // Accent Yellow border/ring if favorited
+        }
         flex flex-col min-h-[120px]`} // Increased padding/min-height
       onClick={onClick}
     >
@@ -228,7 +229,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         whileHover={{
           scale: 1.1,
           backgroundColor: isTogglingFavorite ? "#D4AF37" : "#FFA000",
-        }} // Darker Accent Yellow
+        }}
         whileTap={{ scale: 0.9 }}
         onClick={handleFavoriteButtonClick}
         disabled={isTogglingFavorite}
@@ -272,12 +273,15 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-2">
         {name && (
-          <div className="mb-1">
+          <div className="mb-1 flex flex-col items-start">
             <span className="text-sm font-medium px-2 py-0.5 bg-[#8FBC8F]/20 text-[#3B8E6B] rounded-full truncate pr-2">
-              {" "}
-              {/* Secondary color light */}
               {name}
             </span>
+            {mealPlanName && (
+              <span className="mt-1 text-[10px] font-medium px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full truncate max-w-full">
+                {mealPlanName}
+              </span>
+            )}
           </div>
         )}
         <div className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -317,7 +321,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           data-tooltip-content={`Protein: ${safeNutritionalInfo.protein.toFixed(
             1
           )}g`}
-        />{" "}
+        />
         {/* Nutrient Maroon */}
         <div
           className="bg-[#DAA520]"
@@ -326,7 +330,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
           data-tooltip-content={`Fiber: ${safeNutritionalInfo.fiber.toFixed(
             1
           )}g`}
-        />{" "}
+        />
         {/* Nutrient Gold */}
       </div>
 

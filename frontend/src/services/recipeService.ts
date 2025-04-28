@@ -76,7 +76,8 @@ interface FetchApiResponse {
   };
   _id?: string; // meal plan id
   user_id?: string;
-  name?: string;
+  name?: string; // Corresponds to meal_plan_name from backend
+  meal_plan_name?: string;
 }
 
 // New ApiResponse type specifically for regenerate-partial
@@ -86,8 +87,12 @@ interface RegenerateApiResponse {
       _id: string;
       meals: BanditMealData[]; // Assuming the structure is the same as BanditMealData
       user_id: string;
+      // Backend might return meal_plan_name here too, add if necessary
+      // meal_plan_name?: string;
     };
   };
+  // Backend might return meal_plan_name at top level too, add if necessary
+  // meal_plan_name?: string;
 }
 
 // Placeholder type for food info fetched from API or created on error
@@ -296,8 +301,8 @@ export async function fetchMealDays(userId: string, dates: string[]) {
       return { day_plans: {} };
     }
 
-    console.log(`Fetched meal days for ${dates.join(", ")}`);
-    console.log(response.data);
+    // console.log(`Fetched meal days for ${dates.join(", ")}`);
+    // console.log(response.data);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -313,7 +318,7 @@ export async function fetchMealDays(userId: string, dates: string[]) {
             ", "
           )} (Status: ${error.response?.status}). Returning empty data.`
         );
-        return { day_plans: {} }; // Return empty structure, not an error
+        return { day_plans: {} };
       }
 
       // For other errors, throw a more specific error
@@ -331,12 +336,17 @@ export async function fetchMealDays(userId: string, dates: string[]) {
 
 export async function regeneratePartialMeals(
   userId: string,
+  mealPlanName: string,
   dates: string[]
 ): Promise<RegenerateApiResponse> {
   // Return the specific response type
   if (!userId) {
     console.error("regeneratePartialMeals called with no userId.");
     throw new ApiError("User ID is required for regeneration.", 400);
+  }
+  if (!mealPlanName) {
+    console.error("regeneratePartialMeals called with no mealPlanName.");
+    throw new ApiError("Meal Plan Name is required for regeneration.", 400);
   }
   if (!dates || dates.length === 0) {
     console.log("regeneratePartialMeals called with no dates.");
@@ -346,7 +356,7 @@ export async function regeneratePartialMeals(
 
   try {
     console.log(
-      `Calling regenerate-partial API for user ${userId} on dates: ${dates.join(
+      `Calling regenerate-partial API for user ${userId}, plan '${mealPlanName}' on dates: ${dates.join(
         ", "
       )}`
     );
@@ -354,6 +364,7 @@ export async function regeneratePartialMeals(
       `${BACKEND_URL}/beacon/recommendation/regenerate-partial`,
       {
         user_id: userId,
+        meal_plan_name: mealPlanName,
         dates_to_regenerate: dates,
       }
     );
@@ -371,8 +382,8 @@ export async function regeneratePartialMeals(
       );
     }
 
-    console.log(`Successfully regenerated meals for ${dates.join(", ")}`);
-    console.log("Regeneration Response:", response.data);
+    // console.log(`Successfully regenerated meals for ${dates.join(", ")}`);
+    // console.log("Regeneration Response:", response.data);
     return response.data; // Return the full response data
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -614,13 +625,17 @@ export async function transformApiResponseToDayMeals(
     return [];
   }
 
-  const dayMealsMap = new Map<string, DayMeals>(); // Use map for efficient updates
+  const dayMealsMap = new Map<string, DayMeals>();
 
   // Step 1: Collect all unique food/beverage IDs to fetch
   const foodIdsToFetch = new Map<string, { type: string }>();
   for (const dayData of Object.values(apiResponse.day_plans)) {
     if (!dayData || !Array.isArray(dayData.meals)) continue;
     for (const meal of dayData.meals) {
+      // meal is BanditMealData here
+      // Also check for meal_plan_name inside the meal object if needed for debugging
+      // console.log(`Processing trace meal: ${meal.meal_name}, Plan Name: ${meal.meal_plan_name}`);
+
       for (const [rawMealType, foodId] of Object.entries(meal.meal_types)) {
         if (typeof foodId === "string" && foodId.trim() !== "") {
           // Map "side" key from backend data to "side_dish" type used internally
@@ -663,9 +678,9 @@ export async function transformApiResponseToDayMeals(
 
   // Wait for all fetches to complete (or fail)
   await Promise.all(fetchPromises);
-  console.log(
-    `Fetched/Processed details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
-  );
+  // console.log(
+  //   `Fetched/Processed details for ${foodInfoMap.size} out of ${foodIdsToFetch.size} requested items.`
+  // );
 
   // Step 3: Transform the data day by day
   for (const [dateStr, dayData] of Object.entries(apiResponse.day_plans)) {
@@ -752,19 +767,19 @@ export async function transformApiResponseToDayMeals(
           })
         );
 
-        const sideDishFood = mealFoodsWithInstanceIds.find(
-          (f) => f.type === "side_dish"
-        ); // Find any side dish
-        if (sideDishFood) {
-          console.log(
-            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
-            JSON.stringify(sideDishFood.nutritionalInfo)
-          );
-        } else {
-          console.log(
-            `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
-          );
-        }
+        // const sideDishFood = mealFoodsWithInstanceIds.find(
+        //   (f) => f.type === "side_dish"
+        // );
+        // if (sideDishFood) {
+        //   console.log(
+        //     `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - Side Dish (${sideDishFood.name}, ID: ${sideDishFood.id}) Nutritional Info:`,
+        //     JSON.stringify(sideDishFood.nutritionalInfo)
+        //   );
+        // } else {
+        //   console.log(
+        //     `DEBUG (Trace): Before combining meal '${meal.meal_name}' on ${dateStr} - No side dish found.`
+        //   );
+        // }
 
         // Calculate combined nutritional info for the meal (using potentially default values)
         // Use the foods with instance IDs, nutrition info remains the same
@@ -772,10 +787,10 @@ export async function transformApiResponseToDayMeals(
           mealFoodsWithInstanceIds
         );
 
-        console.log(
-          `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
-          JSON.stringify(mealNutritionalInfo)
-        );
+        // console.log(
+        //   `DEBUG (Trace): After combining meal '${meal.meal_name}' on ${dateStr} - Combined Meal Nutritional Info:`,
+        //   JSON.stringify(mealNutritionalInfo)
+        // );
 
         // Get default meal time if not provided
         const mealTime = meal.meal_time || getDefaultMealTime(meal.meal_name);
@@ -805,6 +820,7 @@ export async function transformApiResponseToDayMeals(
           coverageScore: coverageScore,
           constraintScore: constraintScore,
           isFavorited: meal.favorited ?? false,
+          mealPlanName: meal.meal_plan_name,
         };
 
         dayMeal.meals.push(completeMeal);
