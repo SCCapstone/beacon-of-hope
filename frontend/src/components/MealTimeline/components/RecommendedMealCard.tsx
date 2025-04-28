@@ -37,6 +37,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
     varietyScore,
     coverageScore,
     constraintScore,
+    mealPlanName,
   } = meal;
 
   // Defensive check for nutritionalInfo
@@ -110,7 +111,7 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
             ? "ring-2 ring-[#5CB85C]"
             : "border border-dashed border-[#5CB85C]/50"
         } // Accent Green ring/border
-        bg-[#90EE90]/15 backdrop-blur-sm flex flex-col min-h-[120px]`} // Lighter accent green bg, increased padding/min-height
+        bg-[#90EE90]/15 backdrop-blur-sm flex flex-col min-h-[120px]`}
       style={{
         boxShadow: isSelected
           ? "0 0 10px rgba(92, 184, 92, 0.2)"
@@ -119,20 +120,31 @@ export const RecommendedMealCard: React.FC<RecommendedMealCardProps> = ({
     >
       {/* Simulation Indicator */}
       {isSelected && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute -top-2.5 left-8 transform -translate-x-1/2 bg-pink-900/80 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm whitespace-nowrap z-10" // Primary color indicator
-        >
-          Simulating Impact
-        </motion.div>
+        <div className="absolute -top-2.5 left-0 right-0 flex justify-center z-10 pointer-events-none"> {/* Full width container */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-pink-900/80 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm whitespace-nowrap pointer-events-auto" // Removed positioning, added pointer-events-auto
+          >
+            Simulating Impact
+          </motion.div>
+        </div>
       )}
 
       {/* Header Section: Name, Calories */}
       <div className="flex justify-between items-start mb-2">
-        <h3 className="text-sm font-medium text-gray-800 truncate">
-          {meal.name}
-        </h3>
+        <div className="flex flex-col items-start">
+          {" "}
+          {/* Flex column */}
+          <h3 className="text-sm font-medium text-gray-800 truncate">
+            {meal.name}
+          </h3>
+          {mealPlanName && (
+            <span className="mt-1 text-[10px] font-medium px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full truncate max-w-full">
+              {mealPlanName}
+            </span>
+          )}
+        </div>
         <div className="flex items-center space-x-2">
           <div className="text-xs font-semibold text-gray-700 bg-gray-100/80 px-2 py-0.5 rounded-full whitespace-nowrap">
             {nutritionalInfo.calories} cal
