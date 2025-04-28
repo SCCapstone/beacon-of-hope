@@ -19,8 +19,8 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
     if request.method != "POST":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
-        logger.info("Retrieve Day Plans API called ...")
-        logger.info("Parsing Request Body ...")
+        logger.info(colored("Retrieve Day Plans API called ...", "yellow"))
+        logger.info(colored("Parsing Request Body ...", "yellow"))
         data = json.loads(request.body)
         if "dates" not in data:
             return JsonResponse(
@@ -30,6 +30,12 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
                 400,
             )
         dates = data["dates"]
+
+        logger.info(
+            colored(
+                f"Retrieving the day plans for this user for dates: {dates}", "yellow"
+            )
+        )
         day_plans, status = firebaseManager.get_day_plans(user_id, dates)
         if status != 200:
             return JsonResponse(
@@ -50,14 +56,15 @@ def retrieve_day_plans(request: HttpRequest, user_id: str):
         )
 
 
+# TODO, remove day plan from temp_day_plans after it is saved
 @csrf_exempt
 def save_meal(request: HttpRequest):
     """Saving a meal (Moving from temporary storage to permanent storage)"""
     if request.method != "POST":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
-        logger.info("Save Meal API Endpoint Called ...")
-        logger.info("Parsing Request Body ...")
+        logger.info(colored("Save Meal API Endpoint Called ...", "yellow"))
+        logger.info(colored("Parsing Request Body ...", "yellow"))
         data = json.loads(request.body)
         keys = ["date", "user_id", "meal_id", "nl_recommendations"]
         for key in keys:
@@ -77,6 +84,7 @@ def save_meal(request: HttpRequest):
                 },
                 status=status,
             )
+        logger.info(colored("Getting temporary day plan dates and ids", "yellow"))
         try:
             day_plans = user.get_temp_day_plans()
         except:
@@ -84,27 +92,37 @@ def save_meal(request: HttpRequest):
                 {"Error": "There was an error in retrieving the user's day plans"},
                 status=500,
             )
+        logger.info(colored("Extracting day plan id corresponding to date", "yellow"))
         if date not in day_plans:
             return JsonResponse(
                 {"Error": f"The provided date: {date} is not in the recorded plans"},
                 status=403,
             )
-        day_plan_id = day_plans[date]
-
-        # create a day plan object in the permanent storage (if it already exists, this does nothing)
-        msg, status = firebaseManager.create_dayplan_object(user_id, date, day_plan_id)
-        if status != 200:
-            return JsonResponse(
-                {"Error": f"There was an error in creating the day plan object: {msg}"},
-                status=status,
+        day_plan_id = day_plans[
+            date
+        ]  # user could have generated multiple plans for the same day
+        logger.info(
+            colored(
+                f"Extracting temp day plan corresponding to id: {day_plan_id}", "yellow"
             )
-
+        )
         day_plan, status = firebaseManager.get_temp_dayplan_by_id(day_plan_id)
         if status != 200:
             return JsonResponse(
                 {
                     "Error": f"There was an error in retrieving hte previously stored meal plan: {day_plan}"
                 },
+                status=status,
+            )
+
+        logger.info(
+            colored("Creating dayplan object if doesn't already exist", "yellow")
+        )
+        # create a day plan object in the permanent storage (if it already exists, this does nothing)
+        msg, status = firebaseManager.create_dayplan_object(user_id, date, day_plan_id)
+        if status != 200:
+            return JsonResponse(
+                {"Error": f"There was an error in creating the day plan object: {msg}"},
                 status=status,
             )
 
