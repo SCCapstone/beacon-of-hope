@@ -66,16 +66,17 @@ def save_meal(request: HttpRequest):
         logger.info(colored("Save Meal API Endpoint Called ...", "yellow"))
         logger.info(colored("Parsing Request Body ...", "yellow"))
         data = json.loads(request.body)
-        keys = ["date", "user_id", "meal_id", "nl_recommendations"]
+        keys = ["date", "user_id", "meal_id"]
         for key in keys:
             if key not in data:
-
                 return JsonResponse(
                     {"Error": f"Request Body missing required attribute: {key}"},
                     status=403,
                 )
 
-        date, user_id, meal_id, nl_recommendations = [data[key] for key in keys]
+        date, user_id, meal_id = [data[key] for key in keys]
+        nl_recommendations = data.get("nl_recommendations", [])
+
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
             return JsonResponse(
@@ -92,15 +93,17 @@ def save_meal(request: HttpRequest):
                 {"Error": "There was an error in retrieving the user's day plans"},
                 status=500,
             )
+
         logger.info(colored("Extracting day plan id corresponding to date", "yellow"))
         if date not in day_plans:
             return JsonResponse(
                 {"Error": f"The provided date: {date} is not in the recorded plans"},
                 status=403,
             )
-        day_plan_id = day_plans[
+        day_plan_id = day_plans.pop(
             date
-        ]  # user could have generated multiple plans for the same day
+        )  # user could have generated multiple plans for the same day
+
         logger.info(
             colored(
                 f"Extracting temp day plan corresponding to id: {day_plan_id}", "yellow"
@@ -155,8 +158,8 @@ def delete_meal(request: HttpRequest):
     if request.method != "DELETE":
         return JsonResponse({"Error": "Invalid Request Method"}, status=400)
     try:
-        logger.info(colored("Delete Meal API Endpoint Called ...", "green"))
-        logger.info("Parsing Request Body ...")
+        logger.info(colored("Delete Meal API Endpoint Called ...", "yellow"))
+        logger.info(colored("Parsing Request Body ...", "yellow"))
         data = json.loads(request.body)
 
         keys = ["date", "user_id", "meal_id"]
@@ -170,7 +173,10 @@ def delete_meal(request: HttpRequest):
         date, user_id, meal_id = [data[key] for key in keys]
 
         logger.info(
-            f"Getting corresponding day plan id for date {date} for user {user_id}"
+            colored(
+                f"Getting corresponding day plan id for date {date} for user {user_id}",
+                "yellow",
+            )
         )
         user, status = firebaseManager.get_user_by_id(user_id)
         if status != 200:
@@ -181,7 +187,7 @@ def delete_meal(request: HttpRequest):
                 status=status,
             )
 
-        logger.info("Retrieving day plans")
+        logger.info(colored("Retrieving day plans", "yellow"))
         try:
             day_plans = user.get_day_plans()
         except:
@@ -195,10 +201,11 @@ def delete_meal(request: HttpRequest):
                 status=403,
             )
 
-        logger.info(f"Removing meal from dayplan: {date}")
-        day_plan_id = day_plans[date]
+        logger.info(colored(f"Removing meal from dayplan: {date}", "yellow"))
+        day_plan_ids = day_plans[date]
 
-        msg, status = firebaseManager.remove_meal_from_dayplan(meal_id, day_plan_id)
+
+        msg, status = firebaseManager.remove_meal_from_dayplan(meal_id, day_plan_ids)
         if status != 200:
             return JsonResponse(
                 {"Error": f"There was an error in removing the meal, {msg}"},

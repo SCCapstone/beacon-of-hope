@@ -388,9 +388,18 @@ class FirebaseManager:
                         day_plan, status = self._get_document("day_plans", day_plan_id)
                         if status != 200:
                             return (day_plan, status)
-                        all_plans.append(day_plan)
+                        if day_plan["meals"]:
+                            all_plans.append(day_plan["meals"])
 
-                    print('day')
+                    meals = {}
+                    for d in all_plans:
+                        meals.update(d)
+
+                    day_plan = {
+                        "user_id": day_plan["user_id"],
+                        "meals": meals,
+                        "_id": day_plan["_id"],
+                    }
 
                     if day_plan["meals"]:
                         day_plans[date] = day_plan
@@ -488,7 +497,6 @@ class FirebaseManager:
                 colored("Updating user information with new day plan id", "cyan")
             )
 
-
             date_ids_map, status = self.get_user_attr(user_id=user_id, attr="day_plans")
             if status != 200:
                 return date_ids_map, status
@@ -562,21 +570,26 @@ class FirebaseManager:
         except Exception as e:
             return (f"User either doesn't exist or couldn't delete user: {e}", 500)
 
-    def remove_meal_from_dayplan(self, meal_id_to_delete, dayplan_id):
-        day_plan, status = self.get_dayplan_by_id(dayplan_id)
-        if status != 200:
-            return (
-                f"There was an error in retrieving the previously stored meal plan: {day_plan}",
-                status,
-            )
+    def remove_meal_from_dayplan(self, meal_id_to_delete, dayplan_ids):
+        for dayplan_id in dayplan_ids:
+            day_plan, status = self.get_dayplan_by_id(dayplan_id)
+            if status != 200:
+                return (
+                    f"There was an error in retrieving the previously stored meal plan: {day_plan}",
+                    status,
+                )
 
-        meals = {
-            id: meal
-            for id, meal in day_plan["meals"].items()
-            if id != meal_id_to_delete
-        }
+            if meal_id_to_delete not in day_plan["meals"]:
+                continue
 
-        return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
+            meals = {
+                id: meal
+                for id, meal in day_plan["meals"].items()
+                if id != meal_id_to_delete
+            }
+
+            return self._update_document_attr("day_plans", dayplan_id, "meals", meals)
+        return ("Meal did not exist to delete", 200)
 
     def add_favorite_items(self, user_id: str, new_favorite_items: Dict[str, int]):
         # create the permanent favorite items if the field doesn't already exist
