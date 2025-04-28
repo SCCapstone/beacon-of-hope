@@ -106,6 +106,7 @@ type SaveMealPayload = {
   userId: string;
   date: string; // yyyy-MM-dd
   mealId: string; // originalBackendId
+  nl_recommendations: string[];
 };
 
 export const MealTimelinePage: React.FC = () => {
@@ -731,9 +732,14 @@ export const MealTimelinePage: React.FC = () => {
 
   const handleSaveMeal = useCallback(
     async (payload: SaveMealPayload): Promise<boolean> => {
-      const { userId: reqUserId, date, mealId } = payload;
+      const { userId: reqUserId, date, mealId, nl_recommendations } = payload;
       // Basic validation, though Viz should ensure these are present
-      if (!reqUserId || !date || !mealId) {
+      if (
+        !reqUserId ||
+        !date ||
+        !mealId ||
+        !Array.isArray(nl_recommendations)
+      ) {
         console.error(
           "Page: handleSaveMeal received invalid payload:",
           payload
@@ -747,7 +753,12 @@ export const MealTimelinePage: React.FC = () => {
       setError(null);
 
       try {
-        const success = await saveMealToTrace(reqUserId, date, mealId);
+        const success = await saveMealToTrace(
+          reqUserId,
+          date,
+          mealId,
+          nl_recommendations
+        );
         if (success) {
           // console.log(
           //   `Page: Successfully initiated save for meal ${mealId} on ${date}.`

@@ -26,6 +26,7 @@ import { formatScore } from "../utils";
 import {
   StarIcon as StarIconOutline,
   InformationCircleIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { generateDateRange } from "../../../services/recipeService";
 import { CustomModal, ModalProps } from "../../CustomModal";
@@ -129,6 +130,7 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     coverageScore,
     constraintScore,
     mealPlanName,
+    nl_recommendations,
   } = meal;
   const safeNutritionalInfo = nutritionalInfo || {
     calories: 0,
@@ -195,6 +197,10 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
     ? "Remove from favorites"
     : "Favorite this meal! This will inform future recommendations!";
 
+  // Check if there are saved recommendations
+  const hasSavedRecommendations =
+    nl_recommendations && nl_recommendations.length > 0;
+
   return (
     <motion.div
       key={`meal-${meal.id}`}
@@ -205,12 +211,8 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
       transition={{ duration: 0.15 }}
       className={`meal-card relative p-3 rounded-lg cursor-pointer transition-all duration-300
         bg-white shadow-md hover:shadow-lg
-        ${
-          isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"
-        }
-        ${
-          optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""
-        }
+        ${isSelected ? "ring-2 ring-pink-900" : "border border-[#E0E0E0]"}
+        ${optimisticFavorite ? "border-[#FFC107] ring-1 ring-[#FFC107]/50" : ""}
         flex flex-col min-h-[120px]`} // Increased padding/min-height
       onClick={onClick}
     >
@@ -350,8 +352,9 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
         </div>
       )}
 
-      {/* Footer Indicators (Scores) with Tooltips */}
-      <div className="pt-2 mt-auto flex justify-around border-t border-gray-100 text-xs text-gray-600">
+      {/* Footer Indicators (Scores & Recommendation Icon) */}
+      <div className="pt-2 mt-auto flex justify-around items-center border-t border-gray-100 text-xs text-gray-600">
+        {/* Scores */}
         <div className="flex items-center space-x-1">
           <span className="text-[#20B2AA]">V: {formatScore(varietyScore)}</span>
           <InformationCircleIcon
@@ -380,6 +383,19 @@ const TraceMealCard: React.FC<TraceMealCardProps> = ({
             data-tooltip-content={scoreDescriptions.nutrition}
           />
         </div>
+
+        {/* Saved Recommendation Indicator */}
+        {hasSavedRecommendations && (
+          <div
+            className="flex items-center text-blue-500" // Use a distinct color
+            data-tooltip-id="global-tooltip"
+            data-tooltip-content="View saved recommendation reasons"
+          >
+            <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+            {/* Or use InformationCircleIcon */}
+            {/* <InformationCircleIcon className="w-3.5 h-3.5" /> */}
+          </div>
+        )}
       </div>
     </motion.div>
   );
