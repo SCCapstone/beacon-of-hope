@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from firebase_admin import firestore
+from django.contrib.auth.hashers import make_password 
 
 
 from ..modules.firebase import FirebaseManager
@@ -20,6 +21,8 @@ db = firestore.client()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
+
+from django.contrib.auth.hashers import make_password  # make sure this is imported at top
 
 @csrf_exempt
 def create_user(request: HttpRequest):
@@ -40,6 +43,8 @@ def create_user(request: HttpRequest):
             "last_name": data.get("last_name", ""),
             "email": data.get("email", ""),
             "password": data.get("password", ""),
+            "security_question": data.get("securityQuestion",""),
+            "security_answer_hash":  make_password(data.get("securityAnswer","")),
             "plan_ids": [],
             "dietary_preferences": {
                 "preferences": [""],
@@ -88,6 +93,7 @@ def create_user(request: HttpRequest):
         )
 
 
+
 @csrf_exempt
 def login_user(request: HttpRequest):
     """Login user"""
@@ -112,7 +118,6 @@ def login_user(request: HttpRequest):
         return JsonResponse(
             {"Error": str(e)}, status=400
         )  # Ensure the error is JSON serializable
-
 
 @csrf_exempt
 def update_user(request: HttpRequest, user_id: str):
@@ -424,3 +429,121 @@ def logout_user(request):
     except Exception as e:
         print("🔥🔥🔥 ERROR:", e)
         return Response({"error": str(e)}, status=500)
+
+# Forgot Password APIs 
+@csrf_exempt
+def forgot_password_request(request: HttpRequest):
+    """Request security question for forgot password."""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+    
+    logger.info(colored("Requesting security question for forgot password", "green"))
+    try:
+        data = json.loads(request.body)
+        email = data.get("email", "").lower().strip()
+
+        if not email or "@" not in email:
+            return JsonResponse({"Error": "Invalid email format"}, status=400)
+
+        user, status = firebaseManager.get_user_by_email_only(email)
+        if status != 200:
+            logger.info(f"User not found for email: {email}")
+            # Return generic message without revealing whether user exists
+            return JsonResponse({
+                "message": "If an account exists, you'll receive password reset instructions"
+            }, status=200)
+
+        security_question = user.get("security_question")
+        if not security_question:
+            logger.error(f"No security question found for user: {email}")
+            return JsonResponse({
+                "Error": "Account recovery not properly configured",
+                "message": "Please contact support"
+            }, status=400)
+
+        return JsonResponse({
+            "security_question": security_question,
+            "message": "Answer your security question to continue"
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("forgot_password_request failed")
+        return JsonResponse({
+            "Error": "An error occurred during password reset",
+            "message": "Please try again later"
+        }, status=500)
+
+@csrf_exempt
+def forgot_password_verify(request: HttpRequest):
+    """Verify security answer for forgot password."""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        security_answer = data.get("security_answer")
+
+        if not email or not security_answer:
+            return JsonResponse({"Error": "Missing email or security_answer"}, status=400)
+
+        user, status = firebaseManager.get_user_by_email_only(email)
+        if status != 200:
+            return JsonResponse({"Error": "User not found"}, status=404)
+
+        from django.contrib.auth.hashers import check_password
+
+        # Check security answer hash
+        if check_password(security_answer, user.get("security_answer_hash", "")):
+            return JsonResponse({"success": True}, status=200)
+        else:
+            return JsonResponse({"success": False}, status=401)
+
+    except Exception as e:
+        logger.exception("forgot_password_verify failed")
+        return JsonResponse({"Error": f"Unexpected error: {str(e)}"}, status=500)
+
+
+@csrf_exempt
+def forgot_password_reset(request: HttpRequest):
+    """Reset password after verifying security answer."""
+    if request.method != "POST":
+        return JsonResponse({"Error": "Invalid Request Method"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email", "").lower().strip()
+        new_password = data.get("new_password", "").strip()
+
+        # # Validation
+        # if not email or not new_password:
+        #     return JsonResponse({"Error": "Missing email or password"}, status=400)
+        
+        # if len(new_password) < 8:
+        #     return JsonResponse({"Error": "Password must be at least 8 characters"}, status=400)
+
+        # Get user
+        user, status = firebaseManager.get_user_by_email_only(email)
+        if status != 200:
+            return JsonResponse({"Error": "User not found"}, status=404)
+
+        # Store the raw password (NOT RECOMMENDED FOR PRODUCTION)
+        msg, status = firebaseManager.update_user_attr(user["_id"], "password", new_password)
+        
+        if status != 200:
+            logger.error(f"Password update failed: {msg}")
+            return JsonResponse({"Error": "Password update failed"}, status=500)
+
+        logger.info(f"Password updated for user: {email}")
+        return JsonResponse({
+            "success": True,
+            "message": "Password updated successfully"
+        }, status=200)
+
+    except Exception as e:
+        logger.exception("Password reset error")
+        return JsonResponse({
+            "Error": "Password reset failed",
+            "message": str(e)
+        }, status=500)
+

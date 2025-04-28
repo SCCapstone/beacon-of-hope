@@ -2,7 +2,6 @@ import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/beacon/user/";
 
-// Create an axios instance with default config
 const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
@@ -31,7 +30,7 @@ export interface LoginData {
 
 export interface UserResponse {
   _id: string;
-  username: string;
+  username?: string; // optional depending backend
   email: string;
   plan_ids: string[];
   dietary_preferences: {
@@ -42,7 +41,7 @@ export interface UserResponse {
       meat: number;
     };
   };
-  health_info: {
+  health_info?: {
     allergies: string[];
     conditions: string[];
   };
@@ -53,7 +52,7 @@ export interface UserResponse {
     age: number;
     gender: string;
   };
-  meal_plan_config: {
+  meal_plan_config?: {
     num_days: number;
     num_meals: number;
     meal_configs: {
@@ -75,18 +74,9 @@ class AuthService {
       const response = await axiosInstance.post("login", loginData);
       if (response.data) {
         localStorage.setItem("user", JSON.stringify(response.data));
+        sessionStorage.setItem("user_id", response.data._id);
+        sessionStorage.setItem("plan_ids", JSON.stringify(response.data.plan_ids ?? []));
       }
-
-      // Save the `_id` field to SessionStorage
-      sessionStorage.setItem("user_id", response.data._id);
-      // console.log(response.data._id);
-
-      // Save the `plan_ids` list of strings to SessionStorage
-      sessionStorage.setItem(
-        "plan_ids",
-        JSON.stringify(response.data.plan_ids)
-      );
-
       return response.data;
     } catch (error) {
       throw error;
@@ -98,19 +88,35 @@ class AuthService {
       const response = await axiosInstance.post("signup", signupData);
       if (response.data) {
         localStorage.setItem("user", JSON.stringify(response.data));
+        sessionStorage.setItem("user_id", response.data._id);
+        sessionStorage.setItem("plan_ids", JSON.stringify(response.data.plan_ids ?? []));
       }
-
-      // Save the `_id` field to SessionStorage
-      sessionStorage.setItem("user_id", response.data._id);
       return response.data;
     } catch (error) {
       throw error;
     }
   }
 
+  async requestSecurityQuestion(email: string): Promise<{ security_question: string }> {
+    // Remove the trailing slash from the URL
+    const response = await axiosInstance.post("forgot-password/request", { email });
+    return response.data;
+}
+
+async verifySecurityAnswer(email: string, answer: string): Promise<{ success: boolean }> {
+    const response = await axiosInstance.post("forgot-password/verify", { email, security_answer: answer });
+    return response.data;
+}
+
+async resetPassword(email: string, newPassword: string): Promise<{ success: boolean }> {
+    const response = await axiosInstance.post("forgot-password/reset", { email, new_password: newPassword });
+    return response.data;
+}
+
   logout(): void {
     localStorage.removeItem("user");
     sessionStorage.removeItem("user_id");
+    sessionStorage.removeItem("plan_ids");
   }
 }
 

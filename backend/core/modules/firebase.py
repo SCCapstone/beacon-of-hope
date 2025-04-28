@@ -693,3 +693,40 @@ class FirebaseManager:
                 f"There was an error in favoriting the item (firebase.py): {e}",
                 500,
             )
+
+    def get_security_question_by_email(email: str):
+        """Helper method to get security question and answer hash for a user"""
+        try:
+            # Normalize email
+            email = email.lower().strip()
+            
+            # Get user document from Firebase
+            users_ref = db.collection('users')
+            query_ref = users_ref.where('email', '==', email).limit(1)
+            docs = query_ref.get()
+            
+            if not docs:
+                return None, None, 404  # user not found
+            
+            user_doc = docs[0]
+            user_data = user_doc.to_dict()
+            
+            security_question = user_data.get('security_question')
+            security_answer_hash = user_data.get('security_answer_hash')
+            
+            if not security_question or not security_answer_hash:
+                return None, None, 400  # security question not configured
+            
+            return security_question, security_answer_hash, 200
+        except Exception as e:
+            logger.error(f"Error getting security question: {str(e)}")
+            return None, None, 500
+
+
+    def get_user_by_email_only(self, email: str):
+        """Return user dict by email without checking password."""
+        users = self.db.collection("users").where("email","==",email).limit(1).stream()
+        for doc in users:
+            data = doc.to_dict()
+            return data, 200
+        return None, 404

@@ -6,6 +6,7 @@ import MealTimelinePage from "../pages/MealTimelinePage";
 import FoodPreferencesPage from "../pages/FoodPreferencesPage";
 import SettingsPage from "../pages/SettingsPages/SettingsPage";
 import LandingPage from "../pages/LandingPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 
 const UseRoutes: React.FC = () => {
   return (
@@ -17,6 +18,8 @@ const UseRoutes: React.FC = () => {
       <Route path="/food-preferences" element={<FoodPreferencesPage />}></Route>
       <Route path="/meal-plan" element={<MealTimelinePage/>}></Route>
       <Route path="/settings" element={<SettingsPage />}></Route>
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
     </Routes>
   );
 };
