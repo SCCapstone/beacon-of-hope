@@ -132,6 +132,7 @@ export const MealTimelinePage: React.FC = () => {
   const fetchingDatesRef = useRef<Set<string>>(new Set());
   const [mealPlanForRegen, setMealPlanForRegen] = useState<any>(null);
   const userId = useSelector((state: RootState) => state.user.user?._id || "");
+  const [initialLoadScrollTrigger, setInitialLoadScrollTrigger] = useState(0);
   const [userPreferences] = useState<UserPreferences>({
     diabetesFriendly: true,
     culturalPreferences: ["african_american"],
@@ -532,7 +533,11 @@ export const MealTimelinePage: React.FC = () => {
           fetchingDatesRef.current.delete(date)
         );
         // Reset appropriate loading state
-        if (direction === "initial") setIsLoading(false);
+        if (direction === "initial") {
+           setIsLoading(false);
+           setInitialLoadScrollTrigger(prev => prev + 1);
+           console.log("Page: Initial fetch complete, triggering initial scroll.");
+        }
         if (direction === "past") setIsFetchingMorePast(false);
         if (direction === "future") setIsFetchingMoreFuture(false);
         if (direction === "specific" && fetchingDatesRef.current.size === 0)
@@ -551,7 +556,7 @@ export const MealTimelinePage: React.FC = () => {
         // }
       }
     },
-    [userId, isLoading, isFetchingMorePast, isFetchingMoreFuture] // Include new loading states
+    [userId, isLoading, isFetchingMorePast, isFetchingMoreFuture]
   );
 
   // Handler for deleting a trace meal
@@ -1210,6 +1215,7 @@ export const MealTimelinePage: React.FC = () => {
         // Pass loaded date range boundaries
         loadedStartDate={loadedStartDateRef.current}
         loadedEndDate={loadedEndDateRef.current}
+        initialLoadScrollTrigger={initialLoadScrollTrigger}
       />
       {/* Overlay loader uses combined logic */}
       {showOverlayLoader && (

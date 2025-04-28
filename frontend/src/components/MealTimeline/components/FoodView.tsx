@@ -439,7 +439,7 @@ export const FoodView: React.FC<FoodViewProps> = ({
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
     }
-  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
+  }, [selectedDate, scrollToTodayTrigger]);
 
   // Determine visible bins based on expansion state
   const currentVisibleBinCount = isExpanded

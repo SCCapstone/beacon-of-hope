@@ -610,9 +610,19 @@ export const MealView: React.FC<MealViewProps> = ({
               inline: "nearest",
             });
           } else if (attempt < 3) {
-            const delay = 100 * attempt;
+            // console.log(
+            //   `${viewName}: Element #${scrollTarget} not found (Attempt ${attempt})`
+            // );
+            // Retry up to 3 times
+            const delay = 100 * attempt; // Increase delay slightly each time
+            // console.log(`${viewName}: Retrying scroll in ${delay}ms...`);
             setTimeout(() => attemptScroll(attempt + 1), delay);
           }
+          // else {
+          // console.log(
+          //   `${viewName}: Element #${scrollTarget} not found after ${attempt} attempts.`
+          // );
+          // }
         });
       };
 
@@ -627,7 +637,7 @@ export const MealView: React.FC<MealViewProps> = ({
       //   `${viewName}: Scroll effect skipped due to invalid selectedDate.`
       // );
     }
-  }, [selectedDate, scrollToTodayTrigger, allAvailableDates]);
+  }, [selectedDate, scrollToTodayTrigger]);
 
   const renderMealCard = (meal: Meal, date: Date) => {
     // Ensure meal.date is valid or fallback to the date passed in
