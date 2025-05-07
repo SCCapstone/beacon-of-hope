@@ -7,7 +7,7 @@ A context-aware meal recommendation system designed to help users make informed 
 - Personalized meal recommendations based on health conditions and demographics
 - Interactive meal exploration and categorization
 - Visual comparison of nutritional information
-- Health and demographic-aware filtering system
+- Health condition-aware filtering system
 
 ## 📋 Prerequisites
 
