@@ -79,12 +79,18 @@ Before you begin, ensure you have the following installed:
 └── misc/               # Documentation and design assets
 ```
 
-## 👥 Meet the Team
+## 👥 Meet the Development Team
 
 - [Vansh Nagpal](https://vnagpal25.github.io) - 2002vansh@gmail.com
 - [Nitin Gupta](https://g-nitin.github.io/portfolio/) - niting1209@gmail.com
 - [Zach Abdulrahman](https://zachabdulrahman.me) - zja@email.sc.edu
 - [Andy Davison](https://andrewdavison.dev) - ajd8@email.sc.edu
+
+## 👥 Meet our Mentors
+
+- [Biplav Srivastava (Client)](https://sites.google.com/site/biplavsrivastava/) - biplav.s@sc.edu
+- [Jose M. Vidal (Capstone Instructor)](https://jmvidal.cse.sc.edu/) - vidal@sc.edu
+
 
 ## 📝 Documentation
 
@@ -98,4 +104,8 @@ For more detailed information about the project:
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+5. Open a Pull Request (merge your feature branch into our main branch)
+
+### Note
+
+This project was completed as a part of the meal/group recommendation research effort carried out by the [AI 4 Society Research Group (AI4S)](https://ai4society.github.io/)
