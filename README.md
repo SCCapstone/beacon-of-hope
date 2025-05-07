@@ -8,7 +8,6 @@ A context-aware meal recommendation system designed to help users make informed 
 - Interactive meal exploration and categorization
 - Visual comparison of nutritional information
 - Health and demographic-aware filtering system
-- Ontology-based meal classification
 
 ## 📋 Prerequisites
 
